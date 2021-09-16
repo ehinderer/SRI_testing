@@ -1,0 +1,15 @@
+{
+    "url": "https://explanatory-agent.azurewebsites.net/v1.0/",
+    "TRAPI": true,
+    "KPs": [
+        "OpenPredict API",
+        "Translator Knowledge Collaboratory API",
+        "Genetics Provider",
+        "Molecular Data Provider for NCATS Biomedical Translator Reasoners",
+        "TCGA Mutation Frequency KP API",
+        "Multiomics Wellness KP API",
+        "Drug Response KP API",
+        "Columbia Open Health Data (COHD)",
+        "Clinical Risk KP API"
+    ]
+}
