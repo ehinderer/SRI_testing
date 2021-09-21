@@ -1,0 +1,59 @@
+test_triples/KP/Exposures_Provider/CAM-KP_API.json
+{
+    "message": {
+        "query_graph": {
+            "nodes": {
+                "a": {
+                    "category": "biolink:OrganismalEntity",
+                    "id": "GO:0019908"
+                },
+                "b": {
+                    "category": "biolink:MolecularEntity"
+                }
+            },
+            "edges": {
+                "ab": {
+                    "subject": "a",
+                    "object": "b",
+                    "predicate": "biolink:related_to"
+                }
+            }
+        },
+        "knowledge_graph": {
+            "nodes": {},
+            "edges": {}
+        },
+        "results": []
+    }
+}
+Status Code: 200
+{
+    "message": {
+        "query_graph": {
+            "nodes": {
+                "a": {
+                    "id": "GO:0019908",
+                    "category": "biolink:OrganismalEntity"
+                },
+                "b": {
+                    "category": "biolink:MolecularEntity"
+                }
+            },
+            "edges": {
+                "ab": {
+                    "predicate": [
+                        "biolink:related_to"
+                    ],
+                    "subject": "a",
+                    "object": "b"
+                }
+            }
+        },
+        "knowledge_graph": {
+            "nodes": {},
+            "edges": {}
+        },
+        "results": []
+    },
+    "status": "Success"
+}

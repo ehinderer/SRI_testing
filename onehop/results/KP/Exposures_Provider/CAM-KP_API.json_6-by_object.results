@@ -1,0 +1,59 @@
+test_triples/KP/Exposures_Provider/CAM-KP_API.json
+{
+    "message": {
+        "query_graph": {
+            "nodes": {
+                "a": {
+                    "category": "biolink:Protein"
+                },
+                "b": {
+                    "category": "biolink:Protein",
+                    "id": "http://purl.obolibrary.org/obo/go/extensions/reacto.owl#REACTO_R-HSA-2029115"
+                }
+            },
+            "edges": {
+                "ab": {
+                    "subject": "a",
+                    "object": "b",
+                    "predicate": "biolink:molecularly_interacts_with"
+                }
+            }
+        },
+        "knowledge_graph": {
+            "nodes": {},
+            "edges": {}
+        },
+        "results": []
+    }
+}
+Status Code: 200
+{
+    "message": {
+        "query_graph": {
+            "nodes": {
+                "a": {
+                    "category": "biolink:Protein"
+                },
+                "b": {
+                    "id": "REACTO:REACTO_R-HSA-2029115",
+                    "category": "biolink:Protein"
+                }
+            },
+            "edges": {
+                "ab": {
+                    "predicate": [
+                        "biolink:molecularly_interacts_with"
+                    ],
+                    "subject": "a",
+                    "object": "b"
+                }
+            }
+        },
+        "knowledge_graph": {
+            "nodes": {},
+            "edges": {}
+        },
+        "results": []
+    },
+    "status": "Success"
+}

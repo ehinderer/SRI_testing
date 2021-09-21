@@ -1,0 +1,11 @@
+Error generating results: No request generated?{
+    "subject_category": "biolink:ChemicalSubstance",
+    "object_category": "biolink:ChemicalSubstance",
+    "predicate": "biolink:related_to",
+    "subject": "CHEBI:2637",
+    "object": "CHEMBL.COMPOUND:CHEMBL1240832",
+    "location": "test_triples/KP/Ranking_Agent/Automat_Cord19_Scibite.json",
+    "api_name": "Automat_Cord19_Scibite.json",
+    "url": "https://automat.renci.org/cord19-scibite",
+    "query_opts": {}
+}

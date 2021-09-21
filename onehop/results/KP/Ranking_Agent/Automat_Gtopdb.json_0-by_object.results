@@ -1,0 +1,32 @@
+test_triples/KP/Ranking_Agent/Automat_Gtopdb.json
+{
+    "message": {
+        "query_graph": {
+            "nodes": {
+                "a": {
+                    "category": "biolink:ChemicalSubstance"
+                },
+                "b": {
+                    "category": "biolink:ChemicalSubstance",
+                    "id": "gtpo:6750"
+                }
+            },
+            "edges": {
+                "ab": {
+                    "subject": "a",
+                    "object": "b",
+                    "predicate": "biolink:has_part"
+                }
+            }
+        },
+        "knowledge_graph": {
+            "nodes": {},
+            "edges": {}
+        },
+        "results": []
+    }
+}
+Status Code: 404
+{
+    "detail": "Not Found"
+}

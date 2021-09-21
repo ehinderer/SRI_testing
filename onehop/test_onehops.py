@@ -193,7 +193,7 @@ def test_TRAPI_KPs(KP_TRAPI_case,trapi_creator,results_bag):
     """
     execute_TRAPI_lookup(KP_TRAPI_case,trapi_creator,results_bag)
 
-@pytest.mark.parametrize("trapi_creator", [by_subject, by_object, raise_subject_entity, raise_object_by_subject, raise_predicate_by_subject])
+# @pytest.mark.parametrize("trapi_creator", [by_subject, by_object, raise_subject_entity, raise_object_by_subject, raise_predicate_by_subject])
 def test_TRAPI_ARAs(ARA_TRAPI_case, trapi_creator, results_bag):
     """Generic Test for ARA TRAPI.  It does the same thing as the KP trapi, calling an ARA that should be pulling
     data from the KP.
@@ -203,3 +203,5 @@ def test_TRAPI_ARAs(ARA_TRAPI_case, trapi_creator, results_bag):
     response_message = execute_TRAPI_lookup(ARA_TRAPI_case,trapi_creator, results_bag)
     if response_message is not None:
         check_provenance(ARA_TRAPI_case,response_message)
+
+

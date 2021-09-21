@@ -1,0 +1,59 @@
+test_triples/KP/Exposures_Provider/CAM-KP_API.json
+{
+    "message": {
+        "query_graph": {
+            "nodes": {
+                "a": {
+                    "category": "biolink:MolecularActivity"
+                },
+                "b": {
+                    "category": "biolink:GeneOrGeneProduct",
+                    "id": "MGI:1342774"
+                }
+            },
+            "edges": {
+                "ab": {
+                    "subject": "a",
+                    "object": "b",
+                    "predicate": "biolink:enabled_by"
+                }
+            }
+        },
+        "knowledge_graph": {
+            "nodes": {},
+            "edges": {}
+        },
+        "results": []
+    }
+}
+Status Code: 200
+{
+    "message": {
+        "query_graph": {
+            "nodes": {
+                "a": {
+                    "category": "biolink:MolecularActivity"
+                },
+                "b": {
+                    "id": "MGI:1342774",
+                    "category": "biolink:GeneOrGeneProduct"
+                }
+            },
+            "edges": {
+                "ab": {
+                    "predicate": [
+                        "biolink:enabled_by"
+                    ],
+                    "subject": "a",
+                    "object": "b"
+                }
+            }
+        },
+        "knowledge_graph": {
+            "nodes": {},
+            "edges": {}
+        },
+        "results": []
+    },
+    "status": "Success"
+}

@@ -1,0 +1,11 @@
+Error generating results: No request generated?{
+    "subject_category": "biolink:Disease",
+    "object_category": "biolink:Disease",
+    "predicate": "biolink:superclass_of",
+    "subject": "DOID:0050686",
+    "object": "MONDO:0002087",
+    "location": "test_triples/KP/Service_Provider/Ontology_Lookup_Service_API.json",
+    "api_name": "Ontology_Lookup_Service_API.json",
+    "url": "https://api.bte.ncats.io/v1/smartapi/1c056ffc7ed0dd1229e71c4752239465",
+    "query_opts": {}
+}

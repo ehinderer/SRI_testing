@@ -1,0 +1,30 @@
+test_triples/KP/Exposures_Provider/CAM-KP_API.json
+{
+    "message": {
+        "query_graph": {
+            "nodes": {
+                "a": {
+                    "category": "biolink:MolecularActivity",
+                    "id": "GO:0003674"
+                },
+                "b": {
+                    "category": "biolink:MacromolecularMachineMixin"
+                }
+            },
+            "edges": {
+                "ab": {
+                    "subject": "a",
+                    "object": "b",
+                    "predicate": "biolink:enabled_by"
+                }
+            }
+        },
+        "knowledge_graph": {
+            "nodes": {},
+            "edges": {}
+        },
+        "results": []
+    }
+}
+Status Code: 400
+null

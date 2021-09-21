@@ -1,0 +1,32 @@
+test_triples/KP/Ranking_Agent/Automat_KEGG.json
+{
+    "message": {
+        "query_graph": {
+            "nodes": {
+                "a": {
+                    "category": "biolink:ChemicalSubstance"
+                },
+                "b": {
+                    "category": "biolink:ChemicalSubstance",
+                    "id": "CHEBI:30907"
+                }
+            },
+            "edges": {
+                "ab": {
+                    "subject": "a",
+                    "object": "b",
+                    "predicate": "biolink:derives_into"
+                }
+            }
+        },
+        "knowledge_graph": {
+            "nodes": {},
+            "edges": {}
+        },
+        "results": []
+    }
+}
+Status Code: 404
+{
+    "error": "No registered backend servers on /kegg/query"
+}

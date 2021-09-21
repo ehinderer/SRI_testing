@@ -1,0 +1,32 @@
+test_triples/KP/Ranking_Agent/Automat_Ontological_Hierarchy.json
+{
+    "message": {
+        "query_graph": {
+            "nodes": {
+                "a": {
+                    "category": "biolink:AnatomicalEntity"
+                },
+                "b": {
+                    "category": "biolink:AnatomicalEntity",
+                    "id": "UBERON:0035769"
+                }
+            },
+            "edges": {
+                "ab": {
+                    "subject": "a",
+                    "object": "b",
+                    "predicate": "biolink:subclass_of"
+                }
+            }
+        },
+        "knowledge_graph": {
+            "nodes": {},
+            "edges": {}
+        },
+        "results": []
+    }
+}
+Status Code: 404
+{
+    "detail": "Not Found"
+}

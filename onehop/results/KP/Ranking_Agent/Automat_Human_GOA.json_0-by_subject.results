@@ -1,0 +1,32 @@
+test_triples/KP/Ranking_Agent/Automat_Human_GOA.json
+{
+    "message": {
+        "query_graph": {
+            "nodes": {
+                "a": {
+                    "category": "biolink:Gene",
+                    "id": "NCBIGene:3949"
+                },
+                "b": {
+                    "category": "biolink:BiologicalProcess"
+                }
+            },
+            "edges": {
+                "ab": {
+                    "subject": "a",
+                    "object": "b",
+                    "predicate": "biolink:actively_involved_in"
+                }
+            }
+        },
+        "knowledge_graph": {
+            "nodes": {},
+            "edges": {}
+        },
+        "results": []
+    }
+}
+Status Code: 404
+{
+    "detail": "Not Found"
+}

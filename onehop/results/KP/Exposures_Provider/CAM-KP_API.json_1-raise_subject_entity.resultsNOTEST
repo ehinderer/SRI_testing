@@ -1,0 +1,11 @@
+Error generating results: No request generated?{
+    "subject_category": "biolink:GenomicEntity",
+    "object_category": "biolink:MolecularEntity",
+    "predicate": "biolink:interacts_with",
+    "subject": "UniProtKB:Q06187",
+    "object": "UniProtKB:P52735",
+    "location": "test_triples/KP/Exposures_Provider/CAM-KP_API.json",
+    "api_name": "CAM-KP_API.json",
+    "url": "https://stars-app.renci.org/cam-kp",
+    "query_opts": {}
+}

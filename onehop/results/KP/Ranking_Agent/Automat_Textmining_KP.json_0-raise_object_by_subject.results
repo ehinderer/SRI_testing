@@ -26,47 +26,7 @@ test_triples/KP/Ranking_Agent/Automat_Textmining_KP.json
         "results": []
     }
 }
-Status Code: 200
+Status Code: 404
 {
-    "message": {
-        "query_graph": {
-            "nodes": {
-                "a": {
-                    "id": [
-                        "PR:000029351"
-                    ],
-                    "category": [
-                        "biolink:GeneOrGeneProduct"
-                    ],
-                    "is_set": false,
-                    "constraints": null
-                },
-                "b": {
-                    "id": null,
-                    "category": [
-                        "biolink:OrganismalEntity"
-                    ],
-                    "is_set": false,
-                    "constraints": null
-                }
-            },
-            "edges": {
-                "ab": {
-                    "subject": "a",
-                    "object": "b",
-                    "predicate": [
-                        "biolink:related_to"
-                    ],
-                    "relation": null,
-                    "constraints": null
-                }
-            }
-        },
-        "knowledge_graph": {
-            "nodes": {},
-            "edges": {}
-        },
-        "results": []
-    },
-    "log_level": null
+    "detail": "Not Found"
 }

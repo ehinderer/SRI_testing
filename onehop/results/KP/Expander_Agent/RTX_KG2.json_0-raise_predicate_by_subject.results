@@ -4,11 +4,11 @@ test_triples/KP/Expander_Agent/RTX_KG2.json
         "query_graph": {
             "nodes": {
                 "a": {
-                    "category": "biolink:RelationshipType",
-                    "id": "RO:0002630"
+                    "category": "biolink:InformationContentEntity",
+                    "id": "biolink:chemical_to_chemical_derivation_association_catalyst_qualifier"
                 },
                 "b": {
-                    "category": "biolink:OntologyClass"
+                    "category": "biolink:InformationContentEntity"
                 }
             },
             "edges": {
@@ -26,10 +26,5 @@ test_triples/KP/Expander_Agent/RTX_KG2.json
         "results": []
     }
 }
-Status Code: 404
-{
-    "detail": "The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.",
-    "status": 404,
-    "title": "Not Found",
-    "type": "about:blank"
-}
+Status Code: 503
+null

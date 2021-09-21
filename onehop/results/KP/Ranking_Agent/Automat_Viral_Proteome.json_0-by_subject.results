@@ -1,0 +1,32 @@
+test_triples/KP/Ranking_Agent/Automat_Viral_Proteome.json
+{
+    "message": {
+        "query_graph": {
+            "nodes": {
+                "a": {
+                    "category": "biolink:Gene",
+                    "id": "UniProtKB:A3KCJ9"
+                },
+                "b": {
+                    "category": "biolink:OrganismTaxon"
+                }
+            },
+            "edges": {
+                "ab": {
+                    "subject": "a",
+                    "object": "b",
+                    "predicate": "biolink:in_taxon"
+                }
+            }
+        },
+        "knowledge_graph": {
+            "nodes": {},
+            "edges": {}
+        },
+        "results": []
+    }
+}
+Status Code: 404
+{
+    "detail": "Not Found"
+}

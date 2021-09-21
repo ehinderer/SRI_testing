@@ -28,6 +28,11 @@ test_triples/KP/Multiomics_Provider/Drug_Response_KP_API.json
 }
 Status Code: 200
 {
+    "workflow": [
+        {
+            "id": "lookup"
+        }
+    ],
     "message": {
         "query_graph": {
             "nodes": {
@@ -55,75 +60,39 @@ Status Code: 200
     },
     "logs": [
         {
-            "timestamp": "2021-05-13T02:41:55.545Z",
+            "timestamp": "2021-09-19T17:14:10.376Z",
             "level": "DEBUG",
             "message": "BTE identified 2 QNodes from your query graph",
             "code": null
         },
         {
-            "timestamp": "2021-05-13T02:41:55.545Z",
+            "timestamp": "2021-09-19T17:14:10.376Z",
             "level": "DEBUG",
             "message": "BTE identified 1 QEdges from your query graph",
             "code": null
         },
         {
-            "timestamp": "2021-05-13T02:41:55.545Z",
-            "level": "DEBUG",
-            "message": "BTE identified your query graph as a 1-depth query graph",
-            "code": null
-        },
-        {
-            "timestamp": "2021-05-13T02:41:55.547Z",
+            "timestamp": "2021-09-19T17:14:10.377Z",
             "level": "DEBUG",
             "message": "REDIS cache is not enabled.",
             "code": null
         },
         {
-            "timestamp": "2021-05-13T02:41:55.547Z",
+            "timestamp": "2021-09-19T17:14:10.391Z",
             "level": "DEBUG",
-            "message": "BTE is trying to find SmartAPI edges connecting from Carbohydrate,ProcessedMaterial,FoodComponent,EnvironmentalFoodContaminant,FoodAdditive,Nutrient,Macronutrient,Micronutrient,Vitamin,Metabolite,ChemicalExposure,ComplexChemicalExposure,ChemicalSubstance to Gene with predicate undefined",
+            "message": "BTE is trying to find SmartAPI edges connecting from OrganismTaxon,Event,AdministrativeEntity,Agent,InformationContentEntity,Dataset,DatasetDistribution,DatasetVersion,DatasetSummary,ConfidenceLevel,EvidenceType,InformationResource,Publication,Book,BookChapter,Serial,Article,PhysicalEntity,MaterialSample,Activity,Procedure,Phenomenon,Device,PlanetaryEntity,EnvironmentalProcess,EnvironmentalFeature,GeographicLocation,GeographicLocationAtTime,BiologicalEntity,BiologicalProcessOrActivity,MolecularActivity,BiologicalProcess,Pathway,PhysiologicalProcess,Behavior,PathologicalProcess,OrganismalEntity,LifeStage,IndividualOrganism,Case,PopulationOfIndividualOrganisms,StudyPopulation,Cohort,AnatomicalEntity,CellularComponent,Cell,GrossAnatomicalStructure,PathologicalAnatomicalStructure,CellLine,DiseaseOrPhenotypicFeature,Disease,PhenotypicFeature,BehavioralFeature,ClinicalFinding,Gene,Genome,Polypeptide,Protein,ProteinIsoform,GeneFamily,Genotype,Haplotype,SequenceVariant,Snv,ReagentTargetedGene,ChemicalEntity,MolecularEntity,SmallMolecule,NucleicAcidEntity,Exon,Transcript,RnaProduct,RnaProductIsoform,NoncodingRnaProduct,MicroRna,SiRna,CodingSequence,ChemicalMixture,MolecularMixture,Drug,ComplexMolecularMixture,ProcessedMaterial,Food,EnvironmentalFoodContaminant,FoodAdditive,Nutrient,Macronutrient,Micronutrient,Vitamin,ClinicalEntity,ClinicalTrial,ClinicalIntervention,Hospitalization,Treatment,NamedThing to OrganismTaxon,Event,AdministrativeEntity,Agent,InformationContentEntity,Dataset,DatasetDistribution,DatasetVersion,DatasetSummary,ConfidenceLevel,EvidenceType,InformationResource,Publication,Book,BookChapter,Serial,Article,PhysicalEntity,MaterialSample,Activity,Procedure,Phenomenon,Device,PlanetaryEntity,EnvironmentalProcess,EnvironmentalFeature,GeographicLocation,GeographicLocationAtTime,BiologicalEntity,BiologicalProcessOrActivity,MolecularActivity,BiologicalProcess,Pathway,PhysiologicalProcess,Behavior,PathologicalProcess,OrganismalEntity,LifeStage,IndividualOrganism,Case,PopulationOfIndividualOrganisms,StudyPopulation,Cohort,AnatomicalEntity,CellularComponent,Cell,GrossAnatomicalStructure,PathologicalAnatomicalStructure,CellLine,DiseaseOrPhenotypicFeature,Disease,PhenotypicFeature,BehavioralFeature,ClinicalFinding,Gene,Genome,Polypeptide,Protein,ProteinIsoform,GeneFamily,Genotype,Haplotype,SequenceVariant,Snv,ReagentTargetedGene,ChemicalEntity,MolecularEntity,SmallMolecule,NucleicAcidEntity,Exon,Transcript,RnaProduct,RnaProductIsoform,NoncodingRnaProduct,MicroRna,SiRna,CodingSequence,ChemicalMixture,MolecularMixture,Drug,ComplexMolecularMixture,ProcessedMaterial,Food,EnvironmentalFoodContaminant,FoodAdditive,Nutrient,Macronutrient,Micronutrient,Vitamin,ClinicalEntity,ClinicalTrial,ClinicalIntervention,Hospitalization,Treatment,NamedThing with predicate undefined",
             "code": null
         },
         {
-            "timestamp": "2021-05-13T02:41:55.547Z",
+            "timestamp": "2021-09-19T17:14:10.394Z",
             "level": "DEBUG",
-            "message": "BTE found 1 smartapi edges corresponding to ab. These smartaip edges comes from 1 unique APIs. They are Drug Response KP API",
+            "message": "BTE found 2 smartapi edges corresponding to ab. These smartaip edges comes from 1 unique APIs. They are Multiomics BigGIM-DrugResponse KP API",
             "code": null
         },
         {
-            "timestamp": "2021-05-13T02:41:55.547Z",
-            "level": "DEBUG",
-            "message": "BTE found 1 bte edges for this batch.",
-            "code": null
-        },
-        {
-            "timestamp": "2021-05-13T02:41:55.547Z",
-            "level": "DEBUG",
-            "message": "call-apis: Resolving ID feature is turned on",
-            "code": null
-        },
-        {
-            "timestamp": "2021-05-13T02:41:55.547Z",
-            "level": "DEBUG",
-            "message": "call-apis: Number of BTE Edges received is 1",
-            "code": null
-        },
-        {
-            "timestamp": "2021-05-13T02:41:55.559Z",
-            "level": "ERROR",
-            "message": "call-apis: Failed to make to following query: {\"url\":\"https://biothings.ncats.io/drug_response_kp/query\",\"params\":{\"fields\":\"association.context.disease.mondo,subject.NCBIGene,association.effect_size,association.pvalue\",\"q\":\"object.PUBCHEM:PUBCHEM:644215 AND association.effect_size:<0 AND association.pvalue:<0.05\",\"size\":\"1000\",\"sort\":\"association.pvalue\"},\"method\":\"get\",\"timeout\":50000}. The error is Error: Request failed with status code 400",
-            "code": null
-        },
-        {
-            "timestamp": "2021-05-13T02:41:55.559Z",
-            "level": "DEBUG",
-            "message": "call-apis: Total number of results returned for this query is 0",
-            "code": null
-        },
-        {
-            "timestamp": "2021-05-13T02:41:55.559Z",
-            "level": "DEBUG",
-            "message": "call-apis: Query completes",
+            "timestamp": "2021-09-19T17:14:10.394Z",
+            "level": "WARNING",
+            "message": "BTE didn't find any bte edges for this batch. Your query terminates.",
             "code": null
         }
     ]

@@ -1,0 +1,11 @@
+Error generating results: No request generated?{
+    "subject_category": "biolink:BiologicalEntity",
+    "object_category": "biolink:NamedThing",
+    "predicate": "biolink:physically_interacts_with",
+    "subject": "GO:1902911",
+    "object": "http://purl.obolibrary.org/obo/go/extensions/reacto.owl#REACTO_R-HSA-9672040",
+    "location": "test_triples/KP/Exposures_Provider/CAM-KP_API.json",
+    "api_name": "CAM-KP_API.json",
+    "url": "https://stars-app.renci.org/cam-kp",
+    "query_opts": {}
+}

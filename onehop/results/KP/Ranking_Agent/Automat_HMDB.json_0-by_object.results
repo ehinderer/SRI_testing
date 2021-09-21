@@ -1,0 +1,32 @@
+test_triples/KP/Ranking_Agent/Automat_HMDB.json
+{
+    "message": {
+        "query_graph": {
+            "nodes": {
+                "a": {
+                    "category": "biolink:ChemicalSubstance"
+                },
+                "b": {
+                    "category": "biolink:Gene",
+                    "id": "NCBIGene:29974"
+                }
+            },
+            "edges": {
+                "ab": {
+                    "subject": "a",
+                    "object": "b",
+                    "predicate": "biolink:interacts_with"
+                }
+            }
+        },
+        "knowledge_graph": {
+            "nodes": {},
+            "edges": {}
+        },
+        "results": []
+    }
+}
+Status Code: 404
+{
+    "detail": "Not Found"
+}

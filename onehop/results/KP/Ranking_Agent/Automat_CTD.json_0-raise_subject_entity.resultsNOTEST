@@ -1,0 +1,11 @@
+Error generating results: No request generated?{
+    "subject_category": "biolink:ChemicalSubstance",
+    "object_category": "biolink:Gene",
+    "predicate": "biolink:decreases_activity_of",
+    "subject": "CHEBI:31823",
+    "object": "NCBIGene:3558",
+    "location": "test_triples/KP/Ranking_Agent/Automat_CTD.json",
+    "api_name": "Automat_CTD.json",
+    "url": "https://automat.renci.org/ctd",
+    "query_opts": {}
+}

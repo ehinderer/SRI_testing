@@ -26,10 +26,5 @@ test_triples/KP/Molecular_Data_Provider/MolePro.json
         "results": []
     }
 }
-Status Code: 501
-{
-    "detail": "Variable-source queries not yet implemented",
-    "status": 501,
-    "title": "Not Implemented",
-    "type": "about:blank"
-}
+Status Code: 502
+null

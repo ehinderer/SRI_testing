@@ -1,0 +1,11 @@
+Error generating results: No request generated?{
+    "subject_category": "biolink:ChemicalSubstance",
+    "object_category": "biolink:ChemicalSubstance",
+    "predicate": "biolink:similar_to",
+    "subject": "CHEBI:50985",
+    "object": "CHEBI:33609",
+    "location": "test_triples/KP/Ranking_Agent/Automat_Chemical_normalization.json",
+    "api_name": "Automat_Chemical_normalization.json",
+    "url": "https://automat.renci.org/chemical-normalization",
+    "query_opts": {}
+}

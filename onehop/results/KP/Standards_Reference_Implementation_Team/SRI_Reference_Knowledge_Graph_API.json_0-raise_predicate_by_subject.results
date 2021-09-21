@@ -1,0 +1,41 @@
+test_triples/KP/Standards_Reference_Implementation_Team/SRI_Reference_Knowledge_Graph_API.json
+{
+    "message": {
+        "query_graph": {
+            "nodes": {
+                "a": {
+                    "category": "biolink:Gene",
+                    "id": "ENSEMBL:ENSG00000175344"
+                },
+                "b": {
+                    "category": "biolink:BiologicalProcess"
+                }
+            },
+            "edges": {
+                "ab": {
+                    "subject": "a",
+                    "object": "b",
+                    "predicate": "biolink:participates_in"
+                }
+            }
+        },
+        "knowledge_graph": {
+            "nodes": {},
+            "edges": {}
+        },
+        "results": []
+    }
+}
+Status Code: 422
+{
+    "detail": [
+        {
+            "loc": [
+                "body",
+                "message"
+            ],
+            "msg": "Query graph should contain at least one bound node.",
+            "type": "assertion_error"
+        }
+    ]
+}

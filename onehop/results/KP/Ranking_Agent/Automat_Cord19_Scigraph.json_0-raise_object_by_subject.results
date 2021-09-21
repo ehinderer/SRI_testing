@@ -1,0 +1,32 @@
+test_triples/KP/Ranking_Agent/Automat_Cord19_Scigraph.json
+{
+    "message": {
+        "query_graph": {
+            "nodes": {
+                "a": {
+                    "category": "biolink:ChemicalSubstance",
+                    "id": "CHEBI:52214"
+                },
+                "b": {
+                    "category": "biolink:GenomicEntity"
+                }
+            },
+            "edges": {
+                "ab": {
+                    "subject": "a",
+                    "object": "b",
+                    "predicate": "biolink:related_to"
+                }
+            }
+        },
+        "knowledge_graph": {
+            "nodes": {},
+            "edges": {}
+        },
+        "results": []
+    }
+}
+Status Code: 404
+{
+    "error": "No registered backend servers on /cord19-scigraph/query"
+}

@@ -1,0 +1,59 @@
+test_triples/KP/Exposures_Provider/CAM-KP_API.json
+{
+    "message": {
+        "query_graph": {
+            "nodes": {
+                "a": {
+                    "category": "biolink:BiologicalEntity"
+                },
+                "b": {
+                    "category": "biolink:NamedThing",
+                    "id": "http://purl.obolibrary.org/obo/go/extensions/reacto.owl#REACTO_R-HSA-9672040"
+                }
+            },
+            "edges": {
+                "ab": {
+                    "subject": "a",
+                    "object": "b",
+                    "predicate": "biolink:physically_interacts_with"
+                }
+            }
+        },
+        "knowledge_graph": {
+            "nodes": {},
+            "edges": {}
+        },
+        "results": []
+    }
+}
+Status Code: 200
+{
+    "message": {
+        "query_graph": {
+            "nodes": {
+                "a": {
+                    "category": "biolink:BiologicalEntity"
+                },
+                "b": {
+                    "id": "REACTO:REACTO_R-HSA-9672040",
+                    "category": "biolink:NamedThing"
+                }
+            },
+            "edges": {
+                "ab": {
+                    "predicate": [
+                        "biolink:physically_interacts_with"
+                    ],
+                    "subject": "a",
+                    "object": "b"
+                }
+            }
+        },
+        "knowledge_graph": {
+            "nodes": {},
+            "edges": {}
+        },
+        "results": []
+    },
+    "status": "Success"
+}

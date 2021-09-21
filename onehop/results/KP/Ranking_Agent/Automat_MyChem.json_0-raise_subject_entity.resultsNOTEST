@@ -1,0 +1,11 @@
+Error generating results: No request generated?{
+    "subject_category": "biolink:ChemicalSubstance",
+    "object_category": "biolink:PhenotypicFeature",
+    "predicate": "biolink:causes_adverse_event",
+    "subject": "CHEBI:9620",
+    "object": "UMLS:C4523957",
+    "location": "test_triples/KP/Ranking_Agent/Automat_MyChem.json",
+    "api_name": "Automat_MyChem.json",
+    "url": "https://automat.renci.org/mychem",
+    "query_opts": {}
+}

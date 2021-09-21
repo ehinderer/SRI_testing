@@ -1,0 +1,32 @@
+test_triples/KP/Ranking_Agent/Automat_Hetio.json
+{
+    "message": {
+        "query_graph": {
+            "nodes": {
+                "a": {
+                    "category": "biolink:CellularComponent",
+                    "id": "GO:0044309"
+                },
+                "b": {
+                    "category": "biolink:Gene"
+                }
+            },
+            "edges": {
+                "ab": {
+                    "subject": "a",
+                    "object": "b",
+                    "predicate": "biolink:expresses"
+                }
+            }
+        },
+        "knowledge_graph": {
+            "nodes": {},
+            "edges": {}
+        },
+        "results": []
+    }
+}
+Status Code: 404
+{
+    "detail": "Not Found"
+}

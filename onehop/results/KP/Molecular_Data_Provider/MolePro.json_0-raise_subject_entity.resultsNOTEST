@@ -1,0 +1,11 @@
+Error generating results: No request generated?{
+    "subject_category": "biolink:ChemicalSubstance",
+    "object_category": "biolink:Disease",
+    "predicate": "biolink:treats",
+    "subject": "CHEBI:3002",
+    "object": "MESH:D001249",
+    "location": "test_triples/KP/Molecular_Data_Provider/MolePro.json",
+    "api_name": "MolePro.json",
+    "url": "https://translator.broadinstitute.org/molepro/trapi/v1.0",
+    "query_opts": {}
+}

@@ -1,0 +1,32 @@
+test_triples/KP/Ranking_Agent/Automat_GTEx.json
+{
+    "message": {
+        "query_graph": {
+            "nodes": {
+                "a": {
+                    "category": "biolink:SequenceVariant",
+                    "id": "CAID:CA16727036"
+                },
+                "b": {
+                    "category": "biolink:GenomicEntity"
+                }
+            },
+            "edges": {
+                "ab": {
+                    "subject": "a",
+                    "object": "b",
+                    "predicate": "biolink:affects_splicing_of"
+                }
+            }
+        },
+        "knowledge_graph": {
+            "nodes": {},
+            "edges": {}
+        },
+        "results": []
+    }
+}
+Status Code: 404
+{
+    "detail": "Not Found"
+}

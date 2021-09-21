@@ -1,0 +1,11 @@
+Error generating results: No request generated?{
+    "subject_category": "biolink:AnatomicalEntity",
+    "object_category": "biolink:AnatomicalEntity",
+    "predicate": "biolink:subclass_of",
+    "subject": "UBERON:0005453",
+    "object": "UBERON:0035769",
+    "location": "test_triples/KP/Ranking_Agent/Automat_Ontological_Hierarchy.json",
+    "api_name": "Automat_Ontological_Hierarchy.json",
+    "url": "https://automat.renci.org/ontological-hierarchy",
+    "query_opts": {}
+}
