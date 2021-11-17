@@ -1,7 +1,7 @@
-biothings-explorer==1.0.2
+biothings-explorer>=1.1.0
 httpx
 pytest
 pytest-asyncio
 pytest-harvest
-bmt
-reasoner-validator==1.0.2.1.0.2
+bmt>=0.7.6
+reasoner-validator==2.1.0
