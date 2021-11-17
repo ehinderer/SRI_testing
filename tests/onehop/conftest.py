@@ -2,7 +2,8 @@ import os
 import json
 from collections import defaultdict
 from pytest_harvest import get_session_results_dct
-import test_onehops
+from tests.onehop import test_onehops
+
 
 def pytest_sessionfinish(session):
     """ Gather all results and save them to a csv.

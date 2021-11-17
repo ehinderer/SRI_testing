@@ -1,6 +1,12 @@
 import requests
 
+
 def post(url, message, params=None):
+    """
+    :param url
+    :param message
+    :param params
+    """
     if params is None:
         response = requests.post(url, json=message)
     else:
@@ -9,6 +15,7 @@ def post(url, message, params=None):
         print('error:', response.status_code)
         return {}
     return response.json()
+
 
 def convert_to_preferred(curie,allowedlist):
     j = {'curies':[curie]}
@@ -19,7 +26,12 @@ def convert_to_preferred(curie,allowedlist):
             return nid
     return None
 
-def get_ontology_ancestors(curie,btype):
+
+def get_ontology_ancestors(curie, btype):
+    """
+    :param curie:
+    :param btype:
+    """
     m ={
     "message": {
         "query_graph": {
@@ -40,7 +52,7 @@ def get_ontology_ancestors(curie,btype):
             }
         }}}
     url = 'https://stars-app.renci.org/sparql-kp/query'
-    response = post(url,m)
+    response = post(url, m)
     original_prefix = curie.split(':')[0]
     ancestors = []
     for result in response['message']['results']:

@@ -12,6 +12,9 @@ missing_predicates = {}
 
 
 def aggregate_missing_predicates():
+    """
+    Aggregating missing predicates
+    """
     specs = load_specs()
     for spec in specs:
         if not 'x-translator' in spec['info']:
@@ -34,7 +37,11 @@ def aggregate_missing_predicates():
 
 
 def dump_smartapi_predicate_results(apititle):
-    """Create a template for a single REST-style KP smartAPI entry"""
+    """
+    Create a template for a single REST-style KP smartAPI entry.
+    
+    :param apititle:
+    """
     metakgurl = f'https://smart-api.info/api/metakg?api={apititle}'
     response = requests.get(metakgurl)
     for kgrecord in response.json()['associations']:
@@ -60,26 +67,38 @@ def dump_smartapi_predicate_results(apititle):
 
 
 def in_biolink_model(predicate):
+    """
+    Predicate method to check if an edge predicate is known to the Biolink Model.
+    
+    :param predicate:
+    """
     is_predicate = tk.is_predicate(predicate)
     return is_predicate
 
 
 def dump_trapi_predicate_results(url, predicates, team):
-        for source in predicates:
-            for target in predicates[source]:
-                for ptype in predicates[source][target]:
-                    predicate = ptype
-                    object = target
-                    subject = source
-                    if in_biolink_model(predicate):
-                        continue
+    """
+    Dump TRAPI predicate results.
+    
+    :param url:
+    :param predicates:
+    :param team:`
+    """
+    for source in predicates:
+        for target in predicates[source]:
+            for ptype in predicates[source][target]:
+                predicate = ptype
+                object = target
+                subject = source
+                if in_biolink_model(predicate):
+                    continue
+                else:
+                    if predicate in missing_predicates:
+                        if url not in missing_predicates[predicate]:
+                            missing_predicates[predicate].append(url)
                     else:
-                        if predicate in missing_predicates:
-                            if url not in missing_predicates[predicate]:
-                                missing_predicates[predicate].append(url)
-                        else:
-                            missing_predicates[predicate] = [url]
-                        tsv_writer.writerow([subject, predicate, object, team, url])
+                        missing_predicates[predicate] = [url]
+                    tsv_writer.writerow([subject, predicate, object, team, url])
 
 
 if __name__ == '__main__':

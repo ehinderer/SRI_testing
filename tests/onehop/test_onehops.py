@@ -5,7 +5,7 @@ import requests
 from bmt import Toolkit
 from jsonschema.exceptions import ValidationError
 from reasoner_validator import validate
-import ontology_kp
+from tests.onehop import ontology_kp
 from copy import deepcopy
 
 import logging
