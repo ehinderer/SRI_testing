@@ -10,14 +10,14 @@ from copy import deepcopy
 
 import logging
 
-from tests import DEFAULT_TRAPI_VERSION
+from tests import DEFAULT_TRAPI_VERSION, DEFAULT_BIOLINK_MODEL_SCHEMA
 
 logger = logging.getLogger(__name__)
 logger.setLevel("DEBUG")
 
 # Toolkit takes a couple of seconds to initialize, so don't want it per-test
 # note also that we are explictly controlling which version of biolink we are using.
-tk = Toolkit('https://raw.githubusercontent.com/biolink/biolink-model/1.6.0/biolink-model.yaml')
+tk = Toolkit(DEFAULT_BIOLINK_MODEL_SCHEMA)
 
 
 def create_one_hop_message(edge, look_up_subject=False):

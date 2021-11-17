@@ -1,11 +1,12 @@
 import csv
-import bmt
+from bmt import Toolkit
 import requests
 import create_templates
 import json
+from tests import DEFAULT_BIOLINK_MODEL_SCHEMA
 from biothings_explorer.smartapi_kg.dataload import load_specs
 
-tk = bmt.Toolkit('https://raw.githubusercontent.com/biolink/biolink-model/1.6.0/biolink-model.yaml')
+tk = Toolkit(DEFAULT_BIOLINK_MODEL_SCHEMA)
 tsv_file = open("missing_predicates.tsv", "a")
 tsv_writer = csv.writer(tsv_file, delimiter='\t')
 missing_predicates = {}
