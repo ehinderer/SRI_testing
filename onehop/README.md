@@ -1,7 +1,14 @@
 # One-hop Tests
 
-This suite tests our ability to retrieve given triples, which we know exist, from their KPs under a variety of transformations, both directly, and via ARAs.
+This suite tests our ability to retrieve given "one hop" triples, which we know exist, from their KPs under a variety of transformations, both directly, and via ARAs.
 
+- [Specifying the Tests](#specifying-the-tests)
+    - [KP Instructions](#kp-instructions)
+    - [ARA Instructions](#ara-instructions)
+- [Running the Tests](#running-the-tests)
+
+# Specifying the Tests
+    
 The tests are generated from the files in `test_triples/KP`.  For each KP, it is quereied for the triples contained in its associated json file.  Then, ARAs are
 queried for those triples according to the annotations in `test_triples/ARA` denoting from which KPs each ARA receives information.
 
@@ -121,7 +128,7 @@ In order to correctly link ARAs to KPs, ARAs will need to
 2. Edit the copied file to remove KPs that the ARA does not access.
 3. If an ARA needs particular query options, these can also be added to the json (See Ranking_Agent/ARAGORN.json)
 
-## Running Tests
+## Running the Tests
 
 Tests are implemented with pytest.  To run all tests, simply run
 ```
