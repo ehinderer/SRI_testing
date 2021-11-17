@@ -1,0 +1,11 @@
+Error generating results: No request generated?{
+    "subject_category": "biolink:GenomicEntity",
+    "object_category": "biolink:Agent",
+    "predicate": "biolink:related_to",
+    "subject": "UMLS:C0752046",
+    "object": "MESH:D004781",
+    "location": "test_triples/KP\\Expander_Agent/RTX_KG2.json",
+    "api_name": "RTX_KG2.json",
+    "url": "https://arax.ncats.io/api/rtxkg2/v1.1/query",
+    "query_opts": {}
+}

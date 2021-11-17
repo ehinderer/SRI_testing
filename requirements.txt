@@ -1,7 +1,10 @@
-biothings-explorer>=1.1.0
+python-dateutil>=2.8.2
+requests~=2.26.0
+jsonschema~=3.2.0
 httpx
-pytest
-pytest-asyncio
-pytest-harvest
+biothings-explorer>=1.1.0
 bmt>=0.7.6
 reasoner-validator==2.1.0
+pytest~=6.2.5
+pytest-asyncio
+pytest-harvest

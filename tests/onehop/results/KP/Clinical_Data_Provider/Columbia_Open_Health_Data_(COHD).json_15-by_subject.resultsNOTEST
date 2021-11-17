@@ -1,0 +1,11 @@
+Error generating results: No request generated?{
+    "subject_category": "biolink:Procedure",
+    "object_category": "biolink:Procedure",
+    "predicate": "biolink:correlated_with",
+    "subject": "UMLS:C0040591",
+    "object": "UMLS:C0015357",
+    "location": "test_triples/KP\\Clinical_Data_Provider/Columbia_Open_Health_Data_(COHD).json",
+    "api_name": "Columbia_Open_Health_Data_(COHD).json",
+    "url": "http://tr-kp-clinical.ncats.io/api",
+    "query_opts": {}
+}

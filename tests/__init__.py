@@ -1,0 +1,4 @@
+"""
+SRI Tests
+"""
+DEFAULT_TRAPI_VERSION = "1.2.0"

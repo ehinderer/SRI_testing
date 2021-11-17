@@ -1,0 +1,11 @@
+Error generating results: No request generated?{
+    "subject_category": "biolink:DiseaseOrPhenotypicFeature",
+    "object_category": "biolink:DiseaseOrPhenotypicFeature",
+    "predicate": "biolink:correlated_with",
+    "subject": "MONDO:0004981",
+    "object": "HP:0001692",
+    "location": "test_triples/KP\\Clinical_Data_Provider/Columbia_Open_Health_Data_(COHD).json",
+    "api_name": "Columbia_Open_Health_Data_(COHD).json",
+    "url": "http://tr-kp-clinical.ncats.io/api",
+    "query_opts": {}
+}
