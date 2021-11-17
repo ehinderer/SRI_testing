@@ -131,7 +131,7 @@ dmypy.json
 .pyre/
 
 # PyCharm IDEA metadata
-.idea/
+.idea
 
 # Mac OSX ignored
 .DS_Store
