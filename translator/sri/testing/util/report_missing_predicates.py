@@ -1,7 +1,7 @@
 import csv
 from bmt import Toolkit
 import requests
-import create_templates
+from translator.sri.testing.util import create_templates
 import json
 from tests import DEFAULT_BIOLINK_MODEL_SCHEMA
 from biothings_explorer.smartapi_kg.dataload import load_specs
