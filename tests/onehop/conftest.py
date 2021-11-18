@@ -1,5 +1,5 @@
 """
-Configure tests
+Configure onehop tests
 """
 import os
 import json
@@ -72,6 +72,10 @@ def _build_filelist(entry):
             for f in filenames:
                 kpfile = f'{dirpath}/{f}'
                 filelist.append(kpfile)
+                
+    # skip specific test files or folders, if so tagged
+    filelist = [fp for fp in filelist if "SKIP" not in fp]
+    
     return filelist
 
 
