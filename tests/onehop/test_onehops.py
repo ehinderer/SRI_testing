@@ -43,9 +43,9 @@ def create_one_hop_message(edge, look_up_subject=False):
         }
     }
     if look_up_subject:
-        query_graph['nodes']['b']['id'] = edge['object']
+        query_graph['nodes']['b']['ids'] = [edge['object']]
     else:
-        query_graph['nodes']['a']['id'] = edge['subject']
+        query_graph['nodes']['a']['ids'] = [edge['subject']]
     message = {"message": {"query_graph": query_graph, 'knowledge_graph': {"nodes": {}, "edges": {}, }, 'results': []}}
     return message
 
