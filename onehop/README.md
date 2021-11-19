@@ -119,7 +119,6 @@ For each ARA, we want to ensure that it is able to extract information correctly
 In order to correctly link ARAs to KPs, ARAs will need to 
 1. Copy the ARA template from `templates` to the corresponding place in `test_triples`
 2. Edit the copied file to remove KPs that the ARA does not access.
-3. If an ARA needs particular query options, these can also be added to the json (See Ranking_Agent/ARAGORN.json)
 
 ## Running Tests
 
