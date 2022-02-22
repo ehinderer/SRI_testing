@@ -1,6 +1,8 @@
 # SRI Testing
 
 This repository contains a compendium of semantics-driven tests for assessing Knowledge Providers (KPs) and Autonomous Relay Agents (ARAs) within the [Biomedical Data Translator](https://ncats.nih.gov/translator).
+# Translator Status Dashboard Scripts
+Generates data for the Status Dashboard by
 
 # Dependencies
 

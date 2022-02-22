@@ -32,7 +32,7 @@ Status Code: 200
     "message": {},
     "reasoner_id": "ICEES",
     "tool_version": "4.0.0",
-    "datetime": "2021-09-09/19/21 17:13:43",
+    "datetime": "2021-09-09/23/21 19:48:26",
     "message_code": "Error",
     "code_description": "Traceback (most recent call last):\n  File \"./features/knowledgegraph.py\", line 465, in one_hop\n    source_curie = source_node[\"curie\"]\nKeyError: 'curie'\n"
 }
