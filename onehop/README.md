@@ -1,8 +1,17 @@
 # One-hop Tests
 
+- [Overview](#overview)
+- [KP Instructions](#kp-instructions)
+- [#ARA Instructions](#ara-instructions)
+- [Running the Tests](#running-the-tests)
+    - [Running only the KP tests](#running-only-the-kp-tests)
+    - [Running only the ARA tests](#running-only-the-ara-tests)
+
+## Overview
+
 This suite tests our ability to retrieve given triples, which we know exist, from their KPs under a variety of transformations, both directly, and via ARAs.
 
-The tests are generated from the files in `test_triples/KP`.  For each KP, it is quereied for the triples contained in its associated json file.  Then, ARAs are
+The tests are generated from the files in `test_triples/KP`.  For each KP, it is queried for the triples contained in its associated json file.  Then, ARAs are
 queried for those triples according to the annotations in `test_triples/ARA` denoting from which KPs each ARA receives information.
 
 ## KP Instructions
@@ -78,6 +87,7 @@ we will be assuming (and testing) the ability of the KP to handle inverted edges
 more general level.  If, say, there are triples where all that is known is an "affects_expression_of" predicate, then that should be included.
 
 So the steps for a KP:
+
 1. copy a template json from `templates` into a corresponding location in `test_triples`
 2. filter out logically derivable template entries
 3. fill in the subject and object entries for each triple with a real identifiers that should be retrievable from the KP
@@ -116,17 +126,20 @@ For each ARA, we want to ensure that it is able to extract information correctly
 
 ```
 
-In order to correctly link ARAs to KPs, ARAs will need to 
+In order to correctly link ARAs to KPs, ARAs will need to:
+
 1. Copy the ARA template from `templates` to the corresponding place in `test_triples`
 2. Edit the copied file to remove KPs that the ARA does not access.
 
-## Running Tests
+## Running the Tests
 
 Tests are implemented with pytest.  To run all tests, simply run
 ```
 pytest test_onehops.py
 ```
 But this takes quite some time, so frequently you will want to limit the tests run.
+
+### Running only the KP tests
 
 To run only KP tests:
 ```
@@ -150,6 +163,8 @@ or
 ```
 pytest test_onehops.py::test_TRAPI_KPs --triple_source=test_triples/KP/Ranking_Agent/Automat_CTD.json
 ```
+
+### Running only the ARA tests
 
 To run only ARA tests (testing all ARAs for all KPs)
 ```

@@ -4,7 +4,7 @@ This repository contains a compendium of semantics-driven tests for assessing Kn
 
 # Dependencies
 
-The tests are run using Python 3.6 or better. Creation of a virtual environment is recommended.
+The tests are run using Python 3.7 or better. Creation of a virtual environment is recommended.
 
 ## Python Dependencies
 
