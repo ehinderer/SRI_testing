@@ -4,7 +4,7 @@ This repository contains a compendium of semantics-driven tests for assessing Kn
 
 # Getting Started
 
-The tests are run using Python 3.6 or better. Creation of a virtual environment is recommended.
+The tests are run using Python 3.7 or better. Creation of a virtual environment is recommended.
 
 A portion of the test suite may be operating system aware. The tests are not guaranteed to work properly under Microsoft Windows.
 
