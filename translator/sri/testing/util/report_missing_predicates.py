@@ -1,12 +1,14 @@
 import csv
-from bmt import Toolkit
 import requests
-from translator.sri.testing.util import create_templates
+
 import json
-from tests import DEFAULT_BIOLINK_MODEL_SCHEMA
 from biothings_explorer.smartapi_kg.dataload import load_specs
 
-tk = Toolkit(DEFAULT_BIOLINK_MODEL_SCHEMA)
+from tests.onehop.conftest import get_toolkit
+from translator.sri.testing import create_templates
+
+_bmtk = get_toolkit()
+
 tsv_file = open("missing_predicates.tsv", "a")
 tsv_writer = csv.writer(tsv_file, delimiter='\t')
 missing_predicates = {}
@@ -18,7 +20,7 @@ def aggregate_missing_predicates():
     """
     specs = load_specs()
     for spec in specs:
-        if not 'x-translator' in spec['info']:
+        if 'x-translator' not in spec['info']:
             continue
         team = create_templates.get_team(spec)
         url = spec['servers'][0]['url']
@@ -73,7 +75,7 @@ def in_biolink_model(predicate):
     
     :param predicate:
     """
-    is_predicate = tk.is_predicate(predicate)
+    is_predicate = _bmtk.is_predicate(predicate)
     return is_predicate
 
 

@@ -2,22 +2,19 @@
 One Hops Testing Suite
 """
 import requests
-from bmt import Toolkit
 from jsonschema.exceptions import ValidationError
 from reasoner_validator import validate
+
+from tests.onehop.conftest import get_toolkit, get_trapi_version
 from translator.sri.testing.util import ontology_kp
 from copy import deepcopy
 
 import logging
 
-from tests import DEFAULT_TRAPI_VERSION, DEFAULT_BIOLINK_MODEL_SCHEMA
-
 logger = logging.getLogger(__name__)
 logger.setLevel("DEBUG")
 
-# Toolkit takes a couple of seconds to initialize, so don't want it per-test
-# note also that we are explictly controlling which version of biolink we are using.
-tk = Toolkit(DEFAULT_BIOLINK_MODEL_SCHEMA)
+_bmtk = get_toolkit()
 
 
 def create_one_hop_message(edge, look_up_subject=False):
@@ -76,7 +73,7 @@ def by_object(request):
 def inverse_by_new_subject(request):
     """Given a known triple, create a TRAPI message that inverts the predicate, then looks up the new
     object by the new subject (original object)"""
-    original_predicate_element = tk.get_element(request['predicate'])
+    original_predicate_element = _bmtk.get_element(request['predicate'])
     if original_predicate_element['symmetric']:
         transformed_predicate = request['predicate']
     else:
@@ -84,7 +81,7 @@ def inverse_by_new_subject(request):
         if transformed_predicate_name is None:
             transformed_predicate = None
         else:
-            tp = tk.get_element(transformed_predicate_name)
+            tp = _bmtk.get_element(transformed_predicate_name)
             transformed_predicate = tp.slot_uri
     # Not everything has an inverse (it should, and it will, but it doesn't right now)
     if transformed_predicate is None:
@@ -108,8 +105,8 @@ def raise_predicate_by_subject(request):
     the object by the subject"""
     transformed_request = request.copy()  # there's no depth to request, so it's ok
     if request['predicate'] != 'biolink:related_to':
-        original_predicate_element = tk.get_element(request['predicate'])
-        parent = tk.get_element(original_predicate_element['is_a'])
+        original_predicate_element = _bmtk.get_element(request['predicate'])
+        parent = _bmtk.get_element(original_predicate_element['is_a'])
         transformed_request['predicate'] = parent['slot_uri']
     message = create_one_hop_message(transformed_request, look_up_subject=False)
     return message, 'object', 'b'
@@ -118,9 +115,9 @@ def raise_predicate_by_subject(request):
 def raise_object_by_subject(request):
     """Given a known triple, create a TRAPI message that uses the parent of the original object category and looks up
     the object by the subject"""
-    original_object_element = tk.get_element(request['object_category'])
+    original_object_element = _bmtk.get_element(request['object_category'])
     transformed_request = request.copy()  # there's no depth to request, so it's ok
-    parent = tk.get_element(original_object_element['is_a'])
+    parent = _bmtk.get_element(original_object_element['is_a'])
     transformed_request['object_category'] = parent['class_uri']
     message = create_one_hop_message(transformed_request, look_up_subject=False)
     return message, 'object', 'b'
@@ -156,13 +153,13 @@ def call_trapi(url, opts, trapi_message):
     return {'status_code': response.status_code, 'response_json': response_json}
 
 
-def is_valid_trapi(instance, component="Query", trapi_version=DEFAULT_TRAPI_VERSION):
+def is_valid_trapi(instance, component="Query"):
     """Make sure that the Message is valid using reasoner_validator"""
     try:
         validate(
             instance=instance,
             component=component,
-            trapi_version=trapi_version
+            trapi_version=get_trapi_version()
         )
         return True
     except ValidationError as e:

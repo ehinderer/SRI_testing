@@ -5,9 +5,12 @@ import os
 import json
 from collections import defaultdict
 from json import JSONDecodeError
+from typing import Optional
 
+from bmt import Toolkit
 from pytest_harvest import get_session_results_dct
 from tests.onehop import test_onehops
+from translator.biolink import get_biolink_model_schema
 
 
 def pytest_sessionfinish(session):
@@ -60,13 +63,21 @@ def pytest_addoption(parser):
         "--ARA_source", action="store", default='test_triples/ARA',
         help="Directory or file from which to retrieve ARA Config"
     )
+    parser.addoption(
+        "-t", "--TRAPI_version", action="store",  # we'll use the reasoner_validation default?
+        help='TRAPI API release to use for the tests (default: latest public release)'
+    )
+    parser.addoption(
+        "-b", "--biolink_model_version", action="store",  # we'll use the Biolink Model Toolkit default?
+        help='Biolink Model release to use for the tests (default: latest Biolink Model Toolkit default)'
+    )
 
 
 def _fix_path(file_path: str) -> str:
     """
     Fixes OS specific path string issues (especially, for MS Windows
     
-    :param path: file path to be repaired
+    :param file_path: file path to be repaired
     """
     file_path = file_path.replace("\\", "/")
     return file_path
@@ -92,6 +103,40 @@ def _build_filelist(entry):
                 filelist.append(kpfile)
     
     return filelist
+
+
+_bmt_toolkit = None
+
+
+def get_toolkit() -> Optional[Toolkit]:
+    global _bmt_toolkit
+    if not _bmt_toolkit:
+        raise RuntimeError("Biolink Model Toolkit is not initialized?!?")
+    return _bmt_toolkit
+
+
+_default_trapi_version = None
+
+
+def get_trapi_version() -> Optional[str]:
+    # This TRAPI release variable is allowed to be None if not reset below by pytest CLI
+    # since the ReasonerAPI Validator defaults to using the 'latest' TRAPI release
+    global _default_trapi_version
+    return _default_trapi_version
+
+
+# Toolkit takes a couple of seconds to initialize, so don't want it per-test
+def global_test_configuration(metafunc):
+    # Note here that we let BMT control which version of Biolink we are using,
+    # unless the value for which is overridden on the CLI
+    global _bmt_toolkit, _default_trapi_version
+    biolink_version = metafunc.config.getoption('biolink_model_version')
+    if biolink_version:
+        biolink_schema = get_biolink_model_schema()
+        _bmt_toolkit = Toolkit(biolink_schema)
+    else:
+        _bmt_toolkit = Toolkit()
+    _default_trapi_version = metafunc.config.getoption('TRAPI_version')
 
 
 def generate_trapi_kp_tests(metafunc):
@@ -186,5 +231,6 @@ def pytest_generate_tests(metafunc):
     and use them to parameterize inputs to the test functions. Note that this gets called multiple times, once
     for each test_* function, and you can only parameterize an argument to that specific test_* function.
     However, for the ARA tests, we still need to get the KP data, since that is where the triples live."""
+    global_test_configuration(metafunc)
     trapi_kp_edges = generate_trapi_kp_tests(metafunc)
     generate_trapi_ara_tests(metafunc, trapi_kp_edges)

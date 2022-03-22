@@ -1,5 +1,5 @@
 from biothings_explorer.smartapi_kg.dataload import load_specs
-from biothings_explorer.smartapi_kg import MetaKG
+# from biothings_explorer.smartapi_kg import MetaKG
 import os
 import requests
 import json
