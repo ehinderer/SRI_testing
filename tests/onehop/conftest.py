@@ -61,11 +61,11 @@ def pytest_addoption(parser):
         help="Directory or file from which to retrieve ARA Config"
     )
     parser.addoption(
-        "--TRAPI_version", action="store",  # we'll use the reasoner_validation default?
+        "--TRAPI_version", action="store", default=None,  # we'll use the reasoner_validation default?
         help='TRAPI API release to use for the tests (default: latest public release)'
     )
     parser.addoption(
-        "--Biolink_version", action="store",  # we'll use the Biolink Model Toolkit default?
+        "--Biolink_version", action="store", default=None,  # we'll use the Biolink Model Toolkit default?
         help='Biolink Model release to use for the tests (default: latest Biolink Model Toolkit default)'
     )
 
@@ -200,8 +200,8 @@ def pytest_generate_tests(metafunc):
     and use them to parameterize inputs to the test functions. Note that this gets called multiple times, once
     for each test_* function, and you can only parameterize an argument to that specific test_* function.
     However, for the ARA tests, we still need to get the KP data, since that is where the triples live."""
-    biolink_version = None  # metafunc.config.getoption('Biolink_version')
-    trapi_version = None  # metafunc.config.getoption('TRAPI_version')
+    biolink_version = metafunc.config.getoption('Biolink_version')
+    trapi_version = metafunc.config.getoption('TRAPI_version')
     oh_util.global_test_configuration(biolink_version=biolink_version, trapi_version=trapi_version)
     trapi_kp_edges = generate_trapi_kp_tests(metafunc)
     generate_trapi_ara_tests(metafunc, trapi_kp_edges)
