@@ -91,9 +91,11 @@ more general level.  If, say, there are triples where all that is known is an "a
 
 So the steps for a KP:
 
-1. copy a template json from `templates` into a corresponding location in `test_triples`
+1. copy a template json from `templates` into a distinctly named file in a suitable (KP-specific) subfolder location inside `test_triples/KP`
 2. filter out logically derivable template entries
 3. fill in the subject and object entries for each triple with a real identifiers that should be retrievable from the KP
+
+Note: you can selectively disable ('skip') specific test files or whole subfolders of such files by appending *_SKIP* to the specific file or subfolder name. 
 
 ### ARA Instructions
 
@@ -131,12 +133,15 @@ For each ARA, we want to ensure that it is able to extract information correctly
 
 In order to correctly link ARAs to KPs, ARAs will need to:
 
-1. Copy the ARA template from `templates` to the corresponding place in `test_triples`
+1. Copy the ARA template from `templates` into a distinctly named file, in a suitable (ARA-specific) subfolder location inside `test_triples/ARA`
 2. Edit the copied file to remove KPs that the ARA does not access.
+
+Note: as with the KP template files, you can selectively disable ('skip') specific ARA test files or whole subfolders of such files by appending *_SKIP* to the specific file or subfolder name. 
 
 ## Running the Tests
 
-Tests are implemented with pytest.  To run all tests, simply run
+Tests are implemented with pytest.  To run all tests, simply run:
+
 ```
 pytest test_onehops.py
 ```
