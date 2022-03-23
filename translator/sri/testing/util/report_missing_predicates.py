@@ -4,7 +4,7 @@ import requests
 import json
 from biothings_explorer.smartapi_kg.dataload import load_specs
 
-from tests.onehop.conftest import get_toolkit
+from tests.onehop.util import get_toolkit
 from translator.sri.testing import create_templates
 
 _bmtk = get_toolkit()
