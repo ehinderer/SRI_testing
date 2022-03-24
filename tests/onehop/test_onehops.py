@@ -141,10 +141,13 @@ def execute_trapi_lookup(case, creator, rbag):
     return response_message
 
 
-@pytest.mark.parametrize(
-    "trapi_creator",
-    [by_subject, by_object, raise_subject_entity, raise_object_by_subject, raise_predicate_by_subject]
-)
+#
+# We default to 'all' on the pytest CLI to set the 'trapi_creator' values, so this annotation spec is redundant?
+#
+# @pytest.mark.parametrize(
+#     "trapi_creator",
+#     [by_subject, by_object, raise_subject_entity, raise_object_by_subject, raise_predicate_by_subject]
+# )
 def test_trapi_kps(kp_trapi_case, trapi_creator, results_bag):
     """Generic Test for TRAPI KPs. The kp_trapi_case fixture is created in conftest.py by looking at the test_triples
     These get successively fed to test_TRAPI.  This function is further parameterized by trapi_creator, which knows
@@ -156,10 +159,13 @@ def test_trapi_kps(kp_trapi_case, trapi_creator, results_bag):
     execute_trapi_lookup(kp_trapi_case, trapi_creator, results_bag)
 
 
-@pytest.mark.parametrize(
-    "trapi_creator",
-    [by_subject, by_object, raise_subject_entity, raise_object_by_subject, raise_predicate_by_subject]
-)
+#
+# We default to 'all' on the pytest CLI to set the 'trapi_creator' values, so this annotation spec is redundant?
+#
+# @pytest.mark.parametrize(
+#     "trapi_creator",
+#     [by_subject, by_object, raise_subject_entity, raise_object_by_subject, raise_predicate_by_subject]
+# )
 def test_trapi_aras(ara_trapi_case, trapi_creator, results_bag):
     """Generic Test for ARA TRAPI.  It does the same thing as the KP trapi, calling an ARA that should be pulling
     data from the KP.
