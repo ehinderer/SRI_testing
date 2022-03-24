@@ -8,6 +8,7 @@ from json import JSONDecodeError
 
 from pytest_harvest import get_session_results_dct
 from tests.onehop import util as oh_util
+from tests.onehop.util import get_trapi_version
 
 
 def pytest_sessionfinish(session):
@@ -130,6 +131,8 @@ def generate_trapi_kp_tests(metafunc):
                 edge['location'] = kpfile
                 edge['api_name'] = kpfile.split('/')[-1]
                 edge['url'] = kpjson['url']
+                edge['trapi_version'] = kpjson['TRAPI'] \
+                    if kpjson['TRAPI'] and not isinstance(kpjson['TRAPI'], bool) else get_trapi_version()
                 if 'query_opts' in kpjson:
                     edge['query_opts'] = kpjson['query_opts']
                 else:
@@ -138,6 +141,7 @@ def generate_trapi_kp_tests(metafunc):
                 idlist.append(f'{kpfile}_{edge_i}')
                 if metafunc.config.getoption('one'):
                     break
+
     if "kp_trapi_case" in metafunc.fixturenames:
         metafunc.parametrize('kp_trapi_case', edges, ids=idlist)
         teststyle = metafunc.config.getoption('teststyle')
@@ -185,6 +189,8 @@ def generate_trapi_ara_tests(metafunc, kp_edges):
                 edge = kp_edge.copy()
                 edge['api_name'] = f
                 edge['url'] = arajson['url']
+                edge['trapi_version'] = arajson['TRAPI'] \
+                    if arajson['TRAPI'] and not isinstance(arajson['TRAPI'], bool) else get_trapi_version()
                 edge['kp_source'] = kp
                 if 'query_opts' in arajson:
                     edge['query_opts'] = arajson['query_opts']

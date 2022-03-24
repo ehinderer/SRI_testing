@@ -1,5 +1,5 @@
 {
-    "url": "https://automat.renci.org/kegg",
+    "url": "https://automat.renci.org/kegg/1.2",
     "TRAPI": true,
     "edges": [
         {

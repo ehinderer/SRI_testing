@@ -1,5 +1,5 @@
 {
-    "url": "https://automat.renci.org/foodb",
+    "url": "https://automat.renci.org/foodb/1.2",
     "TRAPI": true,
     "edges": [
         {

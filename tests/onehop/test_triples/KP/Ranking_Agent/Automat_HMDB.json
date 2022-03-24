@@ -1,5 +1,5 @@
 {
-    "url": "https://automat.renci.org/hmdb",
+    "url": "https://automat.renci.org/hmdb/1.2",
     "TRAPI": true,
     "edges": [
         {

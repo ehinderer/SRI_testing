@@ -1,5 +1,5 @@
 {
-    "url": "https://automat.renci.org/hgnc",
+    "url": "https://automat.renci.org/hgnc/1.2",
     "TRAPI": true,
     "edges": [
         {

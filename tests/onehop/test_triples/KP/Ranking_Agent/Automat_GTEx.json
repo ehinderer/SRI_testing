@@ -1,5 +1,5 @@
 {
-    "url": "https://automat.renci.org/gtex",
+    "url": "https://automat.renci.org/gtex/1.2",
     "TRAPI": true,
     "edges": [
         {

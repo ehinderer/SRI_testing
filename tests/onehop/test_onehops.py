@@ -1,20 +1,11 @@
 """
 One Hops Testing Suite
 """
-import pytest
 import requests
 from jsonschema.exceptions import ValidationError
 from reasoner_validator import validate
 
-from tests.onehop.util import (
-    get_toolkit,
-    get_trapi_version,
-    by_subject,
-    by_object,
-    raise_subject_entity,
-    raise_object_by_subject,
-    raise_predicate_by_subject
-)
+from tests.onehop.util import get_toolkit
 
 import logging
 
@@ -37,6 +28,7 @@ def inverse_by_new_subject(request):
         else:
             tp = get_toolkit().get_element(transformed_predicate_name)
             transformed_predicate = tp.slot_uri
+
     # Not everything has an inverse (it should, and it will, but it doesn't right now)
     if transformed_predicate is None:
         return None, None, None
@@ -71,13 +63,13 @@ def call_trapi(url, opts, trapi_message):
     return {'status_code': response.status_code, 'response_json': response_json}
 
 
-def is_valid_trapi(instance, component="Query"):
+def is_valid_trapi(instance, trapi_version):
     """Make sure that the Message is valid using reasoner_validator"""
     try:
         validate(
             instance=instance,
-            component=component,
-            trapi_version=get_trapi_version()
+            component="Query",
+            trapi_version=trapi_version
         )
         return True
     except ValidationError as e:
@@ -113,21 +105,29 @@ def execute_trapi_lookup(case, creator, rbag):
     if trapi_request is None:
         # The particular creator cannot make a valid message from this triple
         return None
-    
-    # is_valid_trapi(instance=trapi_response_json, component="Query", trapi_version=tests.DEFAULT_TRAPI_VERSION)
-    if not is_valid_trapi(trapi_request):
+
+    # query use cases pertain to a particular TRAPI version
+    trapi_version = case['trapi_version']
+
+    if not is_valid_trapi(trapi_request, trapi_version=trapi_version):
         # This is a problem with the testing framework.
         exit()
 
     trapi_response = call_trapi(case['url'], case['query_opts'], trapi_request)
+
     # Successfully invoked the query endpoint
     rbag.request = trapi_request
     rbag.response = trapi_response
-    assert trapi_response['status_code'] == 200
+
+    if trapi_response['status_code'] != 200:
+        err_msg = f"execute_trapi_lookup({case['url']}): " + \
+                  f"status code: {str(trapi_response['status_code'])}, " + \
+                  f"response '{str(trapi_response['response_json'])}'"
+        logger.warning(err_msg)
+        raise AssertionError(err_msg)
     
     # Validate that we got back valid TRAPI Response
-    # is_valid_trapi(instance=trapi_response_json, component="Query", trapi_version=tests.DEFAULT_TRAPI_VERSION)
-    assert is_valid_trapi(trapi_response['response_json'])
+    assert is_valid_trapi(trapi_response['response_json'], trapi_version=trapi_version)
     
     response_message = trapi_response['response_json']['message']
 

@@ -1,5 +1,5 @@
 {
-    "url": "https://automat.renci.org/biolink",
+    "url": "https://automat.renci.org/biolink/1.2",
     "TRAPI": true,
     "edges": [
         {
