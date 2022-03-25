@@ -140,7 +140,7 @@ def raise_subject_entity(request):
     subject = request['subject']
     parent_subject = ontology_kp.get_parent(subject, subject_cat)
     if parent_subject is None:
-        print('No Parent: ', subject)
+        print(f"\nNo Parent for '{subject}' with category '{subject_cat}'?")
         return (None,)*3
     mod_request = deepcopy(request)
     mod_request['subject'] = parent_subject

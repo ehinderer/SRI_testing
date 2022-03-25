@@ -1,7 +1,7 @@
 """
 One Hops Testing Suite
 """
-from sys import stderr
+# from sys import stderr
 
 import requests
 
@@ -42,7 +42,7 @@ def is_valid_trapi(instance, trapi_version):
         return True
     except ValidationError as e:
         import json
-        # print(json.dumps(response_json,indent=4))
+        # print(dumps(response_json, sort_keys=False, indent=4))
         print(e)
         return False
 
@@ -72,14 +72,16 @@ def execute_trapi_lookup(case, creator, rbag):
     trapi_request, output_element, output_node_binding = creator(case)
     if trapi_request is None:
         # The particular creator cannot make a valid message from this triple
-        return None
+        assert False, f"\nCreator method '{creator.__name__}' for test case \n" + \
+                      f"\t'{dumps(case, sort_keys=False, indent=4)}'\n" + \
+                      f"could not generate a valid TRAPI query request object?"
 
     # query use cases pertain to a particular TRAPI version
     trapi_version = case['trapi_version']
 
     if not is_valid_trapi(trapi_request, trapi_version=trapi_version):
         # This is a problem with the testing framework.
-        exit()
+        assert False, f"Query request {trapi_request} invalidate against TRAPI {trapi_version}"
 
     trapi_response = call_trapi(case['url'], case['query_opts'], trapi_request)
 
@@ -92,7 +94,7 @@ def execute_trapi_lookup(case, creator, rbag):
                   f"status code: {str(trapi_response['status_code'])}, " + \
                   f"response '{str(trapi_response['response_json'])}'"
         logger.warning(err_msg)
-        raise AssertionError(err_msg)
+        assert False, err_msg
     
     # Validate that we got back valid TRAPI Response
     assert is_valid_trapi(trapi_response['response_json'], trapi_version=trapi_version)
