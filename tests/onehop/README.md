@@ -16,7 +16,7 @@ queried for those triples according to the annotations in `test_triples/ARA` den
 
 ### KP Instructions
 
-For each KP, we need a file with one triple of each type that the KP can provide.  For instance, `test_triples/KP/Ranking_Agent/Automat_Human_GOA.json` contains the following json:
+For each KP, we need a file with one triple of each type that the KP can provide.  For instance, `test_triples/KP/Test_KP/Automat_Human_GOA.json` contains the following json:
 
 ```
 {
@@ -68,7 +68,7 @@ Note: you can selectively disable ('skip') specific test files or whole subfolde
 
 ### ARA Instructions
 
-For each ARA, we want to ensure that it is able to extract information correctly from the KPs.  To do this, we need to know which KPs each ARA interacts with.  We have generated template ARA json files under `templates/ARA` that contains annotations linking the ARA to all KPs.  For instance:
+For each ARA, we want to ensure that it is able to extract information correctly from the KPs.  To do this, we need to know which KPs each ARA interacts with.  We have generated template ARA json files under `templates/ARA` that contains annotations linking the ARA to all KPs.  For instance (under _tests/onehop/test_triples/ARA/Test_ARA/ARAGORN.json_):
 
 ```
 {
