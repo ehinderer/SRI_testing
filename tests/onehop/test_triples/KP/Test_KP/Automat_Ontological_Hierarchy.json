@@ -1,0 +1,27 @@
+{
+    "url": "https://automat.renci.org/ontological-hierarchy/1.2",
+    "TRAPI": true,
+    "edges": [
+        {
+            "subject_category": "biolink:AnatomicalEntity",
+            "object_category": "biolink:AnatomicalEntity",
+            "predicate": "biolink:subclass_of",
+            "subject": "UBERON:0005453",
+            "object": "UBERON:0035769"
+        },
+        {
+            "subject_category": "biolink:CellularComponent",
+            "object_category": "biolink:AnatomicalEntity",
+            "predicate": "biolink:subclass_of",
+            "subject": "GO:0005789",
+            "object": "UBERON:0000061"
+        },
+        {
+            "subject_category": "biolink:PhenotypicFeature",
+            "object_category": "biolink:Disease",
+            "predicate": "biolink:subclass_of",
+            "subject": "EFO:1001927",
+            "object": "MONDO:0005093"
+        }
+    ]
+}

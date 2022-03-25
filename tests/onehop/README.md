@@ -20,68 +20,37 @@ For each KP, we need a file with one triple of each type that the KP can provide
 
 ```
 {
-    "url": "https://automat.renci.org/human-goa",
+    "url": "https://automat.renci.org/ontological-hierarchy/1.2",
     "TRAPI": true,
     "edges": [
         {
-            "subject_category": "biolink:Gene",
-            "object_category": "biolink:BiologicalProcess",
-            "predicate": "biolink:actively_involved_in",
-            "subject": "NCBIGene:3949",
-            "object": "GO:0006629"
+            "subject_category": "biolink:AnatomicalEntity",
+            "object_category": "biolink:AnatomicalEntity",
+            "predicate": "biolink:subclass_of",
+            "subject": "UBERON:0005453",
+            "object": "UBERON:0035769"
         },
         {
-            "subject_category": "biolink:Gene",
-            "object_category": "biolink:MolecularActivity",
-            "predicate": "biolink:enables",
-            "subject": "NCBIGene:3949",
-            "object": "GO:0005041"
+            "subject_category": "biolink:CellularComponent",
+            "object_category": "biolink:AnatomicalEntity",
+            "predicate": "biolink:subclass_of",
+            "subject": "GO:0005789",
+            "object": "UBERON:0000061"
         },
         {
-            "subject_category": "biolink:Gene",
-            "object_category": "biolink:CellularComponent",
-            "predicate": "biolink:related_to",
-            "subject": "NCBIGene:3949",
-            "object": "GO:0034362"
+            "subject_category": "biolink:PhenotypicFeature",
+            "object_category": "biolink:Disease",
+            "predicate": "biolink:subclass_of",
+            "subject": "EFO:1001927",
+            "object": "MONDO:0005093"
         }
     ]
 }
 ```
 
-This KP provides three kinds of edges: Gene-actively_involved_in->BiologicalProcess, Gene-enables->MolecularActivity, and Gene-related_to->CellularComponent. For each of these kinds of edges, we have an entry in the file with a specific subject and object, and from these, we can create a variety of tests.
+This KP provides three kinds of edges: AnatomicalEntity-subclass_of->AnatomicalEntity, CellularComponent-subclass_of->AnatomicalEntity, and PhenotypicFeature-subclass_of->Disease. For each of these kinds of edges, we have an entry in the file with a specific subject and object, and from these, we can create a variety of tests.
 
-To aid KPs in creating these json files, we have generated templates in `templates/KP` using the predicates endpoint or smartAPI Registry MetaKG entries, which contains the edge types.  For instance, here is the template file associated with the human-goa KP:
-
-```
-{
-    "url": "https://automat.renci.org/human-goa",
-    "TRAPI": true,
-    "edges": [
-        {
-            "subject_category": "biolink:Gene",
-            "object_category": "biolink:BiologicalProcess",
-            "predicate": "biolink:actively_involved_in",
-            "subject": "",
-            "object": ""
-        },
-        {
-            "subject_category": "biolink:Gene",
-            "object_category": "biolink:MolecularActivity",
-            "predicate": "biolink:enables",
-            "subject": "",
-            "object": ""
-        },
-        {
-            "subject_category": "biolink:Gene",
-            "object_category": "biolink:CellularComponent",
-            "predicate": "biolink:related_to",
-            "subject": "",
-            "object": ""
-        }
-    ]
-}
-```
-
+To aid KPs in creating these json files, we have generated templates in `templates/KP` using the predicates endpoint or smartAPI Registry MetaKG entries, which contains the edge types.
 Note that the templates are built from KP metadata and are a good starting place, but they are not necessarily a perfect match to the desired test triples.
 In particular, if a template contains an entry for two edges, where one edge can be fully calculated given the other, then there is no reason to include 
 test data for the derived edge.  For instance, there is no need to include test data for an edge in one direction, and its inverse in the other direction. Here
@@ -103,32 +72,13 @@ For each ARA, we want to ensure that it is able to extract information correctly
 
 ```
 {
-    "url": "https://strider.renci.org",
+    "url": "https://aragorn.renci.org/1.2",
     "TRAPI": true,
     "KPs": [
-        "Ontology-KP API",
-        "CAM-KP API",
-        "SRI Reference Knowledge Graph API",
-        "Automat Cord19 Scigraph",
-        "Automat Uberongraph",
-        "Automat KEGG",
-        "QuickGO API",
-        "Automat Cord19 Scibite",
-        "Automat HGNC",
-        "OpenPredict API \ud83d\udd2e\ud83d\udc0d",
-        "Automat GTEx",
-        "Automat Human GOA",
-        "Automat Viral Proteome",
-        ... other kps here ...
-        "Drug Response KP API",
-        "BioLink API",
-        "LINCS Data Portal API",
-        "Columbia Open Health Data (COHD)",
-        "Columbia Open Health Data (COHD) for COVID-19 Research",
-        "Clinical Risk KP API"
+        "Automat Panther",
+        "Automat Ontological Hierarchy"
     ]
 }
-
 ```
 
 In order to correctly link ARAs to KPs, ARAs will need to:

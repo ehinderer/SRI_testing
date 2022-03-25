@@ -3,7 +3,10 @@ One Hops Testing Suite
 """
 import logging
 
+import pytest
+
 from tests.onehop.trapi import execute_trapi_lookup, check_provenance
+from tests.onehop import util as oh_util
 
 logger = logging.getLogger(__name__)
 logger.setLevel("DEBUG")
@@ -20,6 +23,16 @@ def test_trapi_kps(kp_trapi_case, trapi_creator, results_bag):
     execute_trapi_lookup(kp_trapi_case, trapi_creator, results_bag)
 
 
+@pytest.mark.parametrize(
+    "trapi_creator",
+    [
+        oh_util.by_subject,
+        oh_util.by_object,
+        oh_util.raise_subject_entity,
+        oh_util.raise_object_by_subject,
+        oh_util.raise_predicate_by_subject
+    ]
+)
 def test_trapi_aras(ara_trapi_case, trapi_creator, results_bag):
     """Generic Test for ARA TRAPI.  It does the same thing as the KP trapi, calling an ARA that should be pulling
     data from the KP.

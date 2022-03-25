@@ -1,0 +1,8 @@
+{
+    "url": "https://aragorn.renci.org/1.2",
+    "TRAPI": true,
+    "KPs": [
+        "Automat Panther",
+        "Automat Ontological Hierarchy"
+    ]
+}
