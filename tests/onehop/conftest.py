@@ -3,12 +3,17 @@ Configure onehop tests
 """
 import os
 import json
+import logging
 from collections import defaultdict
 from json import JSONDecodeError
 
 from pytest_harvest import get_session_results_dct
 from tests.onehop import util as oh_util
 from tests.onehop.trapi import get_trapi_version
+
+
+logger = logging.getLogger(__name__)
+logger.setLevel("DEBUG")
 
 
 def pytest_sessionfinish(session):
@@ -116,15 +121,17 @@ def generate_trapi_kp_tests(metafunc):
     
     filelist = _build_filelist(triple_source)
     for kpfile in filelist:
+        if not kpfile.endswith('json'):
+            continue
         with open(kpfile, 'r') as inf:
-            if not kpfile.endswith('json'):
-                continue
             try:
                 kpjson = json.load(inf)
             except (JSONDecodeError, TypeError):
-                print('Invalid JSON')
-                print(kpfile)
-                exit()
+                logger.error(f"generate_trapi_kp_tests(): input file {kpfile}: Invalid JSON")
+
+                # Previous use of an exit() statement here seemed a bit drastic bailout here...
+                # JSON errors in a single file? Rather, just skip over to the next file?
+                continue
                 
         if kpjson['TRAPI'] and 'url' in kpjson:
             for edge_i, edge in enumerate(kpjson['edges']):

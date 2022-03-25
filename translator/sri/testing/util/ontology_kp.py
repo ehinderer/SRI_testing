@@ -3,6 +3,7 @@ Ontology KP interface
 """
 import requests
 
+ONTOLOGY_KP_TRAPI_SERVER = "https://ontology-kp.apps.renci.org/query"
 
 def post(url, message, params=None):
     """
@@ -44,24 +45,23 @@ def get_ontology_ancestors(curie, btype):
             "query_graph": {
                 "nodes": {
                     "a": {
-                        "id": curie
+                        "ids": [curie]
                     },
                     "b": {
-                        "category": btype
+                        "categories": [btype]
                     }
                 },
                 "edges": {
                     "ab": {
                         "subject": "a",
                         "object": "b",
-                        "predicate": "biolink:subclass_of"
+                        "predicates": ["biolink:subclass_of"]
                     }
                 }
             }
         }
     }
-    url = 'https://stars-app.renci.org/sparql-kp/query'
-    response = post(url, m)
+    response = post(ONTOLOGY_KP_TRAPI_SERVER, m)
     original_prefix = curie.split(':')[0]
     ancestors = []
     for result in response['message']['results']:

@@ -72,6 +72,10 @@ def call_trapi(url, opts, trapi_message):
     return {'status_code': response.status_code, 'response_json': response_json}
 
 
+def output(json):
+    return dumps(json, sort_keys=False, indent=4)
+
+
 def execute_trapi_lookup(case, creator, rbag):
     """
 
@@ -86,7 +90,7 @@ def execute_trapi_lookup(case, creator, rbag):
     if trapi_request is None:
         # The particular creator cannot make a valid message from this triple
         assert False, f"\nCreator method '{creator.__name__}' for test case \n" + \
-                      f"\t'{dumps(case, sort_keys=False, indent=4)}'\n" + \
+                      f"\t{output(case)}\n" + \
                       f"could not generate a valid TRAPI query request object?"
 
     # query use cases pertain to a particular TRAPI version
@@ -95,7 +99,7 @@ def execute_trapi_lookup(case, creator, rbag):
     if not is_valid_trapi(trapi_request, trapi_version=trapi_version):
         # This is a problem with the testing framework.
         assert False, f"execute_trapi_lookup({case['url']}): Invalid TRAPI '{trapi_version}' " + \
-                      f"query request {dumps(trapi_request, sort_keys=False, indent=4)}"
+                      f"query request {output(trapi_request)}"
 
     trapi_response = call_trapi(case['url'], case['query_opts'], trapi_request)
 
@@ -105,27 +109,33 @@ def execute_trapi_lookup(case, creator, rbag):
 
     if trapi_response['status_code'] != 200:
         err_msg = f"execute_trapi_lookup({case['url']}): " + \
-                  f"TRAPI call returned status code: {str(trapi_response['status_code'])} " + \
-                  f"and response:\n\t '{dumps(trapi_response['response_json'], sort_keys=False, indent=4)}'"
+                  f"TRAPI request:\n\t{output(trapi_request)}\n " + \
+                  f"returned status code: {str(trapi_response['status_code'])} " + \
+                  f"and response:\n\t '{output(trapi_response['response_json'])}'"
         logger.warning(err_msg)
         assert False, err_msg
 
     # Validate that we got back valid TRAPI Response
-    # TODO: add an error message
     assert is_valid_trapi(trapi_response['response_json'], trapi_version=trapi_version), \
-           f"execute_trapi_lookup({case['url']}): invalid TRAPI '{trapi_version}' response:\n\t" \
-           f"{dumps(trapi_response['response_json'], sort_keys=False, indent=4)}"
+           f"execute_trapi_lookup({case['url']}): " + \
+           f"TRAPI request:\n\t{output(trapi_request)}\n " + \
+           f"had an invalid TRAPI '{trapi_version}' response:\n\t" + \
+           f"{output(trapi_response['response_json'])}"
 
     response_message = trapi_response['response_json']['message']
 
     # Verify that the response had some results
     assert len(response_message['results']) > 0, \
-           f"execute_trapi_lookup({case['url']}): empty TRAPI Result?"
+           f"execute_trapi_lookup({case['url']}): empty TRAPI Result from TRAPI request:\n\t" + \
+           f"{output(trapi_request)}"
 
     # The results contained the object of the query
     object_ids = [r['node_bindings'][output_node_binding][0]['id'] for r in response_message['results']]
-    # TODO: add an error message
     assert case[output_element] in object_ids, \
-           f"execute_trapi_lookup({case['url']}): missing or invalid TRAPI Result object ID bindings?"
+           f"execute_trapi_lookup({case['url']}): " + \
+           f"TRAPI request:\n\t{output(trapi_request)}\n " + \
+           f"had missing or invalid TRAPI Result object ID bindings" \
+           f"in response method results:\n\t" \
+           f"{output(response_message['results'])}"
 
     return response_message

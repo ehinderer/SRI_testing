@@ -1,0 +1,13 @@
+{
+    "url": "https://automat.renci.org/ontological-hierarchy/1.2",
+    "TRAPI": true,
+    "edges": [
+        {
+            "subject_category": "biolink:AnatomicalEntity",
+            "object_category": "biolink:AnatomicalEntity",
+            "predicate": "biolink:subclass_of",
+            "subject": "UBERON:0005453",
+            "object": "UBERON:0035769"
+        }
+    ]
+}

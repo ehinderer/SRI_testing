@@ -135,9 +135,10 @@ def raise_subject_entity(request):
     subject = request['subject']
     parent_subject = ontology_kp.get_parent(subject, subject_cat)
     if parent_subject is None:
-        print(f"\nSubject identifier '{subject}[{subject_cat}]') " +
-              "is either not an ontology term or does not map onto a parent ontology term.")
-        return (None,)*3
+        # We directly trigger an AssertError here for clarity of unit test failure?
+        assert False, f"\nSubject identifier '{subject}[{subject_cat}]') " + \
+              "is either not an ontology term or does not map onto a parent ontology term."
+
     mod_request = deepcopy(request)
     mod_request['subject'] = parent_subject
     message = create_one_hop_message(mod_request, look_up_subject=False)
