@@ -54,7 +54,7 @@ def check_provenance(ara_case, ara_response):
     But at the moment, there is not a standard way to do this.
     """
     logger.warning(
-        f"check_provenance() not yet implemented to assess ara_response '{ara_response}' for the ara_case '{ara_case}'"
+        f"check_provenance() not yet implemented to assess ara_response '{ara_response}' for the test case '{ara_case}'"
     )
     pass
 
@@ -97,15 +97,18 @@ def execute_trapi_lookup(case, creator, rbag):
         assert False, err_msg
     
     # Validate that we got back valid TRAPI Response
+    # TODO: add an error message
     assert is_valid_trapi(trapi_response['response_json'], trapi_version=trapi_version)
     
     response_message = trapi_response['response_json']['message']
 
     # Verify that the response had some results
+    # TODO: add an error message
     assert len(response_message['results']) > 0
     
     # The results contained the object of the query
     object_ids = [r['node_bindings'][output_node_binding][0]['id'] for r in response_message['results']]
+    # TODO: add an error message
     assert case[output_element] in object_ids
     
     return response_message

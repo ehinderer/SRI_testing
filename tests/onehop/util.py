@@ -135,12 +135,16 @@ def by_object(request):
 
 
 def raise_subject_entity(request):
-    """Given a know triple create a TRAPI message that uses the parent of the original entity and looks up the object"""
+    """
+    Given a known triple, create a TRAPI message that uses
+    the parent of the original entity and looks up the object
+    """
     subject_cat = request['subject_category']
     subject = request['subject']
     parent_subject = ontology_kp.get_parent(subject, subject_cat)
     if parent_subject is None:
-        print(f"\nNo Parent for '{subject}' with category '{subject_cat}'?")
+        print(f"\nSubject identifier '{subject}[{subject_cat}]') " +
+              "is either not an ontology term or does not map onto a parent ontology term.")
         return (None,)*3
     mod_request = deepcopy(request)
     mod_request['subject'] = parent_subject
