@@ -65,10 +65,13 @@ def call_trapi(url, opts, trapi_message):
     # print(f"\ncall_trapi({query_url}):\n\t{dumps(trapi_message, sort_keys=False, indent=4)}", file=stderr, flush=True)
 
     response = requests.post(query_url, json=trapi_message, params=opts)
-    try:
-        response_json = response.json()
-    except RuntimeError:
-        response_json = None
+    response_json = None
+    if response.status_code == 200:
+        try:
+            response_json = response.json()
+        except Exception as exc:
+            logger.error(f"call_trapi({query_url}) JSON access error: {str(exc)}")
+
     return {'status_code': response.status_code, 'response_json': response_json}
 
 

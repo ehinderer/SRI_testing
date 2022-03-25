@@ -1,5 +1,5 @@
 {
-    "url": "https://translator.broadinstitute.org/molepro/trapi/v1.0",
+    "url": "https://translator.broadinstitute.org/molepro/trapi/v1.2",
     "TRAPI": true,
     "edges": [
         {
