@@ -2,13 +2,12 @@ from typing import Optional
 from copy import deepcopy
 
 from bmt import Toolkit
+
+from .trapi import set_trapi_version
+
 from translator.biolink import get_biolink_model_schema
 from translator.sri.testing.util import ontology_kp
 
-# TODO: We'd rather NOT hard code a default TRAPI here, but do it for now pending clarity on how to guide
-#       the choice of TRAPI elsewhere, be it either in the input test data (from KP's and ARA's)
-#       or perhaps, as detected as the 'latest' TRAPI version seen within the ReasonerAPI Validator module
-DEFAULT_TRAPI_VERSION = "1"  # actually specifically 1.2.0 as of March 2022, but the ReasonerAPI should discern this
 
 _bmt_toolkit = None
 
@@ -20,18 +19,10 @@ def get_toolkit() -> Optional[Toolkit]:
     return _bmt_toolkit
 
 
-_default_trapi_version = None
-
-
-def get_trapi_version() -> Optional[str]:
-    global _default_trapi_version
-    return _default_trapi_version
-
-
 def global_test_configuration(biolink_version, trapi_version):
     # Note here that we let BMT control which version of Biolink we are using,
     # unless the value for which is overridden on the CLI
-    global _bmt_toolkit, _default_trapi_version
+    global _bmt_toolkit
 
     # Toolkit takes a couple of seconds to initialize, so don't want it initialized per-test
     if biolink_version:
@@ -40,8 +31,9 @@ def global_test_configuration(biolink_version, trapi_version):
     else:
         _bmt_toolkit = Toolkit()
 
-    # The TRAPI version is set to a hard coded default if not reset below by pytest CLI
-    _default_trapi_version = trapi_version if trapi_version else DEFAULT_TRAPI_VERSION
+    # The TRAPI version is set to a hard coded
+    # default if not reset below by pytest CLI
+    set_trapi_version(trapi_version)
 
 
 def create_one_hop_message(edge, look_up_subject=False):

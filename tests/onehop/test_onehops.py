@@ -1,126 +1,14 @@
 """
 One Hops Testing Suite
 """
-# from sys import stderr
-
-import requests
-
-from jsonschema.exceptions import ValidationError
-from json import dumps
-
-from reasoner_validator import validate
-
 import logging
+
+from tests.onehop.trapi import execute_trapi_lookup, check_provenance
 
 logger = logging.getLogger(__name__)
 logger.setLevel("DEBUG")
 
 
-def call_trapi(url, opts, trapi_message):
-    """Given an url and a TRAPI message, post the message to the url and return the status and json response"""
-
-    query_url = f'{url}/query'
-
-    # print(f"\ncall_trapi({query_url}):\n\t{dumps(trapi_message, sort_keys=False, indent=4)}", file=stderr, flush=True)
-
-    response = requests.post(query_url, json=trapi_message, params=opts)
-    try:
-        response_json = response.json()
-    except RuntimeError:
-        response_json = None
-    return {'status_code': response.status_code, 'response_json': response_json}
-
-
-def is_valid_trapi(instance, trapi_version):
-    """Make sure that the Message is valid using reasoner_validator"""
-    try:
-        validate(
-            instance=instance,
-            component="Query",
-            trapi_version=trapi_version
-        )
-        return True
-    except ValidationError as e:
-        import json
-        # print(dumps(response_json, sort_keys=False, indent=4))
-        print(e)
-        return False
-
-
-def check_provenance(ara_case, ara_response):
-    """
-    This is where we will check to see whether the edge
-    in the ARA response is marked with the expected KP.
-    But at the moment, there is not a standard way to do this.
-    """
-    logger.warning(
-        f"check_provenance() not yet implemented to assess ara_response '{ara_response}' for the test case '{ara_case}'"
-    )
-    pass
-
-
-def execute_trapi_lookup(case, creator, rbag):
-    """
-    
-    :param case:
-    :param creator:
-    :param rbag:
-    """
-    # Create TRAPI query/response
-    rbag.location = case['location']
-    rbag.case = case
-    trapi_request, output_element, output_node_binding = creator(case)
-    if trapi_request is None:
-        # The particular creator cannot make a valid message from this triple
-        assert False, f"\nCreator method '{creator.__name__}' for test case \n" + \
-                      f"\t'{dumps(case, sort_keys=False, indent=4)}'\n" + \
-                      f"could not generate a valid TRAPI query request object?"
-
-    # query use cases pertain to a particular TRAPI version
-    trapi_version = case['trapi_version']
-
-    if not is_valid_trapi(trapi_request, trapi_version=trapi_version):
-        # This is a problem with the testing framework.
-        assert False, f"Query request {trapi_request} invalidate against TRAPI {trapi_version}"
-
-    trapi_response = call_trapi(case['url'], case['query_opts'], trapi_request)
-
-    # Successfully invoked the query endpoint
-    rbag.request = trapi_request
-    rbag.response = trapi_response
-
-    if trapi_response['status_code'] != 200:
-        err_msg = f"execute_trapi_lookup({case['url']}): " + \
-                  f"status code: {str(trapi_response['status_code'])}, " + \
-                  f"response '{str(trapi_response['response_json'])}'"
-        logger.warning(err_msg)
-        assert False, err_msg
-    
-    # Validate that we got back valid TRAPI Response
-    # TODO: add an error message
-    assert is_valid_trapi(trapi_response['response_json'], trapi_version=trapi_version)
-    
-    response_message = trapi_response['response_json']['message']
-
-    # Verify that the response had some results
-    # TODO: add an error message
-    assert len(response_message['results']) > 0
-    
-    # The results contained the object of the query
-    object_ids = [r['node_bindings'][output_node_binding][0]['id'] for r in response_message['results']]
-    # TODO: add an error message
-    assert case[output_element] in object_ids
-    
-    return response_message
-
-
-#
-# We default to 'all' on the pytest CLI to set the 'trapi_creator' values, so this annotation spec is redundant?
-#
-# @pytest.mark.parametrize(
-#     "trapi_creator",
-#     [by_subject, by_object, raise_subject_entity, raise_object_by_subject, raise_predicate_by_subject]
-# )
 def test_trapi_kps(kp_trapi_case, trapi_creator, results_bag):
     """Generic Test for TRAPI KPs. The kp_trapi_case fixture is created in conftest.py by looking at the test_triples
     These get successively fed to test_TRAPI.  This function is further parameterized by trapi_creator, which knows
@@ -132,13 +20,6 @@ def test_trapi_kps(kp_trapi_case, trapi_creator, results_bag):
     execute_trapi_lookup(kp_trapi_case, trapi_creator, results_bag)
 
 
-#
-# We default to 'all' on the pytest CLI to set the 'trapi_creator' values, so this annotation spec is redundant?
-#
-# @pytest.mark.parametrize(
-#     "trapi_creator",
-#     [by_subject, by_object, raise_subject_entity, raise_object_by_subject, raise_predicate_by_subject]
-# )
 def test_trapi_aras(ara_trapi_case, trapi_creator, results_bag):
     """Generic Test for ARA TRAPI.  It does the same thing as the KP trapi, calling an ARA that should be pulling
     data from the KP.

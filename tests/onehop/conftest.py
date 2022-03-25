@@ -8,7 +8,7 @@ from json import JSONDecodeError
 
 from pytest_harvest import get_session_results_dct
 from tests.onehop import util as oh_util
-from tests.onehop.util import get_trapi_version
+from tests.onehop.trapi import get_trapi_version
 
 
 def pytest_sessionfinish(session):
