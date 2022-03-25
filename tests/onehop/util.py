@@ -44,7 +44,41 @@ def global_test_configuration(biolink_version, trapi_version):
     _default_trapi_version = trapi_version if trapi_version else DEFAULT_TRAPI_VERSION
 
 
-###
+def create_one_hop_message(edge, look_up_subject=False):
+    """Given a complete edge, create a valid TRAPI message for "one hop" querying for the edge.
+    if look_up_subject is False (default) then the object id is not included, (lookup object
+    by subject) and if look_up_subject is True, then the subject id is not included (look up
+    subject by object)"""
+    # TODO: This key method is actually very TRAPI version sensitive since
+    #       the core message structure evolved between various TRAPI versions,
+    #       e.g. category string => categories list; predicate string => predicates list
+    #
+    query_graph = {
+        "nodes": {
+            'a': {
+                "categories": [edge['subject_category']]
+            },
+            'b': {
+                "categories": [edge['object_category']]
+            }
+        },
+        "edges": {
+            'ab': {
+                "subject": "a",
+                "object": "b",
+                "predicates": [edge['predicate']]
+            }
+        }
+    }
+    if look_up_subject:
+        query_graph['nodes']['b']['ids'] = [edge['object']]
+    else:
+        query_graph['nodes']['a']['ids'] = [edge['subject']]
+    message = {"message": {"query_graph": query_graph, 'knowledge_graph': {"nodes": {}, "edges": {}, }, 'results': []}}
+    return message
+
+
+#####################################################################################################
 #
 # Functions for creating TRAPI messages from a known edge
 #
@@ -54,12 +88,44 @@ def global_test_configuration(biolink_version, trapi_version):
 # results.  For example, when we look up a triple by subject, we should expect that the object entity
 # is bound to query node b.
 #
+#####################################################################################################
 
 
 def by_subject(request):
     """Given a known triple, create a TRAPI message that looks up the object by the subject"""
     message = create_one_hop_message(request, look_up_subject=False)
     return message, 'object', 'b'
+
+
+def inverse_by_new_subject(request):
+    """Given a known triple, create a TRAPI message that inverts the predicate,
+       then looks up the new object by the new subject (original object)"""
+    original_predicate_element = get_toolkit().get_element(request['predicate'])
+    if original_predicate_element['symmetric']:
+        transformed_predicate = request['predicate']
+    else:
+        transformed_predicate_name = original_predicate_element['inverse']
+        if transformed_predicate_name is None:
+            transformed_predicate = None
+        else:
+            tp = get_toolkit().get_element(transformed_predicate_name)
+            transformed_predicate = tp.slot_uri
+
+    # Not everything has an inverse (it should, and it will, but it doesn't right now)
+    if transformed_predicate is None:
+        return None, None, None
+    transformed_request = {
+        "url": "https://automat.renci.org/human-goa",
+        "subject_category": request['object_category'],
+        "object_category": request['subject_category'],
+        "predicate": transformed_predicate,
+        "subject": request['object'],
+        "object": request['subject']
+    }
+    message = create_one_hop_message(transformed_request, look_up_subject=False)
+    # We inverted the predicate, and will be querying by the new subject, so the output will be in node b
+    # but, the entity we are looking for (now the object) was originally the subject because of the inversion.
+    return message, 'subject', 'b'
 
 
 def by_object(request):
@@ -75,7 +141,7 @@ def raise_subject_entity(request):
     parent_subject = ontology_kp.get_parent(subject, subject_cat)
     if parent_subject is None:
         print('No Parent: ', subject)
-        return None
+        return (None,)*3
     mod_request = deepcopy(request)
     mod_request['subject'] = parent_subject
     message = create_one_hop_message(mod_request, look_up_subject=False)
@@ -103,33 +169,3 @@ def raise_predicate_by_subject(request):
         transformed_request['predicate'] = parent['slot_uri']
     message = create_one_hop_message(transformed_request, look_up_subject=False)
     return message, 'object', 'b'
-
-
-def create_one_hop_message(edge, look_up_subject=False):
-    """Given a complete edge, create a valid TRAPI message for querying for the edge.
-    if look_up_subject is False (default) then the object id is not included, (lookup object
-    by subject) and if look_up_subject is True, then the subject id is not included (look up
-    subject by object)"""
-    query_graph = {
-        "nodes": {
-            'a': {
-                "category": edge['subject_category']
-            },
-            'b': {
-                "category": edge['object_category']
-            }
-        },
-        "edges": {
-            'ab': {
-                "subject": "a",
-                "object": "b",
-                "predicate": edge['predicate']
-            }
-        }
-    }
-    if look_up_subject:
-        query_graph['nodes']['b']['ids'] = [edge['object']]
-    else:
-        query_graph['nodes']['a']['ids'] = [edge['subject']]
-    message = {"message": {"query_graph": query_graph, 'knowledge_graph': {"nodes": {}, "edges": {}, }, 'results': []}}
-    return message

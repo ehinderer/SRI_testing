@@ -1,60 +1,28 @@
 """
 One Hops Testing Suite
 """
+from sys import stderr
+
 import requests
+
 from jsonschema.exceptions import ValidationError
+from json import dumps
+
 from reasoner_validator import validate
 
-from tests.onehop.util import get_toolkit
-
 import logging
-
-from tests.onehop.util import create_one_hop_message
 
 logger = logging.getLogger(__name__)
 logger.setLevel("DEBUG")
 
 
-def inverse_by_new_subject(request):
-    """Given a known triple, create a TRAPI message that inverts the predicate, then looks up the new
-    object by the new subject (original object)"""
-    original_predicate_element = get_toolkit().get_element(request['predicate'])
-    if original_predicate_element['symmetric']:
-        transformed_predicate = request['predicate']
-    else:
-        transformed_predicate_name = original_predicate_element['inverse']
-        if transformed_predicate_name is None:
-            transformed_predicate = None
-        else:
-            tp = get_toolkit().get_element(transformed_predicate_name)
-            transformed_predicate = tp.slot_uri
-
-    # Not everything has an inverse (it should, and it will, but it doesn't right now)
-    if transformed_predicate is None:
-        return None, None, None
-    transformed_request = {
-        "url": "https://automat.renci.org/human-goa",
-        "subject_category": request['object_category'],
-        "object_category": request['subject_category'],
-        "predicate": transformed_predicate,
-        "subject": request['object'],
-        "object": request['subject']
-    }
-    message = create_one_hop_message(transformed_request, look_up_subject=False)
-    # We inverted the predicate, and will be querying by the new subject, so the output will be in node b
-    # but, the entity we are looking for (now the object) was originally the subject because of the inversion.
-    return message, 'subject', 'b'
-
-
-##############################
-# End TRAPI creating functions
-##############################
-
-
 def call_trapi(url, opts, trapi_message):
     """Given an url and a TRAPI message, post the message to the url and return the status and json response"""
+
     query_url = f'{url}/query'
-    print(query_url)
+
+    # print(f"\ncall_trapi({query_url}):\n\t{dumps(trapi_message, sort_keys=False, indent=4)}", file=stderr, flush=True)
+
     response = requests.post(query_url, json=trapi_message, params=opts)
     try:
         response_json = response.json()

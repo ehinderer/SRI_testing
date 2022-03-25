@@ -82,16 +82,16 @@ def get_ontology_parent(curie, btype):
     :param btype
     :param curie
     """
-    # Here's a bunch of anscestors
+    # Here's a bunch of ancestors
     ancestors = get_ontology_ancestors(curie, btype)
     # Now, to get the one closest to the input, we see
     # how many ancestors each ancestor has.  Largest number == lowest down
-    ancount = []
+    ancestor_count = []
     for anc in ancestors:
         second_ancestors = get_ontology_ancestors(anc, btype)
-        ancount.append((len(second_ancestors), anc))
-    ancount.sort()
-    return ancount[-1][1]
+        ancestor_count.append((len(second_ancestors), anc))
+    ancestor_count.sort()
+    return ancestor_count[-1][1]
 
 
 def get_parent(curie, entity_type):

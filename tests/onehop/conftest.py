@@ -150,6 +150,7 @@ def generate_trapi_kp_tests(metafunc):
                 "trapi_creator",
                 [
                     oh_util.by_subject,
+                    oh_util.inverse_by_new_subject,
                     oh_util.by_object,
                     oh_util.raise_subject_entity,
                     oh_util.raise_object_by_subject,
