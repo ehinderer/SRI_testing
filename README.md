@@ -2,7 +2,7 @@
 
 This repository contains a compendium of semantics-driven tests for assessing Knowledge Providers (KPs) and Autonomous Relay Agents (ARAs) within the [Biomedical Data Translator](https://ncats.nih.gov/translator).
 
-# Dependencies
+# Getting Started
 
 The tests are run using Python 3.7 or better. Creation of a virtual environment is recommended.
 
@@ -20,4 +20,4 @@ From within your virtual environment, install the indicated Python dependencies 
 
 Test suites currently implemented:
 
-- [One Hop Tests for KPs and ARAs](./onehop/README.md)
+- [One Hop Tests for KPs and ARAs](tests/onehop/README.md)

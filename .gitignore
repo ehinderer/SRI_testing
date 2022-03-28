@@ -1,3 +1,7 @@
+# SRI Testing specific .gitignores
+*.results
+*.resultsNOTEST
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
