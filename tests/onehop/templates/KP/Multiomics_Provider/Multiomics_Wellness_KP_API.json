@@ -1,6 +1,5 @@
 {
     "url": "https://biothings.ncats.io/multiomics_wellness_kp",
-    "TRAPI": false,
     "edges": [
         {
             "subject_category": "biolink:ChemicalSubstance",

@@ -1,6 +1,5 @@
 {
     "url": "http://ctdbase.org/tools",
-    "TRAPI": false,
     "edges": [
         {
             "subject_category": "biolink:Gene",

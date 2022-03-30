@@ -1,6 +1,5 @@
 {
     "url": "https://api.collaboratory.semanticscience.org",
-    "TRAPI": true,
     "edges": [
         {
             "subject_category": "biolink:Drug",

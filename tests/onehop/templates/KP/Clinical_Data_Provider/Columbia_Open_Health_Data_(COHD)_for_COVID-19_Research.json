@@ -1,6 +1,5 @@
 {
     "url": "http://covid.cohd.io/api",
-    "TRAPI": true,
     "edges": [
         {
             "subject_category": "biolink:ChemicalSubstance",

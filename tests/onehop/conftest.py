@@ -9,8 +9,6 @@ from json import JSONDecodeError
 
 from pytest_harvest import get_session_results_dct
 from tests.onehop import util as oh_util
-from tests.onehop.trapi import get_trapi_version
-
 
 logger = logging.getLogger(__name__)
 logger.setLevel("DEBUG")
@@ -66,12 +64,16 @@ def pytest_addoption(parser):
         "--ARA_source", action="store", default='test_triples/ARA',
         help="Directory or file from which to retrieve ARA Config"
     )
+    # We hard code a 'current' version (1.2 as of March 2022)
+    # but we'll eventually use an endpoint's SmartAPI published value
     parser.addoption(
-        "--TRAPI_version", action="store", default=None,  # we'll use the reasoner_validation default?
+        "--TRAPI_version", action="store", default=None,
         help='TRAPI API release to use for the tests (default: latest public release)'
     )
+    # We could eventually use a TRAPI/meta_knowledge_graph value but
+    # we'll use the Biolink Model Toolkit default for now?
     parser.addoption(
-        "--Biolink_version", action="store", default=None,  # we'll use the Biolink Model Toolkit default?
+        "--Biolink_version", action="store", default=None,
         help='Biolink Model release to use for the tests (default: latest Biolink Model Toolkit default)'
     )
 
@@ -133,13 +135,11 @@ def generate_trapi_kp_tests(metafunc):
                 # JSON errors in a single file? Rather, just skip over to the next file?
                 continue
                 
-        if kpjson['TRAPI'] and 'url' in kpjson:
+        if 'url' in kpjson:
             for edge_i, edge in enumerate(kpjson['edges']):
                 edge['location'] = kpfile
                 edge['api_name'] = kpfile.split('/')[-1]
                 edge['url'] = kpjson['url']
-                edge['trapi_version'] = kpjson['TRAPI'] \
-                    if kpjson['TRAPI'] and not isinstance(kpjson['TRAPI'], bool) else get_trapi_version()
                 if 'query_opts' in kpjson:
                     edge['query_opts'] = kpjson['query_opts']
                 else:
@@ -197,8 +197,6 @@ def generate_trapi_ara_tests(metafunc, kp_edges):
                 edge = kp_edge.copy()
                 edge['api_name'] = f
                 edge['url'] = arajson['url']
-                edge['trapi_version'] = arajson['TRAPI'] \
-                    if arajson['TRAPI'] and not isinstance(arajson['TRAPI'], bool) else get_trapi_version()
                 edge['kp_source'] = kp
                 if 'query_opts' in arajson:
                     edge['query_opts'] = arajson['query_opts']

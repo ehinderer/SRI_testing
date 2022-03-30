@@ -1,6 +1,5 @@
 {
     "url": "https://automat.renci.org/hetio",
-    "TRAPI": true,
     "edges": [
         {
             "subject_category": "biolink:CellularComponent",

@@ -1,6 +1,5 @@
 {
     "url": "https://biothings.ncats.io/semmedchemical",
-    "TRAPI": false,
     "edges": [
         {
             "subject_category": "biolink:ChemicalSubstance",

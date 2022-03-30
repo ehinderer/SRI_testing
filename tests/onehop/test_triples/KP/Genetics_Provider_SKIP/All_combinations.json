@@ -1,6 +1,5 @@
 {
     "url": "https://translator.broadinstitute.org/genetics_provider/trapi/v1.0",
-    "TRAPI": true,
     "edges": [
         {
             "subject_category": "biolink:Gene",

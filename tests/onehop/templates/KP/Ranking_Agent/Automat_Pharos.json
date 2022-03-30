@@ -1,6 +1,5 @@
 {
     "url": "https://automat.renci.org/pharos",
-    "TRAPI": true,
     "edges": [
         {
             "subject_category": "biolink:ChemicalSubstance",

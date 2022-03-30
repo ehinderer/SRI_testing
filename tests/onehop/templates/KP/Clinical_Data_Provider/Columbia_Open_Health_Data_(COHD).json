@@ -1,6 +1,5 @@
 {
     "url": "http://tr-kp-clinical.ncats.io/api",
-    "TRAPI": true,
     "edges": [
         {
             "subject_category": "biolink:ChemicalSubstance",

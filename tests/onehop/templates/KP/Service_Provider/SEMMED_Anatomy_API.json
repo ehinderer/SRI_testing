@@ -1,6 +1,5 @@
 {
     "url": "https://biothings.ncats.io/semmed_anatomy",
-    "TRAPI": false,
     "edges": [
         {
             "subject_category": "biolink:AnatomicalEntity",

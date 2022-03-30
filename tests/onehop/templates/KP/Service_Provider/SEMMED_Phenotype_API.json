@@ -1,6 +1,5 @@
 {
     "url": "https://biothings.ncats.io/semmedphenotype",
-    "TRAPI": false,
     "edges": [
         {
             "subject_category": "biolink:PhenotypicFeature",

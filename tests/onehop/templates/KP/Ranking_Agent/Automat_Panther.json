@@ -1,6 +1,5 @@
 {
     "url": "https://automat.renci.org/panther",
-    "TRAPI": true,
     "edges": [
         {
             "subject_category": "biolink:GeneFamily",

@@ -1,6 +1,5 @@
 {
     "url": "https://stars-app.renci.org/cam-kp",
-    "TRAPI": true,
     "edges": [
         {
             "subject_category": "biolink:IndividualOrganism",

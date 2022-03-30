@@ -1,6 +1,5 @@
 {
     "url":"https://trapi.monarchinitiative.org",
-    "TRAPI":true,
     "edges":[
         {
             "subject_category":"biolink:Gene",

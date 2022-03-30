@@ -1,6 +1,5 @@
 {
     "url": "https://www.ebi.ac.uk/ols/api",
-    "TRAPI": false,
     "edges": [
         {
             "subject_category": "biolink:Disease",

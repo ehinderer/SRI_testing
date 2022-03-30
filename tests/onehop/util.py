@@ -24,15 +24,18 @@ def global_test_configuration(biolink_version, trapi_version):
     # unless the value for which is overridden on the CLI
     global _bmt_toolkit
 
-    # Toolkit takes a couple of seconds to initialize, so don't want it initialized per-test
+    # Toolkit takes a couple of seconds to initialize,
+    # so don't want it initialized per-test; however,
+    # TODO: if we eventually need per-test settings, maybe we should cache various versions locally
+    #       (see https://github.com/biolink/kgx/blob/master/kgx/utils/kgx_utils.py#L304).
     if biolink_version:
         biolink_schema = get_biolink_model_schema()
         _bmt_toolkit = Toolkit(biolink_schema)
     else:
         _bmt_toolkit = Toolkit()
 
-    # The TRAPI version is set to a hard coded
-    # default if not reset below by pytest CLI
+    # The TRAPI version is set to a hard coded default
+    # if not set by a non-empty trapi_version here
     set_trapi_version(trapi_version)
 
 

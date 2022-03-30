@@ -1,6 +1,5 @@
 {
     "url": "https://automat.renci.org/cord19-scibite",
-    "TRAPI": true,
     "edges": [
         {
             "subject_category": "biolink:ChemicalSubstance",

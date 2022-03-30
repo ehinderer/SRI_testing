@@ -1,6 +1,5 @@
 {
     "url": "https://icees.renci.org:16340",
-    "TRAPI": true,
     "edges": [
         {
             "subject_category": "biolink:ActivityAndBehavior",

@@ -14,8 +14,7 @@ logger.setLevel("DEBUG")
 _default_trapi_version = None
 
 # TODO: We'd rather NOT hard code a default TRAPI here, but do it for now pending clarity on how to guide
-#       the choice of TRAPI elsewhere, be it either in the input test data (from KP's and ARA's)
-#       or perhaps, as detected as the 'latest' TRAPI version seen within the ReasonerAPI Validator module
+#       the choice of TRAPI from the Translator SmartAPI for a given resource
 DEFAULT_TRAPI_VERSION = "1"  # actually specifically 1.2.0 as of March 2022, but the ReasonerAPI should discern this
 
 
@@ -97,7 +96,7 @@ def execute_trapi_lookup(case, creator, rbag):
                       f"could not generate a valid TRAPI query request object?"
 
     # query use cases pertain to a particular TRAPI version
-    trapi_version = case['trapi_version']
+    trapi_version = get_trapi_version()
 
     if not is_valid_trapi(trapi_request, trapi_version=trapi_version):
         # This is a problem with the testing framework.

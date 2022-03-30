@@ -1,6 +1,5 @@
 {
     "url": "https://automat.renci.org/covid-phenotypes/1.2",
-    "TRAPI": true,
     "edges": [
         {
             "subject_category": "biolink:Disease",

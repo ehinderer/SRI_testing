@@ -1,6 +1,5 @@
 {
     "url": "https://translator.broadinstitute.org/molepro/trapi/v1.0",
-    "TRAPI": true,
     "edges": [
         {
             "subject_category": "biolink:ChemicalSubstance",
