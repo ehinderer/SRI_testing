@@ -5,7 +5,7 @@ import logging
 
 import pytest
 
-from tests.onehop.trapi import execute_trapi_lookup, check_provenance
+from translator.trapi import check_provenance, execute_trapi_lookup
 from tests.onehop import util as oh_util
 
 logger = logging.getLogger(__name__)
