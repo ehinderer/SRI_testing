@@ -1,5 +1,5 @@
 {
-  "TRAPI": true,
+  "url": "",
   "edges": [
     {
       "subject_category": "biolink:ChemicalSubstance",

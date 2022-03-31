@@ -1,6 +1,5 @@
 {
     "url": "https://platform-api.opentargets.io/v3",
-    "TRAPI": false,
     "edges": [
         {
             "subject_category": "biolink:Gene",

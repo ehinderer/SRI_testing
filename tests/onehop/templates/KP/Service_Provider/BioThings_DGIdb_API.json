@@ -1,6 +1,5 @@
 {
     "url": "https://biothings.ncats.io/dgidb",
-    "TRAPI": false,
     "edges": [
         {
             "subject_category": "biolink:ChemicalSubstance",

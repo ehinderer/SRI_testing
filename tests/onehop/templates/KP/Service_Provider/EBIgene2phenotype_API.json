@@ -1,6 +1,5 @@
 {
     "url": "https://biothings.ncats.io/ebigene2phenotype",
-    "TRAPI": false,
     "edges": [
         {
             "subject_category": "biolink:Gene",

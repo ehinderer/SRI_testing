@@ -1,6 +1,5 @@
 {
     "url": "https://biothings.ncats.io/semmedgene",
-    "TRAPI": false,
     "edges": [
         {
             "subject_category": "biolink:Gene",

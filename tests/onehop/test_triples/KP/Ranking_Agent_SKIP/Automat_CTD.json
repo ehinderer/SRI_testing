@@ -1,6 +1,5 @@
 {
     "url": "https://automat.renci.org/ctd/1.2",
-    "TRAPI": true,
     "edges": [
         {
             "subject_category": "biolink:ChemicalSubstance",

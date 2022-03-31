@@ -1,6 +1,5 @@
 {
     "url": "https://biothings.ncats.io/go_mf",
-    "TRAPI": false,
     "edges": [
         {
             "subject_category": "biolink:MolecularActivity",

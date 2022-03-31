@@ -1,6 +1,5 @@
 {
     "url": "https://biothings.ncats.io/go_cc",
-    "TRAPI": false,
     "edges": [
         {
             "subject_category": "biolink:CellularComponent",

@@ -1,6 +1,5 @@
 {
     "url": "https://automat.renci.org/textminingkp/1.2",
-    "TRAPI": true,
     "edges": [
         {
             "subject_category": "biolink:GeneOrGeneProduct",

@@ -1,6 +1,5 @@
 {
     "url": "https://biothings.ncats.io/clinical_risk_kp",
-    "TRAPI": false,
     "edges": [
         {
             "subject_category": "biolink:Disease",

@@ -1,6 +1,5 @@
 {
     "url": "https://mychem.info/v1",
-    "TRAPI": false,
     "edges": [
         {
             "subject_category": "biolink:ChemicalSubstance",

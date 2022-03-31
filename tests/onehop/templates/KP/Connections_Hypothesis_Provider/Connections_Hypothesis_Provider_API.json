@@ -1,6 +1,5 @@
 {
     "url": "http://chp.thayer.dartmouth.edu",
-    "TRAPI": true,
     "edges": [
         {
             "subject_category": "biolink:Gene",

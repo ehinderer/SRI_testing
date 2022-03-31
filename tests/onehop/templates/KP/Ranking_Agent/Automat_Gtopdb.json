@@ -1,6 +1,5 @@
 {
     "url": "https://automat.renci.org/gtopdb",
-    "TRAPI": true,
     "edges": [
         {
             "subject_category": "biolink:ChemicalSubstance",

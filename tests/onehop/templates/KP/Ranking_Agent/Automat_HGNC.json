@@ -1,6 +1,5 @@
 {
     "url": "https://automat.renci.org/hgnc",
-    "TRAPI": true,
     "edges": [
         {
             "subject_category": "biolink:Gene",

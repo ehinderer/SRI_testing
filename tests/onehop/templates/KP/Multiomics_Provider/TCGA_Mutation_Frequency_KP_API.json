@@ -1,6 +1,5 @@
 {
     "url": "https://biothings.ncats.io/tcga_mut_freq_kp",
-    "TRAPI": false,
     "edges": [
         {
             "subject_category": "biolink:Disease",

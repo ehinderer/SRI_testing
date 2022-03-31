@@ -1,6 +1,5 @@
 {
     "url": "https://explanatory-agent.azurewebsites.net/v1.0/",
-    "TRAPI": true,
     "KPs": [
         "OpenPredict API",
         "Translator Knowledge Collaboratory API",

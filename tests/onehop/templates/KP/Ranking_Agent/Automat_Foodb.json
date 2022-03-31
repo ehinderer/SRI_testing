@@ -1,6 +1,5 @@
 {
     "url": "https://automat.renci.org/foodb",
-    "TRAPI": true,
     "edges": [
         {
             "subject_category": "biolink:OrganismTaxon",

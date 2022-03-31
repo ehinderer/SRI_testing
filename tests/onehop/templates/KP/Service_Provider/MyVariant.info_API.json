@@ -1,6 +1,5 @@
 {
     "url": "https://myvariant.info/v1",
-    "TRAPI": false,
     "edges": [
         {
             "subject_category": "biolink:SequenceVariant",

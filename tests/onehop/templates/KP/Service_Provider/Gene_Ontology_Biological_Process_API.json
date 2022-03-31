@@ -1,6 +1,5 @@
 {
     "url": "https://biothings.ncats.io/go_bp",
-    "TRAPI": false,
     "edges": [
         {
             "subject_category": "biolink:BiologicalProcess",
