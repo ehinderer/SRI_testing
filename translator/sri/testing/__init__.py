@@ -29,6 +29,16 @@ def get_biolink_model_schema(biolink_release: Optional[str] = None) -> Optional[
         return None
 
 
+_bmt_toolkit: Optional[Toolkit] = None
+
+
+def get_toolkit() -> Optional[Toolkit]:
+    global _bmt_toolkit
+    if not _bmt_toolkit:
+        raise RuntimeError("Biolink Model Toolkit is not initialized?!?")
+    return _bmt_toolkit
+
+
 def set_global_environment(biolink_version, trapi_version):
     # Note here that we let BMT control which version of Biolink we are using,
     # unless the value for which is overridden on the CLI

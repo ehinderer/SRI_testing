@@ -1,19 +1,7 @@
-from typing import Optional
 from copy import deepcopy
 
-from bmt import Toolkit
-
+from translator.sri.testing import get_toolkit
 from translator.sri.testing.util import ontology_kp
-
-
-_bmt_toolkit = None
-
-
-def get_toolkit() -> Optional[Toolkit]:
-    global _bmt_toolkit
-    if not _bmt_toolkit:
-        raise RuntimeError("Biolink Model Toolkit is not initialized?!?")
-    return _bmt_toolkit
 
 
 def create_one_hop_message(edge, look_up_subject=False):

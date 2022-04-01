@@ -14,13 +14,6 @@
             "predicate": "biolink:subclass_of",
             "subject": "GO:0005789",
             "object": "UBERON:0000061"
-        },
-        {
-            "subject_category": "biolink:PhenotypicFeature",
-            "object_category": "biolink:Disease",
-            "predicate": "biolink:subclass_of",
-            "subject": "EFO:1001927",
-            "object": "MONDO:0005093"
         }
     ]
 }
