@@ -1,4 +1,6 @@
 from copy import deepcopy
+from functools import wraps
+from typing import Set, Dict
 
 from translator.sri.testing import get_toolkit
 from translator.sri.testing.util import ontology_kp
@@ -49,14 +51,66 @@ def create_one_hop_message(edge, look_up_subject=False):
 # is bound to query node b.
 #
 #####################################################################################################
+_unit_tests: Dict = dict()
 
 
+def get_unit_test_codes() -> Set[str]:
+    global _unit_tests
+    return set(_unit_tests.keys())
+
+
+def unit_test_name(code: str) -> str:
+    global _unit_tests
+    return _unit_tests[code]
+
+
+def in_excluded_tests(test, test_case) -> bool:
+    global _unit_tests
+    try:
+        test_name = test.__name__
+    except AttributeError:
+        raise RuntimeError(f"in_excluded_tests(): invalid 'test' parameter: '{str(test)}'")
+    try:
+        if "exclude_tests" in test_case:
+            # returns 'true' if the test_name corresponds to a test in the list of excluded test (codes)
+            return any([test_name == unit_test_name(code) for code in test_case["exclude_tests"]])
+    except TypeError as te:
+        raise RuntimeError(f"in_excluded_tests(): invalid 'test_case' parameter: '{str(test_case)}': {str(te)}")
+    except KeyError as ke:
+        raise RuntimeError(
+            f"in_excluded_tests(): invalid test_case['excluded_test'] code? " +
+            f"'{str(test_case['excluded_tests'])}': {str(ke)}"
+        )
+
+    return False
+
+
+class TestCode:
+    """
+    Assigns a shorthand test code to a unit test method.
+    """
+    def __init__(self, code, unit_test_name):
+        global _unit_tests
+        self.code = code
+        self.method = unit_test_name
+        _unit_tests[code] = unit_test_name
+
+    def __call__(self, fn):
+        @wraps(fn)
+        def wrapper(*args, **kwargs):
+            result = fn(*args, **kwargs)
+            return result
+        return wrapper
+
+
+@TestCode("BS", "by_subject")
 def by_subject(request):
     """Given a known triple, create a TRAPI message that looks up the object by the subject"""
     message = create_one_hop_message(request, look_up_subject=False)
     return message, 'object', 'b'
 
 
+@TestCode("IBNS", "inverse_by_new_subject")
 def inverse_by_new_subject(request):
     """Given a known triple, create a TRAPI message that inverts the predicate,
        then looks up the new object by the new subject (original object)"""
@@ -88,12 +142,14 @@ def inverse_by_new_subject(request):
     return message, 'subject', 'b'
 
 
+@TestCode("BO", "by_object")
 def by_object(request):
     """Given a known triple, create a TRAPI message that looks up the subject by the object"""
     message = create_one_hop_message(request, look_up_subject=True)
     return message, 'subject', 'a'
 
 
+@TestCode("RSE", "raise_subject_entity")
 def raise_subject_entity(request):
     """
     Given a known triple, create a TRAPI message that uses
@@ -113,6 +169,7 @@ def raise_subject_entity(request):
     return message, 'object', 'b'
 
 
+@TestCode("ROBS", "raise_object_by_subject")
 def raise_object_by_subject(request):
     """Given a known triple, create a TRAPI message that uses the parent of the original object category and looks up
     the object by the subject"""
@@ -124,6 +181,7 @@ def raise_object_by_subject(request):
     return message, 'object', 'b'
 
 
+@TestCode("RPBS", "raise_predicate_by_subject")
 def raise_predicate_by_subject(request):
     """Given a known triple, create a TRAPI message that uses the parent of the original predicate and looks up
     the object by the subject"""

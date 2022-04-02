@@ -6,9 +6,11 @@ import json
 import logging
 from collections import defaultdict
 from json import JSONDecodeError
+from typing import List, Set
 
 from pytest_harvest import get_session_results_dct
 
+from tests.onehop.util import get_unit_test_codes
 from translator.sri.testing import set_global_environment
 from tests.onehop import util as oh_util
 
@@ -136,7 +138,13 @@ def generate_trapi_kp_tests(metafunc):
                 # Previous use of an exit() statement here seemed a bit drastic bailout here...
                 # JSON errors in a single file? Rather, just skip over to the next file?
                 continue
-                
+
+        dataset_level_test_exclusions: Set = set()
+        if "exclude_tests" in kpjson:
+            dataset_level_test_exclusions.update(
+                [test for test in kpjson["exclude_tests"] if test in get_unit_test_codes()]
+            )
+
         if 'url' in kpjson:
             for edge_i, edge in enumerate(kpjson['edges']):
                 edge['location'] = kpfile
@@ -146,28 +154,47 @@ def generate_trapi_kp_tests(metafunc):
                     edge['query_opts'] = kpjson['query_opts']
                 else:
                     edge['query_opts'] = {}
+
+                if dataset_level_test_exclusions:
+                    if 'exclude_tests' not in edge:
+                        edge['exclude_tests']: Set = dataset_level_test_exclusions
+                    else:
+                        # converting List internally to a set
+                        edge['exclude_tests'] = set(edge['exclude_tests'])
+                        edge['exclude_tests'].update(dataset_level_test_exclusions)
+
+                # convert back to List for JSON serialization safety later
+                if 'exclude_tests' in edge:
+                    edge['exclude_tests'] = list(edge['exclude_tests'])
+
                 edges.append(edge)
+
                 idlist.append(f'{kpfile}_{edge_i}')
+
                 if metafunc.config.getoption('one'):
                     break
 
     if "kp_trapi_case" in metafunc.fixturenames:
+
         metafunc.parametrize('kp_trapi_case', edges, ids=idlist)
         teststyle = metafunc.config.getoption('teststyle')
+
+        # Runtime (CLI) constraint on test scope
+        # Will be overridden by file set and
+        # test triple level exclude_tests scoping noted above
         if teststyle == 'all':
-            metafunc.parametrize(
-                "trapi_creator",
-                [
+            global_test_inclusions = [
                     oh_util.by_subject,
                     oh_util.inverse_by_new_subject,
                     oh_util.by_object,
                     oh_util.raise_subject_entity,
                     oh_util.raise_object_by_subject,
                     oh_util.raise_predicate_by_subject
-                ]
-            )
+            ]
         else:
-            metafunc.parametrize("trapi_creator", [getattr(oh_util, teststyle)])
+            global_test_inclusions = [getattr(oh_util, teststyle)]
+
+        metafunc.parametrize("trapi_creator", global_test_inclusions)
 
     return edges
 
