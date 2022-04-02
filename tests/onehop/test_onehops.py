@@ -23,6 +23,8 @@ def test_trapi_kps(kp_trapi_case, trapi_creator, results_bag):
     """
     if not in_excluded_tests(test=trapi_creator, test_case=kp_trapi_case):
         execute_trapi_lookup(kp_trapi_case, trapi_creator, results_bag)
+    else:
+        pytest.skip("Test explicitly excluded for this KP TRAPI Case")
 
 
 @pytest.mark.parametrize(
@@ -45,3 +47,5 @@ def test_trapi_aras(ara_trapi_case, trapi_creator, results_bag):
         response_message = execute_trapi_lookup(ara_trapi_case, trapi_creator, results_bag)
         if response_message is not None:
             check_provenance(ara_trapi_case, response_message)
+    else:
+        pytest.skip("Test explicitly excluded for this ARA TRAPI Case")
