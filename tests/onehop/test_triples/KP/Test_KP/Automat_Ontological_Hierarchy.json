@@ -1,5 +1,6 @@
 {
     "url": "https://automat.renci.org/ontological-hierarchy/1.2",
+    "exclude_tests": ["RPBS"],
     "edges": [
         {
             "subject_category": "biolink:AnatomicalEntity",
@@ -9,6 +10,7 @@
             "object": "UBERON:0035769"
         },
         {
+            "exclude_tests": ["RSE"],
             "subject_category": "biolink:CellularComponent",
             "object_category": "biolink:AnatomicalEntity",
             "predicate": "biolink:subclass_of",

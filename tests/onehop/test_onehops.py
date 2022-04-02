@@ -5,6 +5,7 @@ import logging
 
 import pytest
 
+from tests.onehop.util import in_excluded_tests
 from translator.trapi import check_provenance, execute_trapi_lookup
 from tests.onehop import util as oh_util
 
@@ -20,7 +21,8 @@ def test_trapi_kps(kp_trapi_case, trapi_creator, results_bag):
     This approach will need modification if there turn out to be particular elements we want to test for different
     creators.
     """
-    execute_trapi_lookup(kp_trapi_case, trapi_creator, results_bag)
+    if not in_excluded_tests(test=trapi_creator, test_case=kp_trapi_case):
+        execute_trapi_lookup(kp_trapi_case, trapi_creator, results_bag)
 
 
 @pytest.mark.parametrize(
@@ -39,6 +41,7 @@ def test_trapi_aras(ara_trapi_case, trapi_creator, results_bag):
     Then it performs a check on the result to make sure that the provenance is correct.
     Currently, that provenance check is a short circuit since ARAs are not reporting this in a standard way yet.
     """
-    response_message = execute_trapi_lookup(ara_trapi_case, trapi_creator, results_bag)
-    if response_message is not None:
-        check_provenance(ara_trapi_case, response_message)
+    if not in_excluded_tests(test=trapi_creator, test_case=ara_trapi_case):
+        response_message = execute_trapi_lookup(ara_trapi_case, trapi_creator, results_bag)
+        if response_message is not None:
+            check_provenance(ara_trapi_case, response_message)
