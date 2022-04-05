@@ -1,5 +1,5 @@
 """
-Configure onehop tests
+Configure one hop tests
 """
 import os
 import json
@@ -8,6 +8,8 @@ from collections import defaultdict
 from json import JSONDecodeError
 
 from pytest_harvest import get_session_results_dct
+
+from translator.sri.testing import set_global_environment
 from tests.onehop import util as oh_util
 
 logger = logging.getLogger(__name__)
@@ -214,6 +216,6 @@ def pytest_generate_tests(metafunc):
     However, for the ARA tests, we still need to get the KP data, since that is where the triples live."""
     biolink_version = metafunc.config.getoption('Biolink_version')
     trapi_version = metafunc.config.getoption('TRAPI_version')
-    oh_util.global_test_configuration(biolink_version=biolink_version, trapi_version=trapi_version)
+    set_global_environment(biolink_version=biolink_version, trapi_version=trapi_version)
     trapi_kp_edges = generate_trapi_kp_tests(metafunc)
     generate_trapi_ara_tests(metafunc, trapi_kp_edges)

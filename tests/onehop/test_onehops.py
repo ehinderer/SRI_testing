@@ -5,7 +5,7 @@ import logging
 
 import pytest
 
-from tests.onehop.trapi import execute_trapi_lookup, check_provenance
+from translator.trapi import check_provenance, execute_trapi_lookup
 from tests.onehop import util as oh_util
 
 logger = logging.getLogger(__name__)
@@ -36,7 +36,7 @@ def test_trapi_kps(kp_trapi_case, trapi_creator, results_bag):
 def test_trapi_aras(ara_trapi_case, trapi_creator, results_bag):
     """Generic Test for ARA TRAPI.  It does the same thing as the KP trapi, calling an ARA that should be pulling
     data from the KP.
-    Then it performs a check on the result to make sure that the source is correct.
+    Then it performs a check on the result to make sure that the provenance is correct.
     Currently, that provenance check is a short circuit since ARAs are not reporting this in a standard way yet.
     """
     response_message = execute_trapi_lookup(ara_trapi_case, trapi_creator, results_bag)

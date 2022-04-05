@@ -1,42 +1,7 @@
-from typing import Optional
 from copy import deepcopy
 
-from bmt import Toolkit
-
-from .trapi import set_trapi_version
-
-from translator.biolink import get_biolink_model_schema
+from translator.sri.testing import get_toolkit
 from translator.sri.testing.util import ontology_kp
-
-
-_bmt_toolkit = None
-
-
-def get_toolkit() -> Optional[Toolkit]:
-    global _bmt_toolkit
-    if not _bmt_toolkit:
-        raise RuntimeError("Biolink Model Toolkit is not initialized?!?")
-    return _bmt_toolkit
-
-
-def global_test_configuration(biolink_version, trapi_version):
-    # Note here that we let BMT control which version of Biolink we are using,
-    # unless the value for which is overridden on the CLI
-    global _bmt_toolkit
-
-    # Toolkit takes a couple of seconds to initialize,
-    # so don't want it initialized per-test; however,
-    # TODO: if we eventually need per-test settings, maybe we should cache various versions locally
-    #       (see https://github.com/biolink/kgx/blob/master/kgx/utils/kgx_utils.py#L304).
-    if biolink_version:
-        biolink_schema = get_biolink_model_schema()
-        _bmt_toolkit = Toolkit(biolink_schema)
-    else:
-        _bmt_toolkit = Toolkit()
-
-    # The TRAPI version is set to a hard coded default
-    # if not set by a non-empty trapi_version here
-    set_trapi_version(trapi_version)
 
 
 def create_one_hop_message(edge, look_up_subject=False):
