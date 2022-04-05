@@ -1,16 +1,25 @@
 # One-hop Tests
 
-This suite tests our ability to retrieve given triples, which we know exist, from their KPs under a variety of transformations, both directly, and via ARAs.
+This suite tests our ability to retrieve given triples, which we know exist, from their KPs under a variety of transformations, both directly, and indirectly, via ARAs.
 
-The tests are generated from the files in `test_triples/KP`.  For each KP, it is queried for the triples contained in its associated json file.  Then, ARAs are
-queried for those triples according to the annotations in `test_triples/ARA` denoting from which KPs each ARA receives information.
-
+- [How the Framework works](#how-the-testing-harness-works)
 - [Configuring the Tests](#configuring-the-tests)
     - [KP Instructions](#kp-instructions)
+        - [Excluding Tests](#excluding-tests)
     - [ARA Instructions](#ara-instructions)
 - [Running the Tests](#running-the-tests)
     - [Running only the KP tests](#running-only-the-kp-tests)
     - [Running only the ARA tests](#running-only-the-ara-tests)
+
+## How the Testing Harness Works
+
+The tests are dynamically generated from sample data triples, currently recorded in JSON files located within the folder `test_triples/KP`.  
+
+The KP files contain sample data for each triple that the KP can provide.  Each triple noted therein is used to build a set of distinct types of unit tests (see the [One Hop utility module](util.py) for the specific code dynamically generating each specific TRAPI query test message within the unit test set for that triple).  The following specific unit tests are currently available:
+
+The ARAs being tested are configured for testing their expected outputs using the list of KPs noted in their corresponding JSON configuration files located within `test_triples/ARA`.
+
+For some KP resources or maybe, just specific instances of triples published by the KP, certain types of unit tests are expected to fail _a priori_ (i.e. the resource is not expected to have knowledge to answer the query). In such cases, such specific unit tests may be excluded from execution (see below).
 
 ## Configuring the Tests
 
@@ -21,7 +30,7 @@ For each KP, we need a file with one triple of each type that the KP can provide
 ```
 {
     "url": "https://automat.renci.org/ontological-hierarchy/1.2",
-    "TRAPI": true,
+    "exclude_tests": ["RPBS"],
     "edges": [
         {
             "subject_category": "biolink:AnatomicalEntity",
@@ -31,18 +40,12 @@ For each KP, we need a file with one triple of each type that the KP can provide
             "object": "UBERON:0035769"
         },
         {
+            "exclude_tests": ["RSE"],
             "subject_category": "biolink:CellularComponent",
             "object_category": "biolink:AnatomicalEntity",
             "predicate": "biolink:subclass_of",
             "subject": "GO:0005789",
             "object": "UBERON:0000061"
-        },
-        {
-            "subject_category": "biolink:PhenotypicFeature",
-            "object_category": "biolink:Disease",
-            "predicate": "biolink:subclass_of",
-            "subject": "EFO:1001927",
-            "object": "MONDO:0005093"
         }
     ]
 }
@@ -64,7 +67,22 @@ So the steps for a KP:
 2. filter out logically derivable template entries
 3. fill in the subject and object entries for each triple with a real identifiers that should be retrievable from the KP
 
-Note: you can selectively disable ('skip') specific test files or whole subfolders of such files by appending *_SKIP* to the specific file or subfolder name. 
+Note: you can selectively exclude specific KP configuration files or whole subfolders of such files from execution by appending *_SKIP* to the specific file or subfolder name (see below for finer grained test exclusions).
+
+#### Excluding Tests
+
+Each unit test type in the [One Hop utility module](util.py) is a method marked with a `TestCode` method decorator that associates each test with a 2 - 4 letter acronym.  By including the acronym in a JSON array value for an (optional) tag `exclude_tests`, one or more test types from execution using that triple. 
+
+A test exclusion tag may be placed at the top level of a KP file JSON configuration and/or within any of its triple entries, as noted in the above data KP template example. In the above example, the unit test corresponding to the "RPBS" test type ("_raise_predicate_by_subject_") is not run for any of the triples of the file, whereas the test type "RSE" ("_raise_subject_entity_") is only excluded for the one specific triple where it is specified. Note that test exclusion for a given triple is the union set of all test exclusions. A table summarizing the test codes for currently available tests (as of April 2022) is provided here for convenience (see the util.py file for more details):
+
+| Test Name                  | Test Code |
+|----------------------------|:---------:|
+| by subject                 | BS        |
+| inverse by new subject     | IBNS      |
+| by object                  | BO        |
+| raise subject entity       | RSE       |
+| raise object by subject    | ROBS      |
+| raise predicate by subject | RPBS      |
 
 ### ARA Instructions
 
@@ -73,7 +91,6 @@ For each ARA, we want to ensure that it is able to extract information correctly
 ```
 {
     "url": "https://aragorn.renci.org/1.2",
-    "TRAPI": true,
     "KPs": [
         "Automat Panther",
         "Automat Ontological Hierarchy"
@@ -86,7 +103,7 @@ In order to correctly link ARAs to KPs, ARAs will need to:
 1. Copy the ARA template from `templates` into a distinctly named file, in a suitable (ARA-specific) subfolder location inside `test_triples/ARA`
 2. Edit the copied file to remove KPs that the ARA does not access.
 
-Note: as with the KP template files, you can selectively disable ('skip') specific ARA test files or whole subfolders of such files by appending *_SKIP* to the specific file or subfolder name. 
+Note: as with the KP template files, you can selectively exclude complete ARA test files or whole subfolders of such files from execution, by appending *_SKIP* to the specific file or subfolder name. 
 
 ## Running the Tests
 
