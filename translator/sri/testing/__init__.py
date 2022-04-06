@@ -8,7 +8,7 @@ from translator.trapi import set_trapi_version
 Biolink Model related support code for the tests
 """
 
-# Biolink Release number should be a well-formed Semantic Version)
+# Biolink Release number should be a well-formed Semantic Version
 semver_pattern = re.compile(r"^\d+\.\d+\.\d+$")
 
 

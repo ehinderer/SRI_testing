@@ -77,12 +77,12 @@ A test exclusion tag may be placed at the top level of a KP file JSON configurat
 
 | Test Name                  | Test Code |
 |----------------------------|:---------:|
-| by subject                 | BS        |
-| inverse by new subject     | IBNS      |
-| by object                  | BO        |
-| raise subject entity       | RSE       |
-| raise object by subject    | ROBS      |
-| raise predicate by subject | RPBS      |
+| by subject                 |    BS     |
+| inverse by new subject     |   IBNS    |
+| by object                  |    BO     |
+| raise subject entity       |    RSE    |
+| raise object by subject    |   ROBS    |
+| raise predicate by subject |   RPBS    |
 
 ### ARA Instructions
 

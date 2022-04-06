@@ -6,7 +6,7 @@ import json
 import logging
 from collections import defaultdict
 from json import JSONDecodeError
-from typing import List, Set
+from typing import Set
 
 from pytest_harvest import get_session_results_dct
 
@@ -74,8 +74,8 @@ def pytest_addoption(parser):
         "--TRAPI_version", action="store", default=None,
         help='TRAPI API release to use for the tests (default: latest public release)'
     )
-    # We could eventually use a TRAPI/meta_knowledge_graph value but
-    # we'll use the Biolink Model Toolkit default for now?
+    # We could eventually use a TRAPI/meta_knowledge_graph value,
+    # but we'll use the Biolink Model Toolkit default for now?
     parser.addoption(
         "--Biolink_version", action="store", default=None,
         help='Biolink Model release to use for the tests (default: latest Biolink Model Toolkit default)'

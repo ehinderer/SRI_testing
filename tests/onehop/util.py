@@ -8,8 +8,8 @@ from translator.sri.testing.util import ontology_kp
 
 def create_one_hop_message(edge, look_up_subject=False):
     """Given a complete edge, create a valid TRAPI message for "one hop" querying for the edge.
-    if look_up_subject is False (default) then the object id is not included, (lookup object
-    by subject) and if look_up_subject is True, then the subject id is not included (look up
+    If the look_up_subject is False (default) then the object id is not included, (lookup object
+    by subject) and if the look_up_subject is True, then the subject id is not included (look up
     subject by object)"""
     # TODO: This key method is actually very TRAPI version sensitive since
     #       the core message structure evolved between various TRAPI versions,
@@ -59,7 +59,7 @@ def get_unit_test_codes() -> Set[str]:
     return set(_unit_tests.keys())
 
 
-def unit_test_name(code: str) -> str:
+def get_unit_test_name(code: str) -> str:
     global _unit_tests
     return _unit_tests[code]
 
@@ -73,7 +73,7 @@ def in_excluded_tests(test, test_case) -> bool:
     try:
         if "exclude_tests" in test_case:
             # returns 'true' if the test_name corresponds to a test in the list of excluded test (codes)
-            return any([test_name == unit_test_name(code) for code in test_case["exclude_tests"]])
+            return any([test_name == get_unit_test_name(code) for code in test_case["exclude_tests"]])
     except TypeError as te:
         raise RuntimeError(f"in_excluded_tests(): invalid 'test_case' parameter: '{str(test_case)}': {str(te)}")
     except KeyError as ke:

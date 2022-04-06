@@ -42,7 +42,7 @@ def dump_smartapi_predicate_results(apititle):
     """
     Create a template for a single REST-style KP smartAPI entry.
     
-    :param apititle:
+    :param apititle
     """
     metakgurl = f'https://smart-api.info/api/metakg?api={apititle}'
     response = requests.get(metakgurl)
@@ -72,7 +72,7 @@ def in_biolink_model(predicate):
     """
     Predicate method to check if an edge predicate is known to the Biolink Model.
     
-    :param predicate:
+    :param predicate
     """
     is_predicate = _bmtk.is_predicate(predicate)
     return is_predicate
@@ -89,18 +89,18 @@ def dump_trapi_predicate_results(url, predicates, team):
     for source in predicates:
         for target in predicates[source]:
             for ptype in predicates[source][target]:
-                predicate = ptype
-                object = target
-                subject = source
-                if in_biolink_model(predicate):
+                the_predicate = ptype
+                the_object = target
+                the_subject = source
+                if in_biolink_model(the_predicate):
                     continue
                 else:
-                    if predicate in missing_predicates:
-                        if url not in missing_predicates[predicate]:
-                            missing_predicates[predicate].append(url)
+                    if the_predicate in missing_predicates:
+                        if url not in missing_predicates[the_predicate]:
+                            missing_predicates[the_predicate].append(url)
                     else:
-                        missing_predicates[predicate] = [url]
-                    tsv_writer.writerow([subject, predicate, object, team, url])
+                        missing_predicates[the_predicate] = [url]
+                    tsv_writer.writerow([the_subject, the_predicate, the_object, team, url])
 
 
 if __name__ == '__main__':
