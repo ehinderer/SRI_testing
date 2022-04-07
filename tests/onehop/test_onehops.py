@@ -27,12 +27,23 @@ def test_trapi_kps(kp_trapi_case, trapi_creator, results_bag):
     if not ('biolink_errors' in kp_trapi_case or in_excluded_tests(test=trapi_creator, test_case=kp_trapi_case)):
         execute_trapi_lookup(kp_trapi_case, trapi_creator, results_bag)
     else:
+        location = kp_trapi_case['location']
+        subject_category = kp_trapi_case['subject_category']
+        predicate = kp_trapi_case['predicate']
+        object_category = kp_trapi_case['object_category']
         if 'biolink_errors' in kp_trapi_case:
+            model_version, errors = kp_trapi_case['biolink_errors']
+            eol = "\n\t"
             pytest.skip(
-                f"\nKP TRAPI test case S-P-O triple is not Biolink Model compliant:\n\n{pp.pformat(kp_trapi_case)}\n"
+                f"\nKP TRAPI test case S-P-O triple '{subject_category}-{predicate}->{object_category}' " +
+                f"from {location} is not Biolink Model compliant with Biolink Model version {model_version}\n" +
+                f"Errors:\n\t{eol.join(errors)}"
             )
         else:
-            pytest.skip("Test explicitly excluded for this KP TRAPI Case")
+            pytest.skip(
+                f"Test explicitly excluded for all test triples from KP '{location}' KP or just for this particular "
+                f"test triple: '{subject_category}-{predicate}->{object_category}'"
+            )
 
 
 @pytest.mark.parametrize(

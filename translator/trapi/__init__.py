@@ -138,10 +138,8 @@ def execute_trapi_lookup(case, creator, rbag):
     # The results contained the object of the query
     object_ids = [r['node_bindings'][output_node_binding][0]['id'] for r in response_message['results']]
     assert case[output_element] in object_ids, \
-           f"execute_trapi_lookup({case['url']}): " + \
-           f"TRAPI request:\n\t{_output(trapi_request)}\n " + \
-           f"had missing or invalid TRAPI Result object ID bindings" \
-           f"in response method results:\n\t" \
-           f"{_output(response_message['results'])}"
+           f"execute_trapi_lookup({case['url']}): TRAPI request:\n\t{_output(trapi_request)}\n " + \
+           f"had missing or invalid TRAPI Result object ID bindings in response method results:\n\t" \
+           f"{_output(response_message)}"
 
     return response_message
