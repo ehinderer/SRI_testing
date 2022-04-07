@@ -1,6 +1,7 @@
 """
 Configure one hop tests
 """
+from sys import stderr
 import os
 import json
 import logging
@@ -11,7 +12,7 @@ from typing import Set
 from pytest_harvest import get_session_results_dct
 
 from tests.onehop.util import get_unit_test_codes
-from translator.sri.testing import set_global_environment
+from translator.sri.testing import set_global_environment, check_biolink_model_compliance
 from tests.onehop import util as oh_util
 
 logger = logging.getLogger(__name__)
@@ -147,6 +148,14 @@ def generate_trapi_kp_tests(metafunc):
 
         if 'url' in kpjson:
             for edge_i, edge in enumerate(kpjson['edges']):
+
+                # We can already do some basic Biolink Model validation here of the
+                # S-P-O contents of the edge being input from the current triples file?
+                model_version, errors = check_biolink_model_compliance(edge)
+                if errors:
+                    # defer reporting of errors to higher level oftest harness
+                    edge['biolink_errors'] = model_version, errors
+
                 edge['location'] = kpfile
                 edge['api_name'] = kpfile.split('/')[-1]
                 edge['url'] = kpjson['url']

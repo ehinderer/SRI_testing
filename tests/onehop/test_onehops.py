@@ -2,6 +2,7 @@
 One Hops Testing Suite
 """
 import logging
+from pprint import PrettyPrinter
 
 import pytest
 
@@ -12,6 +13,8 @@ from tests.onehop import util as oh_util
 logger = logging.getLogger(__name__)
 logger.setLevel("DEBUG")
 
+pp = PrettyPrinter(indent=4)
+
 
 def test_trapi_kps(kp_trapi_case, trapi_creator, results_bag):
     """Generic Test for TRAPI KPs. The kp_trapi_case fixture is created in conftest.py by looking at the test_triples
@@ -21,10 +24,15 @@ def test_trapi_kps(kp_trapi_case, trapi_creator, results_bag):
     This approach will need modification if there turn out to be particular elements we want to test for different
     creators.
     """
-    if not in_excluded_tests(test=trapi_creator, test_case=kp_trapi_case):
+    if not ('biolink_errors' in kp_trapi_case or in_excluded_tests(test=trapi_creator, test_case=kp_trapi_case)):
         execute_trapi_lookup(kp_trapi_case, trapi_creator, results_bag)
     else:
-        pytest.skip("Test explicitly excluded for this KP TRAPI Case")
+        if 'biolink_errors' in kp_trapi_case:
+            pytest.skip(
+                f"\nKP TRAPI test case S-P-O triple is not Biolink Model compliant:\n\n{pp.pformat(kp_trapi_case)}\n"
+            )
+        else:
+            pytest.skip("Test explicitly excluded for this KP TRAPI Case")
 
 
 @pytest.mark.parametrize(

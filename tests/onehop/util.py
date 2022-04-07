@@ -128,14 +128,17 @@ def inverse_by_new_subject(request):
     # Not everything has an inverse (it should, and it will, but it doesn't right now)
     if transformed_predicate is None:
         return None, None, None
-    transformed_request = {
-        "url": "https://automat.renci.org/human-goa",
+
+    # probably don't need to worry here but just-in-case
+    # only work off a copy of the original request...
+    transformed_request = request.copy()
+    transformed_request.update({
         "subject_category": request['object_category'],
         "object_category": request['subject_category'],
         "predicate": transformed_predicate,
         "subject": request['object'],
         "object": request['subject']
-    }
+    })
     message = create_one_hop_message(transformed_request, look_up_subject=False)
     # We inverted the predicate, and will be querying by the new subject, so the output will be in node b
     # but, the entity we are looking for (now the object) was originally the subject because of the inversion.
