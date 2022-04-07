@@ -2,6 +2,7 @@
 Ontology KP interface
 """
 import requests
+from translator.sri.testing import get_toolkit
 
 ONTOLOGY_KP_TRAPI_SERVER = "https://ontology-kp.apps.renci.org/query"
 
@@ -68,7 +69,7 @@ def get_ontology_ancestors(curie, btype):
     for result in response['message']['results']:
         parent_id = result['node_bindings']['b'][0]['id']
         if parent_id == curie:
-            # everything is a sublcass of itself
+            # everything is a subclass of itself
             continue
         if not parent_id.startswith(original_prefix):
             # Don't give me UPHENO:000001 if I asked for a parent of HP:000012312
@@ -104,13 +105,21 @@ def get_ontology_parent(curie, btype):
         return None
 
 
-def get_parent(curie, entity_type):
+def get_parent(curie, category):
     """
-    :param curie:
-    :param entity_type
+    :param curie: CURIE of a concept instance
+    :param category: Biolink Category of the concept instance
     """
-    # not every entity type can be parented, and not every prefix can be used
-    preferred_prefixes = {'CHEBI', 'HP', 'MONDO', 'UBERON', 'CL', 'EFO', 'NCIT'}
+    tk = get_toolkit()
+    if not tk.is_category(category):
+        assert False, f"{category} is not a Biolink Model Category!"
+
+    # Not every Biolink Category has a prefix namespace with ontological hierarchy.
+    # We replace the previous hard coded namespace list with retrieval of id_prefixes
+    # registered for the given concept category within the Biolink Model.
+    # preferred_prefixes = {'CHEBI', 'HP', 'MONDO', 'UBERON', 'CL', 'EFO', 'NCIT'}
+    preferred_prefixes = tk.get_element(category).id_prefixes
+
     input_prefix = curie.split(':')[0]
     if input_prefix in preferred_prefixes:
         query_entity = curie
@@ -118,7 +127,7 @@ def get_parent(curie, entity_type):
         query_entity = convert_to_preferred(curie, preferred_prefixes)
     if query_entity is None:
         return None
-    preferred_parent = get_ontology_parent(query_entity, entity_type)
+    preferred_parent = get_ontology_parent(query_entity, category)
     if preferred_parent is None:
         return None
     original_parent_prefix = preferred_parent.split(':')[0]
