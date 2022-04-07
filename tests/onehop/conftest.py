@@ -1,7 +1,6 @@
 """
 Configure one hop tests
 """
-from sys import stderr
 import os
 import json
 import logging
