@@ -2,6 +2,7 @@
 Configure one hop tests
 """
 import os
+from sys import stderr
 import json
 import logging
 from collections import defaultdict
@@ -18,6 +19,16 @@ logger = logging.getLogger(__name__)
 logger.setLevel("DEBUG")
 
 
+def _clean_up_filename(source: str):
+    name = source.split('/')[-1][:-1]
+    name = name.replace("::", "-")
+    name = name.replace("[", "-")
+    name = name.replace("]", "")
+    name = f"{name}.results"
+    logger.debug(f"_clean_up_filename: '{source}' to '{name}'")
+    return name
+
+
 def pytest_sessionfinish(session):
     """ Gather all results and save them to a csv.
     Works both on worker and master nodes, and also with xdist disabled"""
@@ -25,7 +36,8 @@ def pytest_sessionfinish(session):
     session_results = get_session_results_dct(session)
     for t, v in session_results.items():
         if v['status'] == 'failed':
-            rfname = f"{t.split('/')[-1][:-1]}.results"
+            # clean up the name for safe file system usage
+            rfname = _clean_up_filename(t)
             rb = v['fixtures']['results_bag']
             # rb['location'] looks like "test_triples/KP/Exposures_Provider/CAM-KP_API.json"
             if 'location' in rb:
@@ -187,9 +199,9 @@ def generate_trapi_kp_tests(metafunc):
         metafunc.parametrize('kp_trapi_case', edges, ids=idlist)
         teststyle = metafunc.config.getoption('teststyle')
 
-        # Runtime (CLI) constraint on test scope
-        # Will be overridden by file set and
-        # test triple level exclude_tests scoping noted above
+        # Runtime specified (CLI) constraints on test scope,
+        # which will be overridden by file set and specific
+        # test triple-level exclude_tests scoping, as captured above
         if teststyle == 'all':
             global_test_inclusions = [
                     oh_util.by_subject,
@@ -213,8 +225,6 @@ def generate_trapi_ara_tests(metafunc, kp_edges):
     :param metafunc
     :param kp_edges
     """
-    if "ara_trapi_case" not in metafunc.fixturenames:
-        return
     kp_dict = defaultdict(list)
     for e in kp_edges:
         # eh, not handling api name very well
@@ -241,6 +251,7 @@ def generate_trapi_ara_tests(metafunc, kp_edges):
                     edge['query_opts'] = {}
                 idlist.append(f'{f}_{kp}_{edge_i}')
                 ara_edges.append(edge)
+
     metafunc.parametrize('ara_trapi_case', ara_edges, ids=idlist)
 
 
@@ -253,4 +264,5 @@ def pytest_generate_tests(metafunc):
     trapi_version = metafunc.config.getoption('TRAPI_version')
     set_global_environment(biolink_version=biolink_version, trapi_version=trapi_version)
     trapi_kp_edges = generate_trapi_kp_tests(metafunc)
-    generate_trapi_ara_tests(metafunc, trapi_kp_edges)
+    if metafunc.definition.name == 'test_trapi_aras':
+        generate_trapi_ara_tests(metafunc, trapi_kp_edges)

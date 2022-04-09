@@ -7,6 +7,7 @@ import requests
 from jsonschema import ValidationError
 
 from reasoner_validator import validate
+from requests import Timeout, Response
 
 logger = logging.getLogger(__name__)
 logger.setLevel("DEBUG")
@@ -19,6 +20,9 @@ logger.setLevel("DEBUG")
 DEFAULT_TRAPI_VERSION = "1"
 
 _default_trapi_version = None
+
+# For testing, set TRAPI API query POST timeouts to 10 minutes == 600 seconds
+DEFAULT_TRAPI_POST_TIMEOUT = 600.0
 
 
 def set_trapi_version(version: str):
@@ -67,7 +71,13 @@ def call_trapi(url, opts, trapi_message):
 
     # print(f"\ncall_trapi({query_url}):\n\t{dumps(trapi_message, sort_keys=False, indent=4)}", file=stderr, flush=True)
 
-    response = requests.post(query_url, json=trapi_message, params=opts)
+    try:
+        response = requests.post(query_url, json=trapi_message, params=opts, timeout=DEFAULT_TRAPI_POST_TIMEOUT)
+    except Timeout:
+        # fake response object
+        response = Response()
+        response.status_code = 408
+
     response_json = None
     if response.status_code == 200:
         try:
