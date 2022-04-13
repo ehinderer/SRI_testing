@@ -1,5 +1,6 @@
 {
     "url": "https://translator.broadinstitute.org/molepro/trapi/v1.2",
+    "infores": "molepro",
     "edges": [
         {
             "subject_category": "biolink:SmallMolecule",

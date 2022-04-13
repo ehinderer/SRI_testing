@@ -30,6 +30,7 @@ For each KP, we need a file with one triple of each type that the KP can provide
 ```
 {
     "url": "https://automat.renci.org/ontological-hierarchy/1.2",
+    "infores": "automat",   # mandatory object id of InfoRes CURIE for the KP as a knowledge source
     "exclude_tests": ["RPBS"],
     "edges": [
         {
@@ -91,6 +92,7 @@ For each ARA, we want to ensure that it is able to extract information correctly
 ```
 {
     "url": "https://aragorn.renci.org/1.2",
+    "infores": "aragorn",   # mandatory object id of InfoRes CURIE for the ARA as a knowledge source
     "KPs": [
         "Automat Panther",
         "Automat Ontological Hierarchy"

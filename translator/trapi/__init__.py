@@ -1,7 +1,8 @@
-from typing import Optional
+from typing import Optional, Dict
 from json import dumps
 
 import logging
+from pprint import PrettyPrinter
 
 import requests
 from jsonschema import ValidationError
@@ -12,28 +13,33 @@ from requests import Timeout, Response
 logger = logging.getLogger(__name__)
 logger.setLevel("DEBUG")
 
+pp = PrettyPrinter(indent=4)
+
+# For testing, set TRAPI API query POST timeouts to 10 minutes == 600 seconds
+DEFAULT_TRAPI_POST_TIMEOUT = 600.0
+
+# Maximum number of edges to scrutinize in
+# TRAPI response knowledge graph, during edge content tests
+MAX_NO_OF_EDGES = 10
+
 # TODO: We'd rather NOT hard code a default TRAPI here,
 #       but do it for now pending clarity on how to guide
 #       the choice of TRAPI from a Translator SmartAPI entry
 # Default is actually specifically 1.2.0 as of March 2022,
 # but the ReasonerAPI should discern this
 DEFAULT_TRAPI_VERSION = "1"
-
-_default_trapi_version = None
-
-# For testing, set TRAPI API query POST timeouts to 10 minutes == 600 seconds
-DEFAULT_TRAPI_POST_TIMEOUT = 600.0
+_current_trapi_version = None
 
 
 def set_trapi_version(version: str):
-    global _default_trapi_version
-    _default_trapi_version = version if version else DEFAULT_TRAPI_VERSION
-    logger.debug(f"TRAPI Version set to {_default_trapi_version}")
+    global _current_trapi_version
+    _current_trapi_version = version if version else DEFAULT_TRAPI_VERSION
+    logger.debug(f"TRAPI Version set to {_current_trapi_version}")
 
 
 def get_trapi_version() -> Optional[str]:
-    global _default_trapi_version
-    return _default_trapi_version
+    global _current_trapi_version
+    return _current_trapi_version
 
 
 def is_valid_trapi(instance, trapi_version):
@@ -58,10 +64,56 @@ def check_provenance(ara_case, ara_response):
     in the ARA response is marked with the expected KP.
     But at the moment, there is not a standard way to do this.
     """
-    logger.warning(
-        f"check_provenance() not yet implemented to assess ara_response '{ara_response}' for the test case '{ara_case}'"
-    )
-    pass
+    kg = ara_response['knowledge_graph']
+    edges: Dict[str, Dict] = kg['edges']
+
+    number_of_edges_viewed = 0
+    for edge in edges.values():
+
+        # Every edge should always have at least *some* (provenance source) attributes
+        if 'attributes' not in edge.keys():
+            assert False, f"Edge '{pp.pformat(edge)}' has no attributes?"
+
+        attributes = edge['attributes']
+
+        # Expecting ARA and KP 'aggregator_knowledge_source' attributes?
+        found_ara_aggregator_knowledge_source = False
+        found_kp_aggregator_knowledge_source = False
+
+        # TODO: is it acceptable to only have a 'knowledge_source' here?
+        found_primary_or_original_knowledge_source = False
+
+        for entry in attributes:
+            attribute_type_id = entry['attribute_type_id']
+            if attribute_type_id == "biolink:aggregator_knowledge_source":
+                value: str = entry['value']
+                if not value.startswith("infores:"):
+                    assert False, f"'biolink:aggregator_knowledge_source' attribute value is not a " + \
+                                  f"well formed InfoRes CURIE, in Edge:\n'{pp.pformat(edge)}'\n"
+                # TODO: we ought to also check here if both of the KP and ARA infores
+                #       are published as one of the aggregator_knowledge_source's
+                if ara_case['infores'] and value == f"infores:{ara_case['infores']}":
+                    found_ara_aggregator_knowledge_source = True
+                elif ara_case['kp_infores'] and value == f"infores:{ara_case['kp_infores']}":
+                    found_kp_aggregator_knowledge_source = True
+            elif attribute_type_id in ["biolink:primary_knowledge_source", "biolink:original_knowledge_source"]:
+                found_primary_or_original_knowledge_source = True
+        if ara_case['infores'] and not found_ara_aggregator_knowledge_source:
+            assert False, f"'aggregator knowledge source' provenance missing for " +\
+                          f"ARA '{ara_case['infores'].upper()}' in Edge:\n{pp.pformat(edge)}\n"
+        if ara_case['kp_infores'] and not found_kp_aggregator_knowledge_source:
+            assert False, "'aggregator knowledge source' provenance missing for " +\
+                          f"KP '{ara_case['kp_source']}' in Edge:\n{pp.pformat(edge)}\n"
+        if not found_primary_or_original_knowledge_source:
+            assert False, "Neither 'primary' nor 'original' knowledge source' provenance attributes " +\
+                          f"were found in Edge:\n'{pp.pformat(edge)}'\n from KP '{ara_case['kp_source']}' " \
+                          f"accessed by ARA endpoint '{ara_case['url']}' "
+
+        # We are not likely to want to check the entire Knowledge Graph for provenance but only a subset,
+        # making the assumption that defects in provenance will be systemic, thus show up early
+        number_of_edges_viewed += 1
+        if number_of_edges_viewed >= MAX_NO_OF_EDGES:
+            break
 
 
 def call_trapi(url, opts, trapi_message):
