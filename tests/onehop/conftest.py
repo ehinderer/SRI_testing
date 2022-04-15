@@ -21,7 +21,7 @@ logger.setLevel("DEBUG")
 
 def _clean_up_filename(source: str):
     name = source.split('/')[-1][:-1]
-    name = name.replace("::", "-")
+    name = name.replace(".py::", "-")
     name = name.replace("[", "-")
     name = name.replace("]", "")
     name = f"{name}.results"
@@ -171,19 +171,24 @@ def generate_trapi_kp_tests(metafunc):
                 edge['api_name'] = kpfile.split('/')[-1]
                 edge['url'] = kpjson['url']
 
+                if 'source_type' in kpjson:
+                    edge['source_type'] = kpjson['source_type']
+                else:
+                    # If not specified, we assume that the KP is an "aggregating_knowledge_source"
+                    edge['source_type'] = "aggregating"
+
                 if 'infores' in kpjson:
                     edge['infores'] = kpjson['infores']
                 else:
-                    logger.error(
+                    logger.warning(
                         f"generate_trapi_kp_tests(): input file '{kpfile}' is missing its 'infores' field value?"
                     )
-                    continue
+                    edge['infores'] = None
 
-                # TODO: I think that query_opts are deprecated?
-                # if 'query_opts' in kpjson:
-                #     edge['query_opts'] = kpjson['query_opts']
-                # else:
-                #     edge['query_opts'] = {}
+                if 'query_opts' in kpjson:
+                    edge['query_opts'] = kpjson['query_opts']
+                else:
+                    edge['query_opts'] = {}
 
                 if dataset_level_test_exclusions:
                     if 'exclude_tests' not in edge:
@@ -256,28 +261,32 @@ def generate_trapi_ara_tests(metafunc, kp_edges):
                 edge['url'] = arajson['url']
 
                 if 'infores' in arajson:
-                    edge['infores'] = arajson['infores']
+                    edge['ara_infores'] = arajson['infores']
                 else:
                     logger.warning(
-                        f"generate_trapi_ara_tests(): input file '{arafile}' is missing its 'infores' field value?"
+                        f"generate_trapi_ara_tests(): input file '{arafile}' " +
+                        "is missing its ARA 'infores' field...ARA provenance will not be properly tested?"
                     )
-                    continue
+                    edge['ara_infores'] = None
 
                 edge['kp_source'] = kp
+
+                edge['kp_source_type'] = kp_edge['source_type']
+
                 if 'infores' in kp_edge:
                     edge['kp_infores'] = kp_edge['infores']
                 else:
                     logger.warning(
                         f"generate_trapi_ara_tests(): KP source '{kp}' " +
-                        "is missing its 'infores' field value...skipping the KP"
+                        "is missing its KP 'infores' field...KP provenance will not be properly tested?"
                     )
-                    continue
+                    edge['kp_infores'] = None
 
-                # TODO: I think that query_opts are deprecated?
-                # if 'query_opts' in arajson:
-                #     edge['query_opts'] = arajson['query_opts']
-                # else:
-                #     edge['query_opts'] = {}
+                if 'query_opts' in arajson:
+                    edge['query_opts'] = arajson['query_opts']
+                else:
+                    edge['query_opts'] = {}
+
                 idlist.append(f'{f}_{kp}_{edge_i}')
                 ara_edges.append(edge)
 

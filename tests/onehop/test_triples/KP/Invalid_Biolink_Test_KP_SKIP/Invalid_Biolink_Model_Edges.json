@@ -1,6 +1,5 @@
 {
     "url": "https://invalid_biolink_model_KP_tests_do_not_care_url",
-    "exclude_tests": ["RSE"],
     "edges": [
         {
             "subject_category": "biolink:NotABiolinkCategory",
