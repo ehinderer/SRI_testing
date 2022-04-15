@@ -2,7 +2,6 @@
 Configure one hop tests
 """
 import os
-from sys import stderr
 import json
 import logging
 from collections import defaultdict
