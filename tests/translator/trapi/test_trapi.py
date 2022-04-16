@@ -6,7 +6,7 @@ from typing import Optional
 import pytest
 
 from translator.sri.testing import set_global_environment
-from translator.trapi import get_trapi_version
+from translator.trapi import get_trapi_version, check_provenance
 
 
 def test_set_default_global_environment():
@@ -23,17 +23,20 @@ def test_set_specific_trapi_versioned_global_environment():
     assert trapi_version.startswith("1.2")
 
 
-# check_provenance(ara_case, ara_response), triggers assert exceptions
+# check_provenance(ara_case, ara_response), triggers AssertError exceptions
 @pytest.mark.parametrize(
     "query",
     [
-        # (URIRef("http://purl.obolibrary.org/obo/GO_0007267"), "biological_process"),
-        # (URIRef("http://purl.obolibrary.org/obo/GO_0019899"), "molecular_function"),
-        # (URIRef("http://purl.obolibrary.org/obo/GO_0005739"), "cellular_component"),
+        ("ara_case", "ara_response", True),   # set 3rd argument to 'True' if the check_provenance should pass
+        ("ara_case", "ara_response", False),  # set 3rd argument to 'False' if the check_provenance should fail
     ]
 )
 def test_check_provenance(query):
     try:
-        pass
+        check_provenance(query[0], query[1])
+
     except AssertionError:
-        pass
+
+        assert not query[2], "check_provenance() should pass!"
+
+    assert query[2], "check_provenance() should fail!"
