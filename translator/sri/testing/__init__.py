@@ -43,7 +43,7 @@ def get_toolkit() -> Optional[Toolkit]:
     return _bmt_toolkit
 
 
-def set_global_environment(biolink_version, trapi_version):
+def set_global_environment(biolink_version=None, trapi_version=None):
     # Note here that we let BMT control which version of Biolink we are using,
     # unless the value for which is overridden on the CLI
     global _bmt_toolkit
@@ -53,7 +53,7 @@ def set_global_environment(biolink_version, trapi_version):
     # TODO: if we eventually need per-test settings, maybe we should cache various versions locally
     #       (see https://github.com/biolink/kgx/blob/master/kgx/utils/kgx_utils.py#L304).
     if biolink_version:
-        biolink_schema = get_biolink_model_schema()
+        biolink_schema = get_biolink_model_schema(biolink_release=biolink_version)
         _bmt_toolkit = Toolkit(biolink_schema)
     else:
         _bmt_toolkit = Toolkit()
