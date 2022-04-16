@@ -77,9 +77,11 @@ def check_provenance(ara_case, ara_response):
 
         # Every edge should always have at least *some* (provenance source) attributes
         if 'attributes' not in edge.keys():
-            assert False, f"Edge '{pp.pformat(edge)}' has no attributes?"
+            assert False, f"Edge '{pp.pformat(edge)}' has no 'attributes' key?"
 
         attributes = edge['attributes']
+        if not attributes:
+            assert False, f"Edge '{pp.pformat(edge)}' has no attributes?"
 
         # Expecting ARA and KP 'aggregator_knowledge_source' attributes?
         found_ara_knowledge_source = False
