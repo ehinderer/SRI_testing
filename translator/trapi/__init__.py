@@ -8,6 +8,7 @@ import requests
 from jsonschema import ValidationError
 
 from reasoner_validator import validate
+from reasoner_validator.util import latest
 from requests import Timeout, Response
 
 logger = logging.getLogger(__name__)
@@ -33,7 +34,8 @@ _current_trapi_version = None
 
 def set_trapi_version(version: str):
     global _current_trapi_version
-    _current_trapi_version = version if version else DEFAULT_TRAPI_VERSION
+    version = version if version else DEFAULT_TRAPI_VERSION
+    _current_trapi_version = latest.get(version)
     logger.debug(f"TRAPI Version set to {_current_trapi_version}")
 
 
