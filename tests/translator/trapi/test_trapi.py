@@ -2,7 +2,7 @@
 Unit tests for the generic (shared) components of the TRAPI testing utilities
 """
 import logging
-from typing import Optional
+from typing import Optional, Dict
 
 import pytest
 
@@ -27,13 +27,21 @@ def test_set_specific_trapi_versioned_global_environment():
     assert trapi_version.startswith("1.2")
 
 
-TEST_ARA_CASE = {
+TEST_ARA_CASE_TEMPLATE = {
     "url": "http://test_ara_endpoint",
-    "ara_infores": "infores:test_ara",
+    "ara_infores": "test_ara",  # value should be specified without the 'infores' prefix, in the ARA case template
     "kp_source": "Test KP",
     "kp_source_type": "original",
-    "kp_infores": "infores:test_kp"
+    "kp_infores": "test_kp"  # value should be specified without the 'infores' prefix, in the ARA case template
 }
+
+
+def get_ara_test_case(changes: Optional[Dict[str, str]] = None):
+    test_case = TEST_ARA_CASE_TEMPLATE.copy()
+    if changes:
+        test_case.update(changes)
+    return test_case
+
 
 
 # check_provenance(ara_case, ara_response), triggers AssertError exceptions
@@ -42,90 +50,228 @@ TEST_ARA_CASE = {
     [
         # (
         #         "mock_ara_case",
-        #         "mock_ara_response",
-        #         (True|False)
-        # ),   # set 3rd argument to 'True' if the check_provenance should pass; 'False' if it should fail
+        #         "mock_ara_response",  # mock data has dumb edges: don't worry about the S-P-O, just the attributes
+        #         "AssertError_message"
+        # ),   # set 3rd argument to AssertError message if test edge should 'fail'; otherwise, empty string (for pass)
         (
-                # No attributes key
-                TEST_ARA_CASE,
-                {  # ara_response
-                    "knowledge_graph": {
-                        "edges": {
-                        }
-                    },
+            # Query 0. No attributes key
+            get_ara_test_case(),
+            {  # ara_response
+                "knowledge_graph": {
+                    "edges": {
+                    }
                 },
-                "edge missing 'attributes' key"
+            },
+            "Knowledge graph has no edges?"
         ),
         (
-                # No attributes key
-                TEST_ARA_CASE,
-                {  # ara_response
-                    "knowledge_graph": {
-                        "edges": {
-                            "attributes": {}
-                        }
-                    },
+            # Query 1. No attributes key
+            get_ara_test_case(),
+            {  # ara_response
+                "knowledge_graph": {
+                    "edges": {
+                        "edge_1": {}
+                    }
                 },
-                "edge has no 'attributes'"
-        ),
-        (
-                TEST_ARA_CASE,
-                {  # ara_response
-                    "knowledge_graph": {
-                        "edges": {
-                            "attributes": {
-                                "attribute_1": {
-                                    "attribute_type_id": "",
-                                    "value": ""
-                                },
-                                "attribute_2": {
-                                    "attribute_type_id": "",
-                                    "value": ""
-                                },
-                                "attribute_3": {
-                                    "attribute_type_id": "",
-                                    "value": ""
-                                },
-                            }
-                        }
-                    },
-                },
-                "invalid attributes"
+            },
+            "has no 'attributes' key?"
         ),
 
         (
-                TEST_ARA_CASE,
+            # Query 2. No attributes key
+            get_ara_test_case(),
+            {  # ara_response
+                "knowledge_graph": {
+                    "edges": {
+                        "edge_1": {
+                            "attributes": {}
+                        }
+                    }
+                },
+            },
+            "has no attributes?"
+        ),
+        (
+            # Query 3. missing ARA knowledge source provenance
+            get_ara_test_case(),
+            {  # ara_response
+                "knowledge_graph": {
+                    "edges": {
+                        "edge_1": {
+                            "attributes": [
+                                {
+                                    "attribute_type_id": "",  # could be set to anything ... blank is equivalent
+                                    "value": ""  # don't care...
+                                },
+                            ]
+                        }
+                    }
+                }
+            },
+            "missing ARA knowledge source provenance?"
+        ),
+        (
+                # Query 4. value is an empty list?
+                get_ara_test_case(),
                 {  # ara_response
                     "knowledge_graph": {
                         "edges": {
-                            "attributes": {
-                                "attribute_1": {
-                                    "attribute_type_id": "",
-                                    "value": ""
-                                },
-                                "attribute_2": {
-                                    "attribute_type_id": "",
-                                    "value": ""
-                                },
-                                "attribute_3": {
-                                    "attribute_type_id": "",
-                                    "value": ""
-                                },
+                            "edge_1": {
+                                "attributes": [
+                                    {
+                                        "attribute_type_id": "biolink:aggregator_knowledge_source",
+                                        "value": []
+                                    },
+                                ]
                             }
                         }
-                    },
+                    }
                 },
-                "invalid attributes"
+                "value is an empty list?"
         ),
+        (
+                # Query 5. value has an unrecognized data type for a provenance attribute?
+                get_ara_test_case(),
+                {  # ara_response
+                    "knowledge_graph": {
+                        "edges": {
+                            "edge_1": {
+                                "attributes": [
+                                    {
+                                        "attribute_type_id": "biolink:aggregator_knowledge_source",
+                                        "value": 1234
+                                    },
+                                ]
+                            }
+                        }
+                    }
+                },
+                "value has an unrecognized data type for a provenance attribute?"
+        ),
+        (
+            # Query 6. KP provenance value is not a well-formed InfoRes CURIE? Should fail?
+            get_ara_test_case(),
+            {  # ara_response
+                "knowledge_graph": {
+                    "edges": {
+                        "edge_1": {
+                            "attributes": [
+                                {
+                                    "attribute_type_id": "biolink:aggregator_knowledge_source",
+                                    "value": "infores:test_ara"
+                                },
+                                {
+                                    "attribute_type_id": "biolink:original_knowledge_source",
+                                    "value": "not_an_infores"
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            "is not a well-formed InfoRes CURIE?"
+        ),
+        (
+                # Query 7. KP provenance value is not a well-formed InfoRes CURIE? Should fail?
+                get_ara_test_case(),
+                {  # ara_response
+                    "knowledge_graph": {
+                        "edges": {
+                            "edge_1": {
+                                "attributes": [
+                                    {
+                                        "attribute_type_id": "biolink:aggregator_knowledge_source",
+                                        "value": "infores:test_ara"
+                                    }
+                                ]
+                            }
+                        }
+                    }
+                },
+                "missing KP knowledge source provenance?"
+        ),
+        (
+            # Query 8. kp type is 'original'. Should pass?
+            get_ara_test_case(),
+            {  # ara_response
+                "knowledge_graph": {
+                    "edges": {
+                        "edge_1": {
+                            "attributes": [
+                                {
+                                    "attribute_type_id": "biolink:aggregator_knowledge_source",
+                                    "value": "infores:test_ara"
+                                },
+                                {
+                                    "attribute_type_id": "biolink:original_knowledge_source",
+                                    "value": "infores:test_kp"
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            ""
+        ),
+        (
+            # Query 9. Should pass?
+            get_ara_test_case({"kp_source_type": "aggregator"}),
+            {  # ara_response
+                "knowledge_graph": {
+                    "edges": {
+                        "edge_1": {
+                            "attributes": [
+                                {
+                                    "attribute_type_id": "biolink:aggregator_knowledge_source",
+                                    "value": "infores:test_ara"
+                                },
+                                {
+                                    "attribute_type_id": "biolink:aggregator_knowledge_source",
+                                    "value": "infores:test_kp"
+                                }
+                            ]
+
+                        }
+                    }
+                }
+            },
+            "has neither 'primary' nor 'original' KP knowledge source provenance?"
+        ),
+        (
+            # Query 10. Is complete and should pass?
+            get_ara_test_case({"kp_source_type": "aggregator"}),
+            {  # ara_response
+                "knowledge_graph": {
+                    "edges": {
+                        "edge_1": {
+                            "attributes": [
+                                {
+                                    "attribute_type_id": "biolink:aggregator_knowledge_source",
+                                    "value": "infores:test_ara"
+                                },
+                                {
+                                    "attribute_type_id": "biolink:aggregator_knowledge_source",
+                                    "value": "infores:test_kp"
+                                },
+                                {
+                                    "attribute_type_id": "biolink:primary_knowledge_source",
+                                    "value": "infores:my_primary_ks"
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            ""
+        )
     ]
 )
 def test_check_provenance(query):
     try:
         check_provenance(query[0], query[1])
-
     except AssertionError as ae:
-        assert len(query[2]) != 0, "check_provenance() should pass!"
-        assert str(ae) == query[2], "unexpected assertion error?"
+        assert query[2], "check_provenance() should pass!"
+        assert str(ae).endswith(query[2]), "unexpected assertion error?"
         return
 
-    assert len(query[2]) == 0, f"check_provenance() should fail with assertion error: '{query[2]}'"
+    assert not query[2], f"check_provenance() should fail with assertion error: '{query[2]}'"

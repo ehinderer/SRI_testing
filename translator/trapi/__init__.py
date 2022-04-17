@@ -69,11 +69,17 @@ def check_provenance(ara_case, ara_response):
     kg = ara_response['knowledge_graph']
     edges: Dict[str, Dict] = kg['edges']
 
+    # Every knowledge graph should always have at least *some* edges
+    if not len(edges):
+        assert False, f"Knowledge graph has no edges?"
+
     kp_source_type = f"biolink:{ara_case['kp_source_type']}_knowledge_source"
     kp_infores = f"infores:{ara_case['kp_infores']}" if ara_case['kp_infores'] else ""
 
     number_of_edges_viewed = 0
     for edge in edges.values():
+
+        error_msg_prefix = f"Edge:\n{pp.pformat(edge)}\nfrom ARA '{ara_case['ara_infores'].upper()}' "
 
         # Every edge should always have at least *some* (provenance source) attributes
         if 'attributes' not in edge.keys():
@@ -108,64 +114,57 @@ def check_provenance(ara_case, ara_response):
             #       Here, to ensure full coverage of the attribute values returned,
             #       we'll coerce scalar values into a list, then iterate.
             #
-            try:
-                value = entry['value']
+            value = entry['value']
 
-                if isinstance(value, List):
-                    if not value:
-                        raise RuntimeError("an empty list?")
+            if isinstance(value, List):
+                if not value:
+                    assert False, f"{error_msg_prefix} value is an empty list?"
 
-                elif isinstance(value, str):
-                    value = [value]
+            elif isinstance(value, str):
+                value = [value]
+            else:
+                assert False, f"{error_msg_prefix} value has an unrecognized data type for a provenance attribute?"
+
+            for infores in value:
+
+                if not infores.startswith("infores:"):
+                    assert False, \
+                        f"{error_msg_prefix} provenance value '{infores}' is not a well-formed InfoRes CURIE?"
+
+                if attribute_type_id == "biolink:aggregator_knowledge_source":
+
+                    # Checking specifically here whether both KP and ARA infores
+                    # attribute values are published as aggregator_knowledge_sources
+                    if ara_case['ara_infores'] and infores == f"infores:{ara_case['ara_infores']}":
+                        found_ara_knowledge_source = True
+
+                    # check for special case of a KP provenance
+                    if ara_case['kp_infores'] and \
+                            attribute_type_id == kp_source_type and \
+                            infores == kp_infores:
+                        found_kp_knowledge_source = True
                 else:
-                    RuntimeError("an unrecognized data type for attribute?")
+                    # attribute_type_id is either a
+                    # "biolink:primary_knowledge_source" or
+                    # a "biolink:original_knowledge_source"
 
-                for infores in value:
+                    found_primary_or_original_knowledge_source = True
 
-                    if not infores.startswith("infores:"):
-                        raise RuntimeError("not a well-formed InforRes CURIE")
-
-                    if attribute_type_id == "biolink:aggregator_knowledge_source":
-
-                        # Checking specifically here whether both KP and ARA infores
-                        # attribute values are published as aggregator_knowledge_sources
-                        if ara_case['ara_infores'] and infores == f"infores:{ara_case['ara_infores']}":
-                            found_ara_knowledge_source = True
-
-                        # check for special case of a KP provenance
-                        if ara_case['kp_infores'] and \
-                                attribute_type_id == kp_source_type and \
-                                infores == kp_infores:
-                            found_kp_knowledge_source = True
-                    else:
-                        # attribute_type_id is either a
-                        # "biolink:primary_knowledge_source" or
-                        # a "biolink:original_knowledge_source"
-
-                        found_primary_or_original_knowledge_source = True
-
-                        # check for special case of a KP provenance tagged this way
-                        if ara_case['kp_infores'] and \
-                                attribute_type_id == kp_source_type and \
-                                infores == kp_infores:
-                            found_kp_knowledge_source = True
-
-            except RuntimeError as re:
-                assert False, f"The Provenance Attribute value is {str(re)}, " + \
-                              f"in Edge:\n'{pp.pformat(edge)}'\n"
+                    # check for special case of a KP provenance tagged this way
+                    if ara_case['kp_infores'] and \
+                            attribute_type_id == kp_source_type and \
+                            infores == kp_infores:
+                        found_kp_knowledge_source = True
 
         if ara_case['ara_infores'] and not found_ara_knowledge_source:
-            assert False, f"'aggregator knowledge source' provenance missing for " +\
-                          f"ARA '{ara_case['ara_infores'].upper()}' in Edge:\n{pp.pformat(edge)}\n"
+            assert False,  f"{error_msg_prefix} missing ARA knowledge source provenance?"
 
         if ara_case['kp_infores'] and not found_kp_knowledge_source:
-            assert False, f"'{ara_case['kp_source_type']}' provenance missing for " +\
-                          f"KP '{ara_case['kp_source']}' in Edge:\n{pp.pformat(edge)}\n"
+            assert False, \
+                f"{error_msg_prefix} for '{ara_case['kp_source_type']}' missing KP knowledge source provenance?"
 
         if not found_primary_or_original_knowledge_source:
-            assert False, "Neither 'primary' nor 'original' knowledge source' provenance attributes " +\
-                          f"were found in Edge:\n'{pp.pformat(edge)}'\n from KP '{ara_case['kp_source']}' " \
-                          f"accessed by ARA endpoint '{ara_case['url']}' "
+            assert False, f"{error_msg_prefix} has neither 'primary' nor 'original' KP knowledge source provenance?"
 
         # We are not likely to want to check the entire Knowledge Graph for
         # provenance but only sample a subset, making the assumption that
