@@ -3,6 +3,7 @@ One Hops Testing Suite
 """
 import logging
 from pprint import PrettyPrinter
+from typing import List, Dict
 
 import pytest
 
@@ -14,6 +15,33 @@ logger = logging.getLogger(__name__)
 logger.setLevel("DEBUG")
 
 pp = PrettyPrinter(indent=4)
+
+EOL = "\n\t"
+
+_edge_error_seen_already: List = list()
+
+
+def _report_and_skip_edge(test: str, edge: Dict):
+    location = edge['location']
+    subject_category = edge['subject_category']
+    the_subject = edge['subject']
+    predicate = edge['predicate']
+    object_category = edge['object_category']
+    the_object = edge['object']
+    label = f"({the_subject}:{subject_category})--[{predicate}]->({the_object}:{object_category})"
+
+    if 'biolink_errors' in edge:
+        model_version, errors = edge['biolink_errors']
+        pytest.skip(
+            f"\nKP TRAPI test case S-P-O triple '{label}') " +
+            f"from {location} since it is not Biolink Model compliant " +
+            f"with model version {model_version}\nErrors:\n\t{EOL.join(errors)}"
+        )
+    else:
+        pytest.skip(
+            f"Test explicitly excluded for all test triples from {test} '{location}' or " +
+            f"just for this particular test triple: '{label}'"
+        )
 
 
 def test_trapi_kps(kp_trapi_case, trapi_creator, results_bag):
@@ -27,23 +55,7 @@ def test_trapi_kps(kp_trapi_case, trapi_creator, results_bag):
     if not ('biolink_errors' in kp_trapi_case or in_excluded_tests(test=trapi_creator, test_case=kp_trapi_case)):
         execute_trapi_lookup(kp_trapi_case, trapi_creator, results_bag)
     else:
-        location = kp_trapi_case['location']
-        subject_category = kp_trapi_case['subject_category']
-        predicate = kp_trapi_case['predicate']
-        object_category = kp_trapi_case['object_category']
-        if 'biolink_errors' in kp_trapi_case:
-            model_version, errors = kp_trapi_case['biolink_errors']
-            eol = "\n\t"
-            pytest.skip(
-                f"\nKP TRAPI test case S-P-O triple '{subject_category}-{predicate}->{object_category}' " +
-                f"from {location} is not Biolink Model compliant with Biolink Model version {model_version}\n" +
-                f"Errors:\n\t{eol.join(errors)}"
-            )
-        else:
-            pytest.skip(
-                f"Test explicitly excluded for all test triples from KP '{location}' KP or just for this particular "
-                f"test triple: '{subject_category}-{predicate}->{object_category}'"
-            )
+        _report_and_skip_edge("KP", kp_trapi_case)
 
 
 @pytest.mark.parametrize(
@@ -62,9 +74,9 @@ def test_trapi_aras(ara_trapi_case, trapi_creator, results_bag):
     Then it performs a check on the result to make sure that the provenance is correct.
     Currently, that provenance check is a short circuit since ARAs are not reporting this in a standard way yet.
     """
-    if not in_excluded_tests(test=trapi_creator, test_case=ara_trapi_case):
+    if not ('biolink_errors' in ara_trapi_case or in_excluded_tests(test=trapi_creator, test_case=ara_trapi_case)):
         response_message = execute_trapi_lookup(ara_trapi_case, trapi_creator, results_bag)
         if response_message is not None:
             check_provenance(ara_trapi_case, response_message)
     else:
-        pytest.skip("Test explicitly excluded for this ARA TRAPI Case")
+        _report_and_skip_edge("ARA", ara_trapi_case)

@@ -21,7 +21,15 @@ The ARAs being tested are configured for testing their expected outputs using th
 
 For some KP resources or maybe, just specific instances of triples published by the KP, certain types of unit tests are expected to fail _a priori_ (i.e. the resource is not expected to have knowledge to answer the query). In such cases, such specific unit tests may be excluded from execution (see below).
 
-Provenance checking is attempted on the edge attributes of the TRAPI knowledge graph 
+### Biolink Model Compliance (Test Input Edges)
+
+While being processed for inclusion into an SRI test, every KP input S-P-O triple is screened for Biolink Model Compliance during the test setup by calling a function `check_biolink_model_compliance()` implemented in the **translator.sri.testing** package module. This method runs a series of tests against templated edge - using the currently defined Biolink Model Toolkit - capturing Biolink Model violations, in a list of returned error messages. This function is called within the `generate_trapi_kp_tests()` KP use case set up method in the **test.onehop.conftest** module. Edges with a non-zero list of error messages are so tagged as _'biolink_errors'_, which later advises the generic KP and ARA unit tests - within the PyTest run in the **tests.onehops.test_onehops** module - to formally skip the specific edge-data-template defined use case and report those errors. 
+
+**Note:** at the moment, the SRI Test harness reports the identical Biolink Model violation for all SRI unit tests on the defective edge. This test output duplication is a bit verbose but tricky to avoid (some clever SRI Testing PyTest logic - as yet unimplemented - may be needed to avoid this).
+
+### Provenance Checking (ARA Level)
+
+Provenance checking is attempted on the edge attributes of the TRAPI knowledge graph, by the `check_provenance()` method, called by the `test_trapi_aras` method in **tests.onehops.test_onehops** module. The `check_provenance()` method directly raises `AssertError` exceptions to report specific TRAPI message failures to document the provenance of results (as proper `knowledge_source` related attributes expected for ARA and KP annotated edge attributes of the TRAPI knowledge graph).
 
 ## Configuring the Tests
 

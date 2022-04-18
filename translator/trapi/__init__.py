@@ -79,7 +79,7 @@ def check_provenance(ara_case, ara_response):
     number_of_edges_viewed = 0
     for edge in edges.values():
 
-        error_msg_prefix = f"Edge:\n{pp.pformat(edge)}\nfrom ARA '{ara_case['ara_infores'].upper()}' "
+        error_msg_prefix = f"Edge:\n{pp.pformat(edge)}\nfrom ARA 'infores:{ara_case['ara_infores']}' "
 
         # Every edge should always have at least *some* (provenance source) attributes
         if 'attributes' not in edge.keys():
@@ -148,6 +148,8 @@ def check_provenance(ara_case, ara_response):
                     # "biolink:primary_knowledge_source" or
                     # a "biolink:original_knowledge_source"
 
+                    # TODO: not totally sure how mandatory having either a
+                    #       'primary' or 'original' provenance is for TRAPI?
                     found_primary_or_original_knowledge_source = True
 
                     # check for special case of a KP provenance tagged this way
@@ -161,7 +163,8 @@ def check_provenance(ara_case, ara_response):
 
         if ara_case['kp_infores'] and not found_kp_knowledge_source:
             assert False, \
-                f"{error_msg_prefix} for '{ara_case['kp_source_type']}' missing KP knowledge source provenance?"
+                f"{error_msg_prefix} for '{ara_case['kp_infores']}' of " +\
+                f"type '{ara_case['kp_source_type']}' missing KP knowledge source provenance?"
 
         if not found_primary_or_original_knowledge_source:
             assert False, f"{error_msg_prefix} has neither 'primary' nor 'original' KP knowledge source provenance?"
