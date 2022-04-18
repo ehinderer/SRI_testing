@@ -1,4 +1,4 @@
-from typing import Optional, Dict, List, Iterable
+from typing import Optional, Dict, List
 from json import dumps
 
 import logging
@@ -252,6 +252,16 @@ def execute_trapi_lookup(case, creator, rbag):
            f"{_output(trapi_response['response_json'])}"
 
     response_message = trapi_response['response_json']['message']
+
+    assert len(response_message['knowledge_graph']) > 0, \
+        f"execute_trapi_lookup({case['url']}): empty TRAPI Knowledge Graph from TRAPI request:\n\t" + \
+        f"{_output(trapi_request)}"
+
+    # Verify that the response_message output knowledge graph
+    # is generally compliant to assumed Biolink Model release
+    # TODO: a performant Biolink Model compliance test here
+    #       may be challenging if the returned knowledge graph is large?
+    # for edge in
 
     # Verify that the response had some results
     assert len(response_message['results']) > 0, \

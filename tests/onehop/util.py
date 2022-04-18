@@ -2,7 +2,7 @@ from copy import deepcopy
 from functools import wraps
 from typing import Set, Dict
 
-from translator.sri.testing import get_toolkit
+from translator.biolink import get_toolkit
 from translator.sri.testing.util import ontology_kp
 
 

@@ -2,7 +2,7 @@
 
 The generic shared elements of the testing framework are unit test validated here:
 
-- [test_sri_testing_framework.py](./translator/sri/testing/test_sri_testing_framework.py)
+- [test_biolink_compliance_validation.py](translator/biolink/test_biolink_compliance_validation.py)
     - Version-specific Biolink Model semantic compliance of KP test inputs and outputs
 - [test_trapi.py](./translator/trapi/test_trapi.py)
     - Validation of ARA and KP provenance (TRAPI attributes, infores id's, etc.)

@@ -2,7 +2,7 @@
 Unit tests for the generic (shared) components of the TRAPI testing utilities
 """
 import logging
-from typing import Optional, Dict
+from typing import Optional, Dict, Tuple
 
 import pytest
 
@@ -41,7 +41,6 @@ def get_ara_test_case(changes: Optional[Dict[str, str]] = None):
     if changes:
         test_case.update(changes)
     return test_case
-
 
 
 # check_provenance(ara_case, ara_response), triggers AssertError exceptions
@@ -266,7 +265,7 @@ def get_ara_test_case(changes: Optional[Dict[str, str]] = None):
         )
     ]
 )
-def test_check_provenance(query):
+def test_check_provenance(query: Tuple):
     try:
         check_provenance(query[0], query[1])
     except AssertionError as ae:

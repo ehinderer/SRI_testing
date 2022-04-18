@@ -11,7 +11,8 @@ from typing import Set
 from pytest_harvest import get_session_results_dct
 
 from tests.onehop.util import get_unit_test_codes
-from translator.sri.testing import set_global_environment, check_biolink_model_compliance
+from translator.biolink import check_biolink_model_compliance_of_input_edge
+from translator.sri.testing import set_global_environment
 from tests.onehop import util as oh_util
 
 logger = logging.getLogger(__name__)
@@ -161,7 +162,7 @@ def generate_trapi_kp_tests(metafunc):
 
                 # We can already do some basic Biolink Model validation here of the
                 # S-P-O contents of the edge being input from the current triples file?
-                model_version, errors = check_biolink_model_compliance(edge)
+                model_version, errors = check_biolink_model_compliance_of_input_edge(edge)
                 if errors:
                     # defer reporting of errors to higher level of test harness
                     edge['biolink_errors'] = model_version, errors

@@ -2,7 +2,7 @@
 Ontology KP interface
 """
 import requests
-from translator.sri.testing import get_toolkit
+from translator.biolink import get_toolkit
 
 ONTOLOGY_KP_TRAPI_SERVER = "https://ontology-kp.apps.renci.org/query"
 
