@@ -122,6 +122,8 @@ def test_check_biolink_model_compliance_of_input_edge(query: Tuple):
     assert errors[0] == query[2] if errors else True
 
 
+# TODO: we may wish to externalize the sample knowledge graphs
+#       for testing here instead of embedding them in this file?
 @pytest.mark.parametrize(
     "query",
     [
