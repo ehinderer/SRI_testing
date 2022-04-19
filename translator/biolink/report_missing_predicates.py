@@ -4,7 +4,8 @@ import requests
 import json
 from biothings_explorer.smartapi_kg.dataload import load_specs
 
-from translator.sri.testing import create_templates, get_toolkit
+from translator.biolink import get_toolkit
+from translator.sri.testing import create_templates
 
 _bmtk = get_toolkit()
 

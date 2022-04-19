@@ -11,11 +11,22 @@ from typing import Set
 from pytest_harvest import get_session_results_dct
 
 from tests.onehop.util import get_unit_test_codes
+from translator.biolink import check_biolink_model_compliance_of_input_edge
 from translator.sri.testing import set_global_environment
 from tests.onehop import util as oh_util
 
 logger = logging.getLogger(__name__)
 logger.setLevel("DEBUG")
+
+
+def _clean_up_filename(source: str):
+    name = source.split('/')[-1][:-1]
+    name = name.replace(".py::", "-")
+    name = name.replace("[", "-")
+    name = name.replace("]", "")
+    name = f"{name}.results"
+    logger.debug(f"_clean_up_filename: '{source}' to '{name}'")
+    return name
 
 
 def pytest_sessionfinish(session):
@@ -25,7 +36,8 @@ def pytest_sessionfinish(session):
     session_results = get_session_results_dct(session)
     for t, v in session_results.items():
         if v['status'] == 'failed':
-            rfname = f"{t.split('/')[-1][:-1]}.results"
+            # clean up the name for safe file system usage
+            rfname = _clean_up_filename(t)
             rb = v['fixtures']['results_bag']
             # rb['location'] looks like "test_triples/KP/Exposures_Provider/CAM-KP_API.json"
             if 'location' in rb:
@@ -147,9 +159,32 @@ def generate_trapi_kp_tests(metafunc):
 
         if 'url' in kpjson:
             for edge_i, edge in enumerate(kpjson['edges']):
+
+                # We can already do some basic Biolink Model validation here of the
+                # S-P-O contents of the edge being input from the current triples file?
+                model_version, errors = check_biolink_model_compliance_of_input_edge(edge)
+                if errors:
+                    # defer reporting of errors to higher level of test harness
+                    edge['biolink_errors'] = model_version, errors
+
                 edge['location'] = kpfile
                 edge['api_name'] = kpfile.split('/')[-1]
                 edge['url'] = kpjson['url']
+
+                if 'source_type' in kpjson:
+                    edge['source_type'] = kpjson['source_type']
+                else:
+                    # If not specified, we assume that the KP is an "aggregating_knowledge_source"
+                    edge['source_type'] = "aggregating"
+
+                if 'infores' in kpjson:
+                    edge['infores'] = kpjson['infores']
+                else:
+                    logger.warning(
+                        f"generate_trapi_kp_tests(): input file '{kpfile}' is missing its 'infores' field value?"
+                    )
+                    edge['infores'] = None
+
                 if 'query_opts' in kpjson:
                     edge['query_opts'] = kpjson['query_opts']
                 else:
@@ -179,9 +214,9 @@ def generate_trapi_kp_tests(metafunc):
         metafunc.parametrize('kp_trapi_case', edges, ids=idlist)
         teststyle = metafunc.config.getoption('teststyle')
 
-        # Runtime (CLI) constraint on test scope
-        # Will be overridden by file set and
-        # test triple level exclude_tests scoping noted above
+        # Runtime specified (CLI) constraints on test scope,
+        # which will be overridden by file set and specific
+        # test triple-level exclude_tests scoping, as captured above
         if teststyle == 'all':
             global_test_inclusions = [
                     oh_util.by_subject,
@@ -205,8 +240,6 @@ def generate_trapi_ara_tests(metafunc, kp_edges):
     :param metafunc
     :param kp_edges
     """
-    if "ara_trapi_case" not in metafunc.fixturenames:
-        return
     kp_dict = defaultdict(list)
     for e in kp_edges:
         # eh, not handling api name very well
@@ -226,13 +259,37 @@ def generate_trapi_ara_tests(metafunc, kp_edges):
                 edge = kp_edge.copy()
                 edge['api_name'] = f
                 edge['url'] = arajson['url']
+
+                if 'infores' in arajson:
+                    edge['ara_infores'] = arajson['infores']
+                else:
+                    logger.warning(
+                        f"generate_trapi_ara_tests(): input file '{arafile}' " +
+                        "is missing its ARA 'infores' field...ARA provenance will not be properly tested?"
+                    )
+                    edge['ara_infores'] = None
+
                 edge['kp_source'] = kp
+
+                edge['kp_source_type'] = kp_edge['source_type']
+
+                if 'infores' in kp_edge:
+                    edge['kp_infores'] = kp_edge['infores']
+                else:
+                    logger.warning(
+                        f"generate_trapi_ara_tests(): KP source '{kp}' " +
+                        "is missing its KP 'infores' field...KP provenance will not be properly tested?"
+                    )
+                    edge['kp_infores'] = None
+
                 if 'query_opts' in arajson:
                     edge['query_opts'] = arajson['query_opts']
                 else:
                     edge['query_opts'] = {}
+
                 idlist.append(f'{f}_{kp}_{edge_i}')
                 ara_edges.append(edge)
+
     metafunc.parametrize('ara_trapi_case', ara_edges, ids=idlist)
 
 
@@ -245,4 +302,5 @@ def pytest_generate_tests(metafunc):
     trapi_version = metafunc.config.getoption('TRAPI_version')
     set_global_environment(biolink_version=biolink_version, trapi_version=trapi_version)
     trapi_kp_edges = generate_trapi_kp_tests(metafunc)
-    generate_trapi_ara_tests(metafunc, trapi_kp_edges)
+    if metafunc.definition.name == 'test_trapi_aras':
+        generate_trapi_ara_tests(metafunc, trapi_kp_edges)

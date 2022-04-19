@@ -21,6 +21,16 @@ The ARAs being tested are configured for testing their expected outputs using th
 
 For some KP resources or maybe, just specific instances of triples published by the KP, certain types of unit tests are expected to fail _a priori_ (i.e. the resource is not expected to have knowledge to answer the query). In such cases, such specific unit tests may be excluded from execution (see below).
 
+### Biolink Model Compliance (Test Input Edges)
+
+While being processed for inclusion into an SRI test, every KP input S-P-O triple is screened for Biolink Model Compliance during the test setup by calling a function `check_biolink_model_compliance()` implemented in the **translator.sri.testing** package module. This method runs a series of tests against templated edge - using the currently defined Biolink Model Toolkit - capturing Biolink Model violations, in a list of returned error messages. This function is called within the `generate_trapi_kp_tests()` KP use case set up method in the **test.onehop.conftest** module. Edges with a non-zero list of error messages are so tagged as _'biolink_errors'_, which later advises the generic KP and ARA unit tests - within the PyTest run in the **tests.onehops.test_onehops** module - to formally skip the specific edge-data-template defined use case and report those errors. 
+
+**Note:** at the moment, the SRI Test harness reports the identical Biolink Model violation for all SRI unit tests on the defective edge. This test output duplication is a bit verbose but tricky to avoid (some clever SRI Testing PyTest logic - as yet unimplemented - may be needed to avoid this).
+
+### Provenance Checking (ARA Level)
+
+Provenance checking is attempted on the edge attributes of the TRAPI knowledge graph, by the `check_provenance()` method, called by the `test_trapi_aras` method in **tests.onehops.test_onehops** module. The `check_provenance()` method directly raises `AssertError` exceptions to report specific TRAPI message failures to document the provenance of results (as proper `knowledge_source` related attributes expected for ARA and KP annotated edge attributes of the TRAPI knowledge graph).
+
 ## Configuring the Tests
 
 ### KP Instructions
@@ -30,6 +40,8 @@ For each KP, we need a file with one triple of each type that the KP can provide
 ```
 {
     "url": "https://automat.renci.org/ontological-hierarchy/1.2",
+    "source_type": "original",
+    "infores": "automat",   # mandatory object id of InfoRes CURIE for the KP as a knowledge source
     "exclude_tests": ["RPBS"],
     "edges": [
         {
@@ -51,7 +63,9 @@ For each KP, we need a file with one triple of each type that the KP can provide
 }
 ```
 
-This KP provides three kinds of edges: AnatomicalEntity-subclass_of->AnatomicalEntity, CellularComponent-subclass_of->AnatomicalEntity, and PhenotypicFeature-subclass_of->Disease. For each of these kinds of edges, we have an entry in the file with a specific subject and object, and from these, we can create a variety of tests.
+For provenance testing, we need to declare the KP's infores CURIE as a value of the `infores` JSON tag. In addition, the type of knowledge source is declared, by setting the `source_type`JSON tag, to the prefix of the knowledge source type, i.e. `"original"` for `biolink:original_knowledge_source`, `"primary"` for `biolink:primary_knowledge_source` or `"aggregator"` for `biolink:aggregator_knowledge_source`. Note that if the KP is a `biolink:aggregator_knowledge_source`, then the source_type tag-value is optional (since `"aggregator"` is the default value for a KP).
+
+This KP provides two kinds of edges for testing: AnatomicalEntity-subclass_of->AnatomicalEntity and CellularComponent-subclass_of->AnatomicalEntity. For each of these kinds of edges, we have an entry in the file with a specific subject and object, and from these, we can create a variety of tests.
 
 To aid KPs in creating these json files, we have generated templates in `templates/KP` using the predicates endpoint or smartAPI Registry MetaKG entries, which contains the edge types.
 Note that the templates are built from KP metadata and are a good starting place, but they are not necessarily a perfect match to the desired test triples.
@@ -71,9 +85,11 @@ Note: you can selectively exclude specific KP configuration files or whole subfo
 
 #### Excluding Tests
 
+Note that the above KP JSON configuration has a pair of `exclude_tests` tag values.
+
 Each unit test type in the [One Hop utility module](util.py) is a method marked with a `TestCode` method decorator that associates each test with a 2 - 4 letter acronym.  By including the acronym in a JSON array value for an (optional) tag `exclude_tests`, one or more test types from execution using that triple. 
 
-A test exclusion tag may be placed at the top level of a KP file JSON configuration and/or within any of its triple entries, as noted in the above data KP template example. In the above example, the unit test corresponding to the "RPBS" test type ("_raise_predicate_by_subject_") is not run for any of the triples of the file, whereas the test type "RSE" ("_raise_subject_entity_") is only excluded for the one specific triple where it is specified. Note that test exclusion for a given triple is the union set of all test exclusions. A table summarizing the test codes for currently available tests (as of April 2022) is provided here for convenience (see the util.py file for more details):
+A test exclusion tag (`exclude_tests`) may be placed at the top level of a KP file JSON configuration and/or within any of its triple entries, as noted in the above data KP template example. In the above example, the unit test corresponding to the "RPBS" test type ("_raise_predicate_by_subject_") is not run for any of the triples of the file, whereas the test type "RSE" ("_raise_subject_entity_") is only excluded for the one specific triple where it is specified. Note that test exclusion for a given triple is the union set of all test exclusions. A table summarizing the test codes for currently available tests (as of April 2022) is provided here for convenience (see the util.py file for more details):
 
 | Test Name                  | Test Code |
 |----------------------------|:---------:|
@@ -91,6 +107,7 @@ For each ARA, we want to ensure that it is able to extract information correctly
 ```
 {
     "url": "https://aragorn.renci.org/1.2",
+    "infores": "aragorn",   # mandatory object id of InfoRes CURIE for the ARA as a knowledge source
     "KPs": [
         "Automat Panther",
         "Automat Ontological Hierarchy"
@@ -104,6 +121,8 @@ In order to correctly link ARAs to KPs, ARAs will need to:
 2. Edit the copied file to remove KPs that the ARA does not access.
 
 Note: as with the KP template files, you can selectively exclude complete ARA test files or whole subfolders of such files from execution, by appending *_SKIP* to the specific file or subfolder name. 
+
+ARA test templates do not explicitly show the edges to be be tested, but rather, inherit the test data of their dereferenced KP's.  Once again, an infores tag value should be specified, in this case, for the ARA. However, all ARA's are expected to be `biolink:aggregator_knowledge_source` types of knowledge sources, hence, no `source_type` tag is needed (nor expected) here; however, they are checked for proper `'biolink:aggregator_knowledge_source': '<ARA infores CURIE>'` provenance declarations of their TRAPI knowledge graph edge attributes.
 
 ## Running the Tests
 

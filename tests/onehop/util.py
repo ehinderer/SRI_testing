@@ -2,7 +2,7 @@ from copy import deepcopy
 from functools import wraps
 from typing import Set, Dict
 
-from translator.sri.testing import get_toolkit
+from translator.biolink import get_toolkit
 from translator.sri.testing.util import ontology_kp
 
 
@@ -114,7 +114,8 @@ def by_subject(request):
 def inverse_by_new_subject(request):
     """Given a known triple, create a TRAPI message that inverts the predicate,
        then looks up the new object by the new subject (original object)"""
-    original_predicate_element = get_toolkit().get_element(request['predicate'])
+    tk = get_toolkit()
+    original_predicate_element = tk.get_element(request['predicate'])
     if original_predicate_element['symmetric']:
         transformed_predicate = request['predicate']
     else:
@@ -122,20 +123,23 @@ def inverse_by_new_subject(request):
         if transformed_predicate_name is None:
             transformed_predicate = None
         else:
-            tp = get_toolkit().get_element(transformed_predicate_name)
+            tp = tk.get_element(transformed_predicate_name)
             transformed_predicate = tp.slot_uri
 
     # Not everything has an inverse (it should, and it will, but it doesn't right now)
     if transformed_predicate is None:
         return None, None, None
-    transformed_request = {
-        "url": "https://automat.renci.org/human-goa",
+
+    # probably don't need to worry here but just-in-case
+    # only work off a copy of the original request...
+    transformed_request = request.copy()
+    transformed_request.update({
         "subject_category": request['object_category'],
         "object_category": request['subject_category'],
         "predicate": transformed_predicate,
         "subject": request['object'],
         "object": request['subject']
-    }
+    })
     message = create_one_hop_message(transformed_request, look_up_subject=False)
     # We inverted the predicate, and will be querying by the new subject, so the output will be in node b
     # but, the entity we are looking for (now the object) was originally the subject because of the inversion.
@@ -153,14 +157,16 @@ def by_object(request):
 def raise_subject_entity(request):
     """
     Given a known triple, create a TRAPI message that uses
-    the parent of the original entity and looks up the object
+    a parent instance of the original entity and looks up the object.
+    This only works if a given instance (category) has an identifier (prefix) namespace
+     bound to some kind of hierarchical class of instances (i.e. ontological structure)
     """
     subject_cat = request['subject_category']
     subject = request['subject']
     parent_subject = ontology_kp.get_parent(subject, subject_cat)
     if parent_subject is None:
         # We directly trigger an AssertError here for clarity of unit test failure?
-        assert False, f"\nSubject identifier '{subject}[{subject_cat}]') " + \
+        assert False, f"\nSubject identifier '{subject}[{subject_cat}]' " + \
               "is either not an ontology term or does not map onto a parent ontology term."
 
     mod_request = deepcopy(request)
@@ -173,9 +179,10 @@ def raise_subject_entity(request):
 def raise_object_by_subject(request):
     """Given a known triple, create a TRAPI message that uses the parent of the original object category and looks up
     the object by the subject"""
-    original_object_element = get_toolkit().get_element(request['object_category'])
+    tk = get_toolkit()
+    original_object_element = tk.get_element(request['object_category'])
     transformed_request = request.copy()  # there's no depth to request, so it's ok
-    parent = get_toolkit().get_element(original_object_element['is_a'])
+    parent = tk.get_element(original_object_element['is_a'])
     transformed_request['object_category'] = parent['class_uri']
     message = create_one_hop_message(transformed_request, look_up_subject=False)
     return message, 'object', 'b'
@@ -185,10 +192,11 @@ def raise_object_by_subject(request):
 def raise_predicate_by_subject(request):
     """Given a known triple, create a TRAPI message that uses the parent of the original predicate and looks up
     the object by the subject"""
+    tk = get_toolkit()
     transformed_request = request.copy()  # there's no depth to request, so it's ok
     if request['predicate'] != 'biolink:related_to':
-        original_predicate_element = get_toolkit().get_element(request['predicate'])
-        parent = get_toolkit().get_element(original_predicate_element['is_a'])
+        original_predicate_element = tk.get_element(request['predicate'])
+        parent = tk.get_element(original_predicate_element['is_a'])
         transformed_request['predicate'] = parent['slot_uri']
     message = create_one_hop_message(transformed_request, look_up_subject=False)
     return message, 'object', 'b'
