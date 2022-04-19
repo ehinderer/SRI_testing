@@ -1,0 +1,13 @@
+{
+    "url": "https://translator.broadinstitute.org/molepro/trapi/v1.2",
+    "infores": "molepro",
+    "edges": [
+        {
+            "subject_category": "biolink:SmallMolecule",
+            "object_category": "biolink:Gene",
+            "predicate": "biolink:interacts_with",
+            "subject": "CHEBI:16040",
+            "object": "NCBIGene:29974"
+        }
+    ]
+}
