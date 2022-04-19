@@ -166,7 +166,7 @@ def raise_subject_entity(request):
     parent_subject = ontology_kp.get_parent(subject, subject_cat)
     if parent_subject is None:
         # We directly trigger an AssertError here for clarity of unit test failure?
-        assert False, f"\nSubject identifier '{subject}[{subject_cat}]') " + \
+        assert False, f"\nSubject identifier '{subject}[{subject_cat}]' " + \
               "is either not an ontology term or does not map onto a parent ontology term."
 
     mod_request = deepcopy(request)

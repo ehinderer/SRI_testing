@@ -11,6 +11,8 @@ from reasoner_validator import validate
 from reasoner_validator.util import latest
 from requests import Timeout, Response
 
+from translator.biolink import check_biolink_model_compliance_of_knowledge_graph
+
 logger = logging.getLogger(__name__)
 logger.setLevel("DEBUG")
 
@@ -163,8 +165,8 @@ def check_provenance(ara_case, ara_response):
 
         if ara_case['kp_infores'] and not found_kp_knowledge_source:
             assert False, \
-                f"{error_msg_prefix} for '{ara_case['kp_infores']}' of " +\
-                f"type '{ara_case['kp_source_type']}' missing KP knowledge source provenance?"
+                f"{error_msg_prefix}, KP 'infores:{ara_case['kp_infores']}' attribute value as " +\
+                f"'{kp_source_type}' is missing as expected knowledge source provenance?"
 
         if not found_primary_or_original_knowledge_source:
             assert False, f"{error_msg_prefix} has neither 'primary' nor 'original' KP knowledge source provenance?"
@@ -207,6 +209,7 @@ def _output(json):
 
 def execute_trapi_lookup(case, creator, rbag):
     """
+    Method to execute a TRAPI lookup, using the 'creator' test template.
 
     :param case:
     :param creator:
@@ -215,20 +218,24 @@ def execute_trapi_lookup(case, creator, rbag):
     # Create TRAPI query/response
     rbag.location = case['location']
     rbag.case = case
+
     trapi_request, output_element, output_node_binding = creator(case)
+
     if trapi_request is None:
         # The particular creator cannot make a valid message from this triple
-        assert False, f"\nCreator method '{creator.__name__}' for test case \n" + \
-                      f"\t{_output(case)}\n" + \
-                      f"could not generate a valid TRAPI query request object?"
+        assert False, f"\nexecute_trapi_lookup(): creator method '{creator.__name__}' " +\
+                      f"for test case \n\t{_output(case)}\ncould not generate a valid TRAPI query request object?"
+
+    err_msg_prefix = f"execute_trapi_lookup(test '{creator.__name__}' to endpoint {case['url']}): " +\
+                     f"TRAPI query request\n{_output(trapi_request)}\n error: "
 
     # query use cases pertain to a particular TRAPI version
     trapi_version = get_trapi_version()
 
     if not is_valid_trapi(trapi_request, trapi_version=trapi_version):
         # This is a problem with the testing framework.
-        assert False, f"execute_trapi_lookup({case['url']}): Invalid TRAPI '{trapi_version}' " + \
-                      f"query request {_output(trapi_request)}"
+        assert False, f"{err_msg_prefix}: for expected TRAPI version '{trapi_version}', " +\
+                      "the query request is not TRAPI compliant?"
 
     trapi_response = call_trapi(case['url'], case['query_opts'], trapi_request)
 
@@ -237,42 +244,40 @@ def execute_trapi_lookup(case, creator, rbag):
     rbag.response = trapi_response
 
     if trapi_response['status_code'] != 200:
-        err_msg = f"execute_trapi_lookup({case['url']}): " + \
-                  f"TRAPI request:\n\t{_output(trapi_request)}\n " + \
-                  f"returned status code: {str(trapi_response['status_code'])} " + \
-                  f"and response:\n\t '{_output(trapi_response['response_json'])}'"
+        err_msg = f"{err_msg_prefix} response:\n\t '{_output(trapi_response['response_json'])}'\n" +\
+                  f"has '{str(trapi_response['status_code'])}' " +\
+                  "as an unexpected HTTP status code?"
         logger.warning(err_msg)
         assert False, err_msg
 
     # Validate that we got back valid TRAPI Response
     assert is_valid_trapi(trapi_response['response_json'], trapi_version=trapi_version), \
-           f"execute_trapi_lookup({case['url']}): " + \
-           f"TRAPI request:\n\t{_output(trapi_request)}\n " + \
-           f"had an invalid TRAPI '{trapi_version}' response:\n\t" + \
-           f"{_output(trapi_response['response_json'])}"
+           f"{err_msg_prefix} for expected TRAPI version '{trapi_version}', " +\
+           f"TRAPI response:\n{_output(trapi_response['response_json'])}\n" +\
+           "is not TRAPI compliant?"
 
     response_message = trapi_response['response_json']['message']
 
     assert len(response_message['knowledge_graph']) > 0, \
-        f"execute_trapi_lookup({case['url']}): empty TRAPI Knowledge Graph from TRAPI request:\n\t" + \
-        f"{_output(trapi_request)}"
+        f"{err_msg_prefix} returned an empty TRAPI Message Knowledge Graph?"
 
-    # Verify that the response_message output knowledge graph
-    # is generally compliant to assumed Biolink Model release
-    # TODO: a performant Biolink Model compliance test here
-    #       may be challenging if the returned knowledge graph is large?
-    # for edge in
+    # Verify that the TRAPI message output knowledge graph
+    # is compliant to the applicable Biolink Model release
+    model_version, errors = \
+        check_biolink_model_compliance_of_knowledge_graph(response_message['knowledge_graph'])
+    assert not errors, \
+        f"{err_msg_prefix} TRAPI response:\n{_output(response_message)}\n" +\
+        f"against Biolink Model version '{model_version}', given\n{_output(errors)}\n" +\
+        f"the response is not Biolink Model compliant?"
 
     # Verify that the response had some results
     assert len(response_message['results']) > 0, \
-           f"execute_trapi_lookup({case['url']}): empty TRAPI Result from TRAPI request:\n\t" + \
-           f"{_output(trapi_request)}"
+        f"{err_msg_prefix} TRAPI response:\n{_output(response_message)}\nreturned an empty TRAPI Message Result?"
 
     # The results contained the object of the query
     object_ids = [r['node_bindings'][output_node_binding][0]['id'] for r in response_message['results']]
     assert case[output_element] in object_ids, \
-           f"execute_trapi_lookup({case['url']}): TRAPI request:\n\t{_output(trapi_request)}\n " + \
-           f"had missing or invalid TRAPI Result object ID bindings in response method results:\n\t" \
-           f"{_output(response_message)}"
+           f"{err_msg_prefix} TRAPI response:\n{_output(response_message)}\n" +\
+           "has missing or invalid TRAPI Result object ID bindings?"
 
     return response_message
