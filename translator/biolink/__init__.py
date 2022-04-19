@@ -127,12 +127,12 @@ def check_biolink_model_compliance_of_input_edge(edge: Dict[str, str]) -> Tuple[
 
 # TODO: review and fix issue that a Biolink Model compliance test
 #       could run too slowly, if the knowledge graph is very large?
-def check_biolink_model_compliance_of_knowledge_graph(kg):
+def check_biolink_model_compliance_of_knowledge_graph(graph: Dict) -> Tuple[str, Optional[List[str]]]:
     """
     Validate a TRAPI-schema compliant message knowledge graph
     against the currently active BMT Biolink Model release.
 
-    :param kg: knowledge graph to be validated
+    :param graph: knowledge graph to be validated
 
     :returns: 2-tuple of Biolink Model version (str) and List[str] (possibly empty) of error messages
     """

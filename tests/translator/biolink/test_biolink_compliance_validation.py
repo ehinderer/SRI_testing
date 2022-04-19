@@ -8,7 +8,8 @@ import pytest
 
 from bmt import Toolkit
 
-from translator.biolink import check_biolink_model_compliance_of_input_edge, get_toolkit
+from translator.biolink import check_biolink_model_compliance_of_input_edge, get_toolkit, \
+    check_biolink_model_compliance_of_knowledge_graph
 from translator.sri.testing import set_global_environment
 
 logger = logging.getLogger(__name__)
@@ -111,12 +112,85 @@ def test_set_specific_biolink_versioned_global_environment():
             },
             ""
         )
-
     ]
 )
-def test_check_biolink_model_compliance(query: Tuple):
+def test_check_biolink_model_compliance_of_input_edge(query: Tuple):
     set_global_environment(biolink_version=query[0])
-    # check_biolink_model_compliance(edge: Dict[str, str]) -> Tuple[str, Optional[List[str]]]
-    model_version, errors = check_biolink_model_compliance_of_input_edge(query[1])  # query[1] == edge: Dict[str, str]
+    # check_biolink_model_compliance_of_input_edge(edge: Dict[str, str]) -> Tuple[str, Optional[List[str]]]
+    model_version, errors = check_biolink_model_compliance_of_input_edge(edge=query[1])
+    assert model_version == get_toolkit().get_model_version()
+    assert errors[0] == query[2] if errors else True
+
+
+@pytest.mark.parametrize(
+    "query",
+    [
+        (
+            "2.2.13",  # Biolink Model Version
+
+            # Sample TRAPI Knowledge Graph
+            {
+                # Sample nodes
+                'nodes': {
+                    "NCBIGene:29974": {
+                       "categories": [
+                           "biolink:Gene"
+                       ]
+                    },
+                    "PUBCHEM.COMPOUND:597": {
+                        "name": "cytosine",
+                        "categories":[
+                            "biolink:SmallMolecule"
+                        ],
+                        "attributes": [
+                            {
+                            "attribute_source": "infores:chembl",
+                            "attribute_type_id": "biolink:highest_FDA_approval_status",
+                            "attributes":[],
+                            "original_attribute_name": "max_phase",
+                            "value": "FDA Clinical Research Phase 2",
+                            "value_type_id": "biolink:FDA_approval_status_enum"
+                            }
+                        ]
+                    }
+                },
+                # Sample edge
+                'edges': {
+                   "edge_1": {
+                       "subject": "NCBIGene:29974",
+                       "predicate": "biolink:interacts_with",
+                       "object": "PUBCHEM.COMPOUND:597",
+                       "attributes": [
+                           {
+                               "attribute_source": "infores:hmdb",
+                               "attribute_type_id": "biolink:primary_knowledge_source",
+                               "attributes": [],
+                               "description": "MolePro's HMDB target transformer",
+                               "original_attribute_name": "biolink:primary_knowledge_source",
+                               "value": "infores:hmdb",
+                               "value_type_id": "biolink:InformationResource"
+                           },
+                           {
+                               "attribute_source": "infores:hmdb",
+                               "attribute_type_id": "biolink:aggregator_knowledge_source",
+                               "attributes": [],
+                               "description": "Molecular Data Provider",
+                               "original_attribute_name": "biolink:aggregator_knowledge_source",
+                               "value": "infores:molepro",
+                               "value_type_id": "biolink:InformationResource"
+                           }
+                        ]
+                    }
+                }
+            },
+            ""
+        ),
+        ()
+    ]
+)
+def test_check_biolink_model_compliance_of_knowledge_graph(query: Tuple):
+    set_global_environment(biolink_version=query[0])
+    # check_biolink_model_compliance_of_knowledge_graph(graph: Dict) -> Tuple[str, Optional[List[str]]]:
+    model_version, errors = check_biolink_model_compliance_of_knowledge_graph(graph=query[1])
     assert model_version == get_toolkit().get_model_version()
     assert errors[0] == query[2] if errors else True
