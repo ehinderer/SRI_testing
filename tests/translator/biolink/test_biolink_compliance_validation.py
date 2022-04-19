@@ -1,10 +1,11 @@
 """
 Unit tests for the generic (shared) components of the SRI Testing Framework
 """
+import sys
 from typing import Optional, Tuple
+from pprint import PrettyPrinter
 import logging
 import pytest
-
 
 from bmt import Toolkit
 
@@ -14,6 +15,8 @@ from translator.sri.testing import set_global_environment
 
 logger = logging.getLogger(__name__)
 logger.setLevel("DEBUG")
+
+pp = PrettyPrinter(indent=4)
 
 
 def test_set_default_biolink_versioned_global_environment():
@@ -130,7 +133,7 @@ def test_check_biolink_model_compliance_of_input_edge(query: Tuple):
         (
             "2.2.13",  # Biolink Model Version
 
-            # Sample TRAPI Knowledge Graph
+            # Query 0: Sample full TRAPI Knowledge Graph
             {
                 # Sample nodes
                 'nodes': {
@@ -141,7 +144,7 @@ def test_check_biolink_model_compliance_of_input_edge(query: Tuple):
                     },
                     "PUBCHEM.COMPOUND:597": {
                         "name": "cytosine",
-                        "categories":[
+                        "categories": [
                             "biolink:SmallMolecule"
                         ],
                         "attributes": [
@@ -187,7 +190,120 @@ def test_check_biolink_model_compliance_of_input_edge(query: Tuple):
             },
             ""
         ),
-        ()
+        (
+            "2.2.13",
+            # Query 1: Empty graph - caught by missing 'nodes' key
+            {},
+            "No nodes found in the knowledge graph?"
+        ),
+        (
+            "2.2.13",
+            # Query 2: Empty nodes dictionary
+            {
+                "nodes": dict()
+            },
+            "No nodes found in the knowledge graph?"
+        ),
+        (
+            "2.2.13",
+            # Query 3: Empty edges - caught by missing 'edges' dictionary
+            {
+                "nodes": {
+                    "NCBIGene:29974": {
+                       "categories": [
+                           "biolink:Gene"
+                       ]
+                    }
+                }
+            },
+            "No edges found in the knowledge graph?"
+        ),
+        (
+            "2.2.13",
+            # Query 4 Empty edges dictionary
+            {
+                "nodes": {
+                    "NCBIGene:29974": {
+                       "categories": [
+                           "biolink:Gene"
+                       ]
+                    }
+                },
+                "edges": dict()
+            },
+            "No edges found in the knowledge graph?"
+        ),
+        (
+            "2.2.13",
+            # Query 5: 'categories' tag value is ill-formed: should be a list
+            {
+                "nodes": {
+                    "NCBIGene:29974": dict()
+                },
+                "edges": {
+                    "subject": "",
+                    "predicate": "",
+                    "object": ""
+                }
+            },
+            "Node 'NCBIGene:29974' is missing its 'categories'?"
+        ),
+        (
+            "2.2.13",
+            # Query 6: 'categories' tag value is ill-formed: should be a list
+            {
+                "nodes": {
+                    "NCBIGene:29974": {
+                       "categories": "biolink:Gene"
+                    }
+                },
+                "edges": {
+                    "subject": "",
+                    "predicate": "",
+                    "object": ""
+                }
+            },
+            "The value of node 'NCBIGene:29974' categories should be a List?"
+        ),
+        (
+            "2.2.13",
+            # Query 7: invalid category specified
+            {
+                "nodes": {
+                    "NCBIGene:29974": {
+                       "categories": [
+                           "biolink:Nonsense_Category"
+                       ]
+                    }
+                },
+                "edges": {
+                    "subject": "",
+                    "predicate": "",
+                    "object": ""
+                }
+            },
+            "'biolink:Nonsense_Category' among the categories of node 'NCBIGene:29974' " +\
+            "is not a recognized Biolink Model category?"
+        ),
+        (
+            "2.2.13",
+            # Query 8: invalid node CURIE prefix namespace, for specified category
+            {
+                "nodes": {
+                    "FOO:1234": {
+                       "categories": [
+                           "biolink:Gene"
+                       ]
+                    }
+                },
+                "edges": {
+                    "subject": "",
+                    "predicate": "",
+                    "object": ""
+                }
+            },
+            "Node 'FOO:1234' prefix unmapped to category 'biolink:Gene'?"
+        )
     ]
 )
 def test_check_biolink_model_compliance_of_knowledge_graph(query: Tuple):
@@ -195,4 +311,5 @@ def test_check_biolink_model_compliance_of_knowledge_graph(query: Tuple):
     # check_biolink_model_compliance_of_knowledge_graph(graph: Dict) -> Tuple[str, Optional[List[str]]]:
     model_version, errors = check_biolink_model_compliance_of_knowledge_graph(graph=query[1])
     assert model_version == get_toolkit().get_model_version()
-    assert errors[0] == query[2] if errors else True
+    print(f"Errors:\n{pp.pformat(errors)}\n", file=sys.stderr, flush=True)
+    assert query[2] in errors if errors else True

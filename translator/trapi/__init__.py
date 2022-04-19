@@ -264,7 +264,7 @@ def execute_trapi_lookup(case, creator, rbag):
     # Verify that the TRAPI message output knowledge graph
     # is compliant to the applicable Biolink Model release
     model_version, errors = \
-        check_biolink_model_compliance_of_knowledge_graph(response_message['knowledge_graph'])
+        check_biolink_model_compliance_of_knowledge_graph(graph=response_message['knowledge_graph'])
     assert not errors, \
         f"{err_msg_prefix} TRAPI response:\n{_output(response_message)}\n" +\
         f"against Biolink Model version '{model_version}', given\n{_output(errors)}\n" +\

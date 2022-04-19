@@ -1,6 +1,6 @@
 from typing import Optional, Dict, List, Tuple
 from functools import lru_cache
-
+from pprint import PrettyPrinter
 import re
 import logging
 
@@ -8,6 +8,8 @@ from bmt import Toolkit
 
 logger = logging.getLogger(__name__)
 logger.setLevel("DEBUG")
+
+pp = PrettyPrinter(indent=4)
 
 """
 Biolink Model related support code for the tests
@@ -92,6 +94,7 @@ def check_biolink_model_compliance_of_input_edge(edge: Dict[str, str]) -> Tuple[
 
     # Perform various validations
     errors: List[str] = list()
+
     if bmtk.is_category(subject_category_curie):
         subject_category_name = bmtk.get_element(subject_category_curie).name
     else:
@@ -127,6 +130,10 @@ def check_biolink_model_compliance_of_input_edge(edge: Dict[str, str]) -> Tuple[
 
 # TODO: review and fix issue that a Biolink Model compliance test
 #       could run too slowly, if the knowledge graph is very large?
+_MAX_TEST_NODES = 1
+_MAX_TEST_EDGES = 1
+
+
 def check_biolink_model_compliance_of_knowledge_graph(graph: Dict) -> Tuple[str, Optional[List[str]]]:
     """
     Validate a TRAPI-schema compliant message knowledge graph
@@ -139,16 +146,90 @@ def check_biolink_model_compliance_of_knowledge_graph(graph: Dict) -> Tuple[str,
     bmtk: Toolkit = get_toolkit()
     model_version = bmtk.get_model_version()
 
-    # data fields to be validated...
-    # subject_category_curie = edge['subject_category']
-    # object_category_curie = edge['object_category']
-    # predicate_curie = edge['predicate']
-    # subject_curie = edge['subject']
-    # object_curie = edge['object']
-
-    # Perform various validations
     errors: List[str] = list()
 
-    # TODO: attempt the validation here...
+    # Access knowledge graph data fields to be validated... fail early if missing...
+    nodes: Dict = Optional[Dict]
+    if 'nodes' in graph and graph['nodes']:
+        nodes = graph['nodes']
+    else:
+        errors.append("No nodes found in the knowledge graph?")
+        return model_version, errors
+
+    edges: Dict = Optional[Dict]
+    if 'edges' in graph and graph['edges']:
+        edges = graph['edges']
+    else:
+        errors.append("No edges found in the knowledge graph?")
+        return model_version, errors
+
+    # I only do a sampling of node and edge content. This ensures that
+    # the tests are performant but may miss errors deeper inside the graph?
+    nodes_seen = 0
+    if nodes:
+        for node_id, details in nodes.items():
+            print(f"{node_id}: {str(details)}", flush=True)
+            if 'categories' in details:
+                if not isinstance(details["categories"], List):
+                    errors.append(f"The value of node '{node_id}' categories should be a List?")
+                else:
+                    categories = details["categories"]
+                    for category in categories:
+                        if bmtk.is_category(category):
+                            category_name = bmtk.get_element(category).name
+                        else:
+                            err_msg = f"'{category}' among the categories of node '{node_id}' " +\
+                                      "is not a recognized Biolink Model category?"
+                            errors.append(err_msg)
+                            category_name = None
+
+                        if category_name:
+                            possible_subject_categories = bmtk.get_element_by_prefix(node_id)
+                            if category_name not in possible_subject_categories:
+                                err_msg = f"Node '{node_id}' prefix unmapped to category '{category}'?"
+                                errors.append(err_msg)
+            else:
+                errors.append(f"Node '{node_id}' is missing its 'categories'?")
+
+            # TODO: Do we need to (or can we) validate other node fields here? Perhaps not?
+
+            nodes_seen += 1
+            if nodes_seen >= _MAX_TEST_NODES:
+                break
+
+    edges_seen = 0
+    if edges:
+        for edge in edges.values():
+
+            print(f"{str(edge)}", flush=True)
+
+            # edge data fields to be validated...
+            subject_id = edge['subject'] if 'subject' in edge else None
+            predicate = edge['predicate'] if 'predicate' in edge else None
+            object_id = edge['object'] if 'object' in edge else None
+
+            # Probably too ambitious for now to validate the attributes?
+            # attributes = edge['attributes']
+
+            if not subject_id:
+                errors.append(f"Edge:\n'{pp.pformat(edge)}'\nis missing its subject slot?")
+            elif subject_id not in nodes.keys():
+                errors.append(f"Edge subject id '{subject_id}' is missing from the KG nodes list?")
+
+            if not predicate:
+                errors.append(f"Edge:\n'{pp.pformat(edge)}'\nis missing its predicate slot?")
+            elif not bmtk.is_predicate(predicate):
+                errors.append(f"'{predicate}' is an unknown Biolink Model predicate")
+
+            if not object_id:
+                errors.append(f"Edge:\n'{pp.pformat(edge)}'\nis missing its object_id slot?")
+            elif object_id not in nodes.keys():
+                errors.append(f"Edge object id '{object_id}' is missing from the KG nodes list?")
+
+            # TODO: not quite sure whether and how to validate the 'attributes' of an edge
+
+            edges_seen += 1
+            if edges_seen >= _MAX_TEST_EDGES:
+                break
 
     return model_version, errors
