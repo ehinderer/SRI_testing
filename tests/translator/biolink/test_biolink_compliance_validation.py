@@ -241,9 +241,12 @@ def test_check_biolink_model_compliance_of_input_edge(query: Tuple):
                     "NCBIGene:29974": dict()
                 },
                 "edges": {
-                    "subject": "",
-                    "predicate": "",
-                    "object": ""
+                   "edge_1": {
+                        "subject": "NCBIGene:29974",
+                        "predicate": "biolink:interacts_with",
+                        "object": "NCBIGene:29974",
+                        "attributes": [{"attribute_type_id": "fake-attribute-id"}]
+                    }
                 }
             },
             "Node 'NCBIGene:29974' is missing its 'categories'?"
@@ -258,9 +261,12 @@ def test_check_biolink_model_compliance_of_input_edge(query: Tuple):
                     }
                 },
                 "edges": {
-                    "subject": "",
-                    "predicate": "",
-                    "object": ""
+                    "edge_1": {
+                        "subject": "NCBIGene:29974",
+                        "predicate": "biolink:interacts_with",
+                        "object": "NCBIGene:29974",
+                        "attributes": [{"attribute_type_id": "fake-attribute-id"}]
+                    }
                 }
             },
             "The value of node 'NCBIGene:29974' categories should be a List?"
@@ -277,13 +283,15 @@ def test_check_biolink_model_compliance_of_input_edge(query: Tuple):
                     }
                 },
                 "edges": {
-                    "subject": "",
-                    "predicate": "",
-                    "object": ""
+                    "edge_1": {
+                        "subject": "NCBIGene:29974",
+                        "predicate": "biolink:interacts_with",
+                        "object": "NCBIGene:29974",
+                        "attributes": [{"attribute_type_id": "fake-attribute-id"}]
+                    }
                 }
             },
-            "'biolink:Nonsense_Category' among the categories of node 'NCBIGene:29974' " +\
-            "is not a recognized Biolink Model category?"
+            "'biolink:Nonsense_Category' for node 'NCBIGene:29974' is not a recognized Biolink Model category?"
         ),
         (
             "2.2.13",
@@ -297,12 +305,150 @@ def test_check_biolink_model_compliance_of_input_edge(query: Tuple):
                     }
                 },
                 "edges": {
-                    "subject": "",
-                    "predicate": "",
-                    "object": ""
+                    "edge_1": {
+                        "subject": "FOO:1234",
+                        "predicate": "biolink:interacts_with",
+                        "object": "FOO:1234",
+                        "attributes": [{"attribute_type_id": "fake-attribute-id"}]
+                    }
                 }
             },
             "Node 'FOO:1234' prefix unmapped to category 'biolink:Gene'?"
+        ),
+        (
+            "2.2.13",
+            # Query 9: missing or empty subject, predicate, object values
+            {
+                "nodes": {
+                    "NCBIGene:29974": {
+                       "categories": [
+                           "biolink:Gene"
+                       ]
+                    }
+                },
+                "edges": {
+                    "edge_1": {
+                        # "subject": "",
+                        "predicate": "biolink:interacts_with",
+                        "object": "NCBIGene:29974",
+                        "attributes": [{"attribute_type_id": "fake-attribute-id"}]
+                    }
+                }
+            },
+            # ditto for predicate and object... but identical code pattern thus we only test the subject id here
+            "Edge 'None--biolink:interacts_with->NCBIGene:29974' has a missing or empty subject slot?"
+        ),
+        (
+            "2.2.13",
+            # Query 10: subject id is missing from the nodes catalog
+            {
+                "nodes": {
+                    "NCBIGene:29974": {
+                       "categories": [
+                           "biolink:Gene"
+                       ]
+                    },
+                    "PUBCHEM.COMPOUND:597": {
+                        "name": "cytosine",
+                        "categories": [
+                            "biolink:SmallMolecule"
+                        ],
+                    }
+                },
+                "edges": {
+                    "edge_1": {
+                        "subject": "NCBIGene:12345",
+                        "predicate": "biolink:interacts_with",
+                        "object": "PUBCHEM.COMPOUND:597",
+                        "attributes": [{"attribute_type_id": "fake-attribute-id"}]
+                    }
+                }
+            },
+            "Edge subject id 'NCBIGene:12345' is missing from the nodes catalog?"
+        ),
+        (
+            "2.2.13",
+            # Query 11: predicate is unknown
+            {
+                "nodes": {
+                    "NCBIGene:29974": {
+                       "categories": [
+                           "biolink:Gene"
+                       ]
+                    },
+                    "PUBCHEM.COMPOUND:597": {
+                        "name": "cytosine",
+                        "categories": [
+                            "biolink:SmallMolecule"
+                        ],
+                    }
+                },
+                "edges": {
+                    "edge_1": {
+                        "subject": "NCBIGene:29974",
+                        "predicate": "biolink:unknown_predicate",
+                        "object": "PUBCHEM.COMPOUND:597",
+                        "attributes": [{"attribute_type_id": "fake-attribute-id"}]
+                    }
+                }
+            },
+            "'biolink:unknown_predicate' is an unknown Biolink Model predicate"
+        ),
+        (
+            "2.2.13",
+            # Query 12: object id is missing from the nodes catalog
+            {
+                "nodes": {
+                    "NCBIGene:29974": {
+                       "categories": [
+                           "biolink:Gene"
+                       ]
+                    },
+                    "PUBCHEM.COMPOUND:597": {
+                        "name": "cytosine",
+                        "categories": [
+                            "biolink:SmallMolecule"
+                        ],
+                    }
+                },
+                "edges": {
+                    "edge_1": {
+                        "subject": "NCBIGene:29974",
+                        "predicate": "biolink:interacts_with",
+                        "object": "PUBCHEM.COMPOUND:678",
+                        "attributes": [{"attribute_type_id": "fake-attribute-id"}]
+                    }
+                }
+            },
+            "Edge object id 'PUBCHEM.COMPOUND:678' is missing from the nodes catalog?"
+        ),
+        (
+            "2.2.13",
+            # Query 13: object id is missing from the nodes catalog
+            {
+                "nodes": {
+                    "NCBIGene:29974": {
+                       "categories": [
+                           "biolink:Gene"
+                       ]
+                    },
+                    "PUBCHEM.COMPOUND:597": {
+                        "name": "cytosine",
+                        "categories": [
+                            "biolink:SmallMolecule"
+                        ],
+                    }
+                },
+                "edges": {
+                    "edge_1": {
+                        "subject": "NCBIGene:29974",
+                        "predicate": "biolink:interacts_with",
+                        "object": "PUBCHEM.COMPOUND:597",
+                        # "attributes": [{"attribute_type_id": "fake-attribute-id"}]
+                    }
+                }
+            },
+            "Edge 'NCBIGene:29974--biolink:interacts_with->PUBCHEM.COMPOUND:597' has a missing or empty attributes?"
         )
     ]
 )

@@ -149,19 +149,19 @@ def check_biolink_model_compliance_of_knowledge_graph(graph: Dict) -> Tuple[str,
     errors: List[str] = list()
 
     # Access knowledge graph data fields to be validated... fail early if missing...
-    nodes: Dict = Optional[Dict]
+    nodes: Optional[Dict] = Optional[Dict]
     if 'nodes' in graph and graph['nodes']:
         nodes = graph['nodes']
     else:
         errors.append("No nodes found in the knowledge graph?")
-        return model_version, errors
+        nodes = None
 
-    edges: Dict = Optional[Dict]
+    edges: Optional[Dict] = Optional[Dict]
     if 'edges' in graph and graph['edges']:
         edges = graph['edges']
     else:
         errors.append("No edges found in the knowledge graph?")
-        return model_version, errors
+        edges = None
 
     # I only do a sampling of node and edge content. This ensures that
     # the tests are performant but may miss errors deeper inside the graph?
@@ -178,8 +178,7 @@ def check_biolink_model_compliance_of_knowledge_graph(graph: Dict) -> Tuple[str,
                         if bmtk.is_category(category):
                             category_name = bmtk.get_element(category).name
                         else:
-                            err_msg = f"'{category}' among the categories of node '{node_id}' " +\
-                                      "is not a recognized Biolink Model category?"
+                            err_msg = f"'{category}' for node '{node_id}' is not a recognized Biolink Model category?"
                             errors.append(err_msg)
                             category_name = None
 
@@ -207,26 +206,30 @@ def check_biolink_model_compliance_of_knowledge_graph(graph: Dict) -> Tuple[str,
             subject_id = edge['subject'] if 'subject' in edge else None
             predicate = edge['predicate'] if 'predicate' in edge else None
             object_id = edge['object'] if 'object' in edge else None
+            attributes = edge['attributes'] if 'attributes' in edge else None
 
-            # Probably too ambitious for now to validate the attributes?
-            # attributes = edge['attributes']
+            edge_id = f"{str(subject_id)}--{str(predicate)}->{str(object_id)}"
 
             if not subject_id:
-                errors.append(f"Edge:\n'{pp.pformat(edge)}'\nis missing its subject slot?")
+                errors.append(f"Edge '{edge_id}' has a missing or empty subject slot?")
             elif subject_id not in nodes.keys():
-                errors.append(f"Edge subject id '{subject_id}' is missing from the KG nodes list?")
+                errors.append(f"Edge subject id '{subject_id}' is missing from the nodes catalog?")
 
             if not predicate:
-                errors.append(f"Edge:\n'{pp.pformat(edge)}'\nis missing its predicate slot?")
+                errors.append(f"Edge '{edge_id}' has a missing or empty predicate slot?")
             elif not bmtk.is_predicate(predicate):
                 errors.append(f"'{predicate}' is an unknown Biolink Model predicate")
 
             if not object_id:
-                errors.append(f"Edge:\n'{pp.pformat(edge)}'\nis missing its object_id slot?")
+                errors.append(f"Edge '{edge_id}' has a missing or empty predicate slot?")
             elif object_id not in nodes.keys():
-                errors.append(f"Edge object id '{object_id}' is missing from the KG nodes list?")
+                errors.append(f"Edge object id '{object_id}' is missing from the nodes catalog?")
 
-            # TODO: not quite sure whether and how to validate the 'attributes' of an edge
+            # TODO: not quite sure whether and how to fully validate the 'attributes' of an edge
+            # For now, we simply assume that *all* edges must have *some* attributes
+            # (at least, provenance related, but we don't explicitly test for them)
+            if not attributes:
+                errors.append(f"Edge '{edge_id}' has a missing or empty attributes?")
 
             edges_seen += 1
             if edges_seen >= _MAX_TEST_EDGES:
