@@ -81,7 +81,7 @@ def check_provenance(ara_case, ara_response):
     number_of_edges_viewed = 0
     for edge in edges.values():
 
-        error_msg_prefix = f"Edge:\n{pp.pformat(edge)}\nfrom ARA 'infores:{ara_case['ara_infores']}' "
+        error_msg_prefix = f"Edge:\n{pp.pformat(edge)}\nfrom ARA 'infores:{ara_case['ara_infores']}', "
 
         # Every edge should always have at least *some* (provenance source) attributes
         if 'attributes' not in edge.keys():
@@ -165,7 +165,7 @@ def check_provenance(ara_case, ara_response):
 
         if ara_case['kp_infores'] and not found_kp_knowledge_source:
             assert False, \
-                f"{error_msg_prefix}, KP 'infores:{ara_case['kp_infores']}' attribute value as " +\
+                f"{error_msg_prefix} KP 'infores:{ara_case['kp_infores']}' attribute value as " +\
                 f"'{kp_source_type}' is missing as expected knowledge source provenance?"
 
         if not found_primary_or_original_knowledge_source:
