@@ -2,7 +2,6 @@
 One Hops Testing Suite
 """
 import logging
-from pprint import PrettyPrinter
 from typing import List, Dict
 
 import pytest
@@ -13,8 +12,6 @@ from tests.onehop import util as oh_util
 
 logger = logging.getLogger(__name__)
 logger.setLevel("DEBUG")
-
-pp = PrettyPrinter(indent=4)
 
 EOL = "\n\t"
 
