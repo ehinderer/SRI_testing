@@ -1,3 +1,4 @@
+import sys
 from typing import Optional, Dict, List, Tuple
 from functools import lru_cache
 from pprint import PrettyPrinter
@@ -174,19 +175,45 @@ def check_biolink_model_compliance_of_knowledge_graph(graph: Dict) -> Tuple[str,
                     errors.append(f"The value of node '{node_id}' categories should be a List?")
                 else:
                     categories = details["categories"]
+                    node_prefix_mapped: bool = False
                     for category in categories:
                         if bmtk.is_category(category):
                             category_name = bmtk.get_element(category).name
+                        elif bmtk.is_mixin(category):
+                            # finding mixins in the categories is OK, but we otherwise ignore them in validation
+                            print(
+                                f"\nInfo: Reported category '{category}' resolves to a Biolink Model 'mixin'?",
+                                file=sys.stderr, flush=True
+                            )
+                            continue
                         else:
+                            element = bmtk.get_element(category)
+                            if element:
+                                # got something here... hopefully just an abstract class
+                                # but not a regular category nor mixin, so we ignore it!
+                                # TODO: how do we better detect abstract classes from the model?
+                                #       How strict should our validation be here?
+                                print(
+                                    f"\nInfo: Reported category '{category}' " +
+                                    "resolves to the (possibly abstract) " +
+                                    f"Biolink Model element '{element.name}'?",
+                                    file=sys.stderr, flush=True
+                                )
+                                continue
+
+                            # Something truly unrecognized?
                             err_msg = f"'{category}' for node '{node_id}' is not a recognized Biolink Model category?"
                             errors.append(err_msg)
                             category_name = None
 
                         if category_name:
                             possible_subject_categories = bmtk.get_element_by_prefix(node_id)
-                            if category_name not in possible_subject_categories:
-                                err_msg = f"Node '{node_id}' prefix unmapped to category '{category}'?"
-                                errors.append(err_msg)
+                            if category_name in possible_subject_categories:
+                                node_prefix_mapped = True
+                    if not node_prefix_mapped:
+                        err_msg = f"For all node categories [{','.join(categories)}] of " +\
+                                  f"'{node_id}', the CURIE prefix namespace remains unmapped?"
+                        errors.append(err_msg)
             else:
                 errors.append(f"Node '{node_id}' is missing its 'categories'?")
 

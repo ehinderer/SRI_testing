@@ -313,7 +313,7 @@ def test_check_biolink_model_compliance_of_input_edge(query: Tuple):
                     }
                 }
             },
-            "Node 'FOO:1234' prefix unmapped to category 'biolink:Gene'?"
+            "For all node categories [biolink:Gene] of 'FOO:1234', the CURIE prefix namespace remains unmapped?"
         ),
         (
             "2.2.13",
@@ -458,4 +458,4 @@ def test_check_biolink_model_compliance_of_knowledge_graph(query: Tuple):
     model_version, errors = check_biolink_model_compliance_of_knowledge_graph(graph=query[1])
     assert model_version == get_toolkit().get_model_version()
     print(f"Errors:\n{pp.pformat(errors)}\n", file=sys.stderr, flush=True)
-    assert query[2] in errors if errors else True
+    assert any([error == query[2] for error in errors]) if errors else True
