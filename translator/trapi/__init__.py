@@ -258,6 +258,11 @@ def execute_trapi_lookup(case, creator, rbag):
 
     response_message = trapi_response['response_json']['message']
 
+    # Verify that the response had some results
+    assert len(response_message['results']) > 0, \
+        f"{err_msg_prefix} TRAPI response:\n{_output(response_message)}\nreturned an empty TRAPI Message Result?"
+
+    # Then, validate the associated Knowledge Graph
     assert len(response_message['knowledge_graph']) > 0, \
         f"{err_msg_prefix} returned an empty TRAPI Message Knowledge Graph?"
 
@@ -270,11 +275,7 @@ def execute_trapi_lookup(case, creator, rbag):
         f"against Biolink Model version '{model_version}', given\n{_output(errors)}\n" +\
         f"the response is not Biolink Model compliant?"
 
-    # Verify that the response had some results
-    assert len(response_message['results']) > 0, \
-        f"{err_msg_prefix} TRAPI response:\n{_output(response_message)}\nreturned an empty TRAPI Message Result?"
-
-    # The results contained the object of the query
+    # Finally, check that the Results contained the object of the query
     object_ids = [r['node_bindings'][output_node_binding][0]['id'] for r in response_message['results']]
     assert case[output_element] in object_ids, \
            f"{err_msg_prefix} TRAPI response is missing '{case[output_element]}' " +\
