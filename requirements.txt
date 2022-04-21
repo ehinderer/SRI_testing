@@ -8,3 +8,4 @@ reasoner-validator==2.1.0
 pytest>=7.1.1
 pytest-asyncio
 pytest-harvest
+kgx

@@ -9,9 +9,10 @@ from jsonschema import ValidationError
 
 from reasoner_validator import validate
 from reasoner_validator.util import latest
-from requests import Timeout, Response
+
 
 from translator.biolink import check_biolink_model_compliance_of_knowledge_graph
+from translator.sri import get_aliases
 
 logger = logging.getLogger(__name__)
 logger.setLevel("DEBUG")
@@ -188,9 +189,9 @@ def call_trapi(url, opts, trapi_message):
 
     try:
         response = requests.post(query_url, json=trapi_message, params=opts, timeout=DEFAULT_TRAPI_POST_TIMEOUT)
-    except Timeout:
+    except requests.Timeout:
         # fake response object
-        response = Response()
+        response = requests.Response()
         response.status_code = 408
 
     response_json = None
@@ -277,8 +278,13 @@ def execute_trapi_lookup(case, creator, rbag):
 
     # Finally, check that the Results contained the object of the query
     object_ids = [r['node_bindings'][output_node_binding][0]['id'] for r in response_message['results']]
-    assert case[output_element] in object_ids, \
-           f"{err_msg_prefix} TRAPI response is missing '{case[output_element]}' " +\
-           f"Result object IDs {pp.pformat(object_ids)} from '{output_node_binding}' binding?"
+    if case[output_element] not in object_ids:
+        # The 'get_aliases' method uses the Translator NodeNormalizer to check if any of
+        # the aliases of the case[output_element] identifier are in the object_ids list
+        output_aliases = get_aliases(case[output_element])
+        if not any([alias == object_id for alias in output_aliases for object_id in object_ids]):
+            assert False, f"{err_msg_prefix} neither the input id '{case[output_element]}' " +\
+                          f"nor resolved aliases [{','.join(output_aliases)}] were returned in the " +\
+                          f"Result object IDs {pp.pformat(object_ids)} for node '{output_node_binding}' binding?"
 
     return response_message
