@@ -174,8 +174,8 @@ def generate_trapi_kp_tests(metafunc):
                 if 'source_type' in kpjson:
                     edge['source_type'] = kpjson['source_type']
                 else:
-                    # If not specified, we assume that the KP is an "aggregating_knowledge_source"
-                    edge['source_type'] = "aggregating"
+                    # If not specified, we assume that the KP is an "aggregator_knowledge_source"
+                    edge['source_type'] = "aggregator"
 
                 if 'infores' in kpjson:
                     edge['infores'] = kpjson['infores']

@@ -277,7 +277,7 @@ def execute_trapi_lookup(case, creator, rbag):
     # The results contained the object of the query
     object_ids = [r['node_bindings'][output_node_binding][0]['id'] for r in response_message['results']]
     assert case[output_element] in object_ids, \
-           f"{err_msg_prefix} TRAPI response:\n{_output(response_message)}\n" +\
-           "has missing or invalid TRAPI Result object ID bindings?"
+           f"{err_msg_prefix} TRAPI response is missing '{case[output_element]}' " +\
+           f"Result object IDs {pp.pformat(object_ids)} from '{output_node_binding}' binding?"
 
     return response_message
