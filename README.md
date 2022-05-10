@@ -6,7 +6,7 @@ This repository contains a compendium of semantics-driven tests for assessing Kn
 
 The project has two top level folders:
 
-- Modules under [translator](translator) package, containing code shared between all categories of tests.
+- Modules under [translator](translator) package, containing code shared between all categories of tests, including some generic TRAPI and Translator Status Dashboard scripts.
 - Modules of the actual (Py)test harness under [tests](tests) 
 
 # Getting Started

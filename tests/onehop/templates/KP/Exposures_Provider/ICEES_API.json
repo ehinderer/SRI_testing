@@ -1,5 +1,5 @@
 {
-    "url": "https://icees.renci.org:16340",
+    "url": "https://icees.renci.org:16339",
     "edges": [
         {
             "subject_category": "biolink:ActivityAndBehavior",
