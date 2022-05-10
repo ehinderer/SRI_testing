@@ -2,7 +2,7 @@
 Ontology KP interface
 """
 import requests
-from translator.biolink import get_toolkit
+from reasoner_validator.biolink import get_biolink_model_toolkit
 
 ONTOLOGY_KP_TRAPI_SERVER = "https://ontology-kp.apps.renci.org/query"
 
@@ -110,7 +110,9 @@ def get_parent(curie, category):
     :param curie: CURIE of a concept instance
     :param category: Biolink Category of the concept instance
     """
-    tk = get_toolkit()
+    # TODO: the Biolink Model Toolkit is now set to the default 'latest'
+    #       release. Would this be problematic, for some Ontology use cases?
+    tk = get_biolink_model_toolkit()
     if not tk.is_category(category):
         assert False, f"{category} is not a Biolink Model Category!"
 

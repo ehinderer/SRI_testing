@@ -6,25 +6,24 @@ from typing import Optional, Dict, Tuple
 
 import pytest
 
-from translator.sri.testing import set_global_environment
-from translator.trapi import get_trapi_version, check_provenance
+from translator.trapi import set_trapi_version, get_trapi_version, check_provenance
 
 logger = logging.getLogger(__name__)
 logger.setLevel("DEBUG")
 
 
 def test_set_default_global_environment():
-    set_global_environment()
+    set_trapi_version()
     trapi_version: Optional[str] = get_trapi_version()
     assert trapi_version
     assert trapi_version.startswith("1.2")
 
 
-def test_set_specific_trapi_versioned_global_environment():
-    set_global_environment()
+def test_set_specific_global_environment():
+    set_trapi_version("1.1")
     trapi_version: Optional[str] = get_trapi_version()
     assert trapi_version
-    assert trapi_version.startswith("1.2")
+    assert trapi_version.startswith("1.1")
 
 
 TEST_ARA_CASE_TEMPLATE = {
@@ -187,7 +186,7 @@ def get_ara_test_case(changes: Optional[Dict[str, str]] = None):
                         }
                     }
                 },
-                "missing KP knowledge source provenance?"
+                "is missing as expected knowledge source provenance?"
         ),
         (
             # Query 8. kp type is 'original'. Should pass?
@@ -234,7 +233,7 @@ def get_ara_test_case(changes: Optional[Dict[str, str]] = None):
                     }
                 }
             },
-            "has neither 'primary' nor 'original' KP knowledge source provenance?"
+            "has neither 'primary' nor 'original' Knowledge Provider knowledge source provenance?"
         ),
         (
             # Query 10. Is complete and should pass?

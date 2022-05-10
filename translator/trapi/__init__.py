@@ -11,7 +11,7 @@ from reasoner_validator import validate
 from reasoner_validator.util import latest
 
 
-from translator.biolink import check_biolink_model_compliance_of_knowledge_graph
+from reasoner_validator.biolink import check_biolink_model_compliance_of_knowledge_graph
 from translator.sri import get_aliases
 
 logger = logging.getLogger(__name__)
@@ -35,7 +35,7 @@ DEFAULT_TRAPI_VERSION = "1"
 _current_trapi_version = None
 
 
-def set_trapi_version(version: str):
+def set_trapi_version(version: Optional[str] = None):
     global _current_trapi_version
     version = version if version else DEFAULT_TRAPI_VERSION
     _current_trapi_version = latest.get(version)
@@ -166,11 +166,12 @@ def check_provenance(ara_case, ara_response):
 
         if ara_case['kp_infores'] and not found_kp_knowledge_source:
             assert False, \
-                f"{error_msg_prefix} KP 'infores:{ara_case['kp_infores']}' attribute value as " +\
+                f"{error_msg_prefix} Knowledge Provider 'infores:{ara_case['kp_infores']}' attribute value as " +\
                 f"'{kp_source_type}' is missing as expected knowledge source provenance?"
 
         if not found_primary_or_original_knowledge_source:
-            assert False, f"{error_msg_prefix} has neither 'primary' nor 'original' KP knowledge source provenance?"
+            assert False, f"{error_msg_prefix} has neither 'primary' nor 'original' " +\
+                          "Knowledge Provider knowledge source provenance?"
 
         # We are not likely to want to check the entire Knowledge Graph for
         # provenance but only sample a subset, making the assumption that
@@ -270,7 +271,10 @@ def execute_trapi_lookup(case, creator, rbag):
     # Verify that the TRAPI message output knowledge graph
     # is compliant to the applicable Biolink Model release
     model_version, errors = \
-        check_biolink_model_compliance_of_knowledge_graph(graph=response_message['knowledge_graph'])
+        check_biolink_model_compliance_of_knowledge_graph(
+            graph=response_message['knowledge_graph'],
+            biolink_release=case['biolink_release']
+        )
     assert not errors, \
         f"{err_msg_prefix} TRAPI response:\n{_output(response_message)}\n" +\
         f"against Biolink Model version '{model_version}', given\n{_output(errors)}\n" +\

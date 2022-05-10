@@ -1,13 +1,24 @@
+"""
+Report Missing Predicates
+
+When run from the commandline, optional module CLI argument
+is the Biolink Model release to use for predicate validation.
+"""
+
+from sys import argv
 import csv
 import requests
 
 import json
 from biothings_explorer.smartapi_kg.dataload import load_specs
 
-from translator.biolink import get_toolkit
+from bmt import Toolkit
+
+from reasoner_validator.biolink import get_biolink_model_toolkit
 from translator.sri.testing import create_templates
 
-_bmtk = get_toolkit()
+# Defaults to 'latest' default Biolink Model release in BMT
+_bmtk = Toolkit()
 
 tsv_file = open("missing_predicates.tsv", "a")
 tsv_writer = csv.writer(tsv_file, delimiter='\t')
@@ -105,4 +116,10 @@ def dump_trapi_predicate_results(url, predicates, team):
 
 
 if __name__ == '__main__':
+
+    # Specify optional biolink release SemVer
+    if len(argv) > 1:
+        biolink_release = argv[1]
+        _bmtk = get_biolink_model_toolkit(biolink_release=biolink_release)
+
     aggregate_missing_predicates()

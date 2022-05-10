@@ -11,9 +11,9 @@ from typing import Set
 from pytest_harvest import get_session_results_dct
 
 from tests.onehop.util import get_unit_test_codes
-from translator.biolink import check_biolink_model_compliance_of_input_edge
-from translator.sri.testing import set_global_environment
+from reasoner_validator.biolink import check_biolink_model_compliance_of_input_edge
 from tests.onehop import util as oh_util
+from translator.trapi import set_trapi_version
 
 logger = logging.getLogger(__name__)
 logger.setLevel("DEBUG")
@@ -83,14 +83,14 @@ def pytest_addoption(parser):
     # We hard code a 'current' version (1.2 as of March 2022)
     # but we'll eventually use an endpoint's SmartAPI published value
     parser.addoption(
-        "--TRAPI_version", action="store", default=None,
-        help='TRAPI API release to use for the tests (default: latest public release)'
+        "--TRAPI_Version", action="store", default=None,
+        help='TRAPI API Version to use for the tests (default: latest public release)'
     )
     # We could eventually use a TRAPI/meta_knowledge_graph value,
     # but we'll use the Biolink Model Toolkit default for now?
     parser.addoption(
-        "--Biolink_version", action="store", default=None,
-        help='Biolink Model release to use for the tests (default: latest Biolink Model Toolkit default)'
+        "--Biolink_Release", action="store", default=None,
+        help='Biolink Model Release to use for the tests (default: latest Biolink Model Toolkit default)'
     )
 
 
@@ -126,9 +126,10 @@ def _build_filelist(entry):
     return filelist
 
 
-def generate_trapi_kp_tests(metafunc):
+def generate_trapi_kp_tests(metafunc, biolink_release):
     """
     :param metafunc
+    :param biolink_release
     """
     triple_source = metafunc.config.getoption('triple_source')
     edges = []
@@ -162,7 +163,11 @@ def generate_trapi_kp_tests(metafunc):
 
                 # We can already do some basic Biolink Model validation here of the
                 # S-P-O contents of the edge being input from the current triples file?
-                model_version, errors = check_biolink_model_compliance_of_input_edge(edge)
+                model_version, errors = \
+                    check_biolink_model_compliance_of_input_edge(
+                        edge,
+                        biolink_release=biolink_release
+                    )
                 if errors:
                     # defer reporting of errors to higher level of test harness
                     edge['biolink_errors'] = model_version, errors
@@ -170,8 +175,9 @@ def generate_trapi_kp_tests(metafunc):
                 edge['location'] = kpfile
                 edge['api_name'] = kpfile.split('/')[-1]
                 edge['url'] = kpjson['url']
+                edge['biolink_release'] = biolink_release
 
-                if 'source_type' in kpjson:
+                if 'source_type' in    kpjson:
                     edge['source_type'] = kpjson['source_type']
                 else:
                     # If not specified, we assume that the KP is an "aggregator_knowledge_source"
@@ -298,9 +304,9 @@ def pytest_generate_tests(metafunc):
     and use them to parameterize inputs to the test functions. Note that this gets called multiple times, once
     for each test_* function, and you can only parameterize an argument to that specific test_* function.
     However, for the ARA tests, we still need to get the KP data, since that is where the triples live."""
-    biolink_version = metafunc.config.getoption('Biolink_version')
-    trapi_version = metafunc.config.getoption('TRAPI_version')
-    set_global_environment(biolink_version=biolink_version, trapi_version=trapi_version)
-    trapi_kp_edges = generate_trapi_kp_tests(metafunc)
+    trapi_version = metafunc.config.getoption('TRAPI_Version')
+    set_trapi_version(version=trapi_version)
+    biolink_release = metafunc.config.getoption('Biolink_Release')
+    trapi_kp_edges = generate_trapi_kp_tests(metafunc, biolink_release=biolink_release)
     if metafunc.definition.name == 'test_trapi_aras':
         generate_trapi_ara_tests(metafunc, trapi_kp_edges)

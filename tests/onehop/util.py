@@ -2,7 +2,7 @@ from copy import deepcopy
 from functools import wraps
 from typing import Set, Dict
 
-from translator.biolink import get_toolkit
+from reasoner_validator.biolink import get_biolink_model_toolkit
 from translator.sri.testing.util import ontology_kp
 
 
@@ -114,7 +114,9 @@ def by_subject(request):
 def inverse_by_new_subject(request):
     """Given a known triple, create a TRAPI message that inverts the predicate,
        then looks up the new object by the new subject (original object)"""
-    tk = get_toolkit()
+    # TODO: the Biolink Model Toolkit is now set to the default 'latest'
+    #       release. Would this be problematic, for some Ontology use cases?
+    tk = get_biolink_model_toolkit()
     original_predicate_element = tk.get_element(request['predicate'])
     if original_predicate_element['symmetric']:
         transformed_predicate = request['predicate']
@@ -177,9 +179,13 @@ def raise_subject_entity(request):
 
 @TestCode("ROBS", "raise_object_by_subject")
 def raise_object_by_subject(request):
-    """Given a known triple, create a TRAPI message that uses the parent of the original object category and looks up
-    the object by the subject"""
-    tk = get_toolkit()
+    """
+    Given a known triple, create a TRAPI message that uses the parent
+    of the original object category and looks up the object by the subject
+    """
+    # TODO: the Biolink Model Toolkit is now set to the default 'latest'
+    #       release. Would this be problematic, for some Ontology use cases?
+    tk = get_biolink_model_toolkit()
     original_object_element = tk.get_element(request['object_category'])
     transformed_request = request.copy()  # there's no depth to request, so it's ok
     parent = tk.get_element(original_object_element['is_a'])
@@ -190,9 +196,13 @@ def raise_object_by_subject(request):
 
 @TestCode("RPBS", "raise_predicate_by_subject")
 def raise_predicate_by_subject(request):
-    """Given a known triple, create a TRAPI message that uses the parent of the original predicate and looks up
-    the object by the subject"""
-    tk = get_toolkit()
+    """
+    Given a known triple, create a TRAPI message that uses the parent
+    of the original predicate and looks up the object by the subject
+    """
+    # TODO: the Biolink Model Toolkit is now set to the default 'latest'
+    #       release. Would this be problematic, for some Ontology use cases?
+    tk = get_biolink_model_toolkit()
     transformed_request = request.copy()  # there's no depth to request, so it's ok
     if request['predicate'] != 'biolink:related_to':
         original_predicate_element = tk.get_element(request['predicate'])
