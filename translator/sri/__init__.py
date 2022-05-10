@@ -6,7 +6,7 @@ from typing import Dict, List
 import requests
 from functools import lru_cache
 
-from json import dumps, JSONDecodeError
+from json import JSONDecodeError
 
 import logging
 

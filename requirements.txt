@@ -4,7 +4,14 @@ jsonschema~=3.2.0
 httpx
 biothings-explorer>=1.1.0
 bmt>=0.8.2
-reasoner-validator==2.1.0
+
+#
+# Updated (but not yet merged and released) Reasoner Validator version
+# with TRAPI Biolink Model Validation included
+#
+# reasoner-validator==2.1.0
+git+https://github.com/RichardBruskiewich/reasoner-validator@biolink-model-validation#egg=reasoner-validator
+
 pytest>=7.1.1
 pytest-asyncio
 pytest-harvest

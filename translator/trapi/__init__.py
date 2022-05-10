@@ -57,7 +57,7 @@ def is_valid_trapi(instance, trapi_version):
         )
         return True
     except ValidationError as e:
-        import json
+        # import json
         # print(dumps(response_json, sort_keys=False, indent=4))
         print(e)
         return False
