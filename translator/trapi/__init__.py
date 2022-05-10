@@ -277,8 +277,8 @@ def execute_trapi_lookup(case, creator, rbag):
         )
     assert not errors, \
         f"{err_msg_prefix} TRAPI response:\n{_output(response_message)}\n" +\
-        f"against Biolink Model version '{model_version}', given\n{_output(errors)}\n" +\
-        f"the response is not Biolink Model compliant?"
+        f"has errors \n{_output(errors)}\n" +\
+        f"indicating it is not compliant to Biolink Model release '{model_version}'?"
 
     # Finally, check that the Results contained the object of the query
     object_ids = [r['node_bindings'][output_node_binding][0]['id'] for r in response_message['results']]
