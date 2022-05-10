@@ -1,0 +1,12 @@
+{
+    "url": "https://platform-api.opentargets.io/v3",
+    "edges": [
+        {
+            "subject_category": "biolink:Gene",
+            "object_category": "biolink:ChemicalSubstance",
+            "predicate": "biolink:related_to",
+            "subject": "",
+            "object": ""
+        }
+    ]
+}

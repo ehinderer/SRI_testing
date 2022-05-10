@@ -1,0 +1,19 @@
+{
+    "url": "https://openpredict.semanticscience.org",
+    "edges": [
+        {
+            "subject_category": "disease",
+            "object_category": "drug",
+            "predicate": "treated_by",
+            "subject": "",
+            "object": ""
+        },
+        {
+            "subject_category": "drug",
+            "object_category": "disease",
+            "predicate": "treats",
+            "subject": "",
+            "object": ""
+        }
+    ]
+}

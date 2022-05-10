@@ -1,0 +1,12 @@
+{
+    "url": "https://api.collaboratory.semanticscience.org",
+    "edges": [
+        {
+            "subject_category": "biolink:Drug",
+            "object_category": "biolink:Disease",
+            "predicate": "biolink:treats",
+            "subject": "",
+            "object": ""
+        }
+    ]
+}

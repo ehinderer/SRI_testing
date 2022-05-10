@@ -1,0 +1,12 @@
+{
+    "url": "http://lincsportal.ccs.miami.edu/dcic/api",
+    "edges": [
+        {
+            "subject_category": "biolink:ChemicalSubstance",
+            "object_category": "biolink:Disease",
+            "predicate": "biolink:treats",
+            "subject": "",
+            "object": ""
+        }
+    ]
+}

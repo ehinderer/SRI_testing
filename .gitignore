@@ -3,6 +3,7 @@
 *.resultsNOTEST
 Test_ARA/
 Test_KP/
+dashboard_data/*.json
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

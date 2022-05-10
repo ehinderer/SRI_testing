@@ -1,0 +1,19 @@
+{
+    "url": "https://biothings.ncats.io/hpo",
+    "edges": [
+        {
+            "subject_category": "biolink:PhenotypicFeature",
+            "object_category": "biolink:PhenotypicFeature",
+            "predicate": "biolink:superclass_of",
+            "subject": "",
+            "object": ""
+        },
+        {
+            "subject_category": "biolink:PhenotypicFeature",
+            "object_category": "biolink:PhenotypicFeature",
+            "predicate": "biolink:subclass_of",
+            "subject": "",
+            "object": ""
+        }
+    ]
+}
