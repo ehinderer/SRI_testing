@@ -10,7 +10,7 @@ bmt>=0.8.4
 # with TRAPI Biolink Model Validation included
 #
 # reasoner-validator==2.1.0
-git+https://github.com/RichardBruskiewich/reasoner-validator@biolink-model-validation#egg=reasoner-validator
+git+https://github.com/NCATSTranslator/reasoner-validator.git#egg=reasoner-validator
 
 pytest>=7.1.1
 pytest-asyncio
