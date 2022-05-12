@@ -1,12 +1,16 @@
 """
 Translator SmartAPI Registry access module.
 """
-from typing import Optional
+from typing import Optional, List, Dict
+from sys import stderr
 from datetime import datetime
 
 import requests
 import yaml
 from requests.exceptions import RequestException
+
+import logging
+logger = logging.getLogger(__name__)
 
 SMARTAPI_URL = "https://smart-api.info/api/"
 SMARTAPI_QUERY_PARAMETERS = "q=__all__&tags=%22trapi%22&fields=info,_meta,_status,paths,tags,openapi,swagger&size=1000&from=0"
@@ -85,13 +89,42 @@ def iterate_services_from_registry(registry_data):
     return service_status_data
 
 
-def iterate_test_data_from_registry(registry_data):
-    service_status_data = []
-    for index, service in enumerate(registry_data['hits']):
-        print(index, service['info']['title'], set_timestamp())
-        try:
-            pass
-        except Exception as e:
-            print(e)
-    return service_status_data
+def get_nested_tag_value(data, path: List[str], pos: int):
+    tag = path[pos]
+    part_tag_path = ".".join(path[:pos+1])
+    if tag not in data:
+        logger.debug(f"\tMissing tag path '{part_tag_path}'?")
+        return None
 
+    pos += 1
+    if pos == len(path):
+        return data[tag]
+    else:
+        return get_nested_tag_value(data[tag], path, pos)
+
+
+def tag_value(json_data, tag_path):
+
+    if not tag_path:
+        logger.debug(f"\tEmpty 'tag_path' argument?")
+        return None
+
+    parts = tag_path.split(".")
+    return get_nested_tag_value(json_data, parts, 0)
+
+
+def iterate_test_data_locations_from_registry(registry_data) -> Dict[str, str]:
+    test_data_locations: Dict[str, Optional[str]] = dict()
+    for index, service in enumerate(registry_data['hits']):
+        component = tag_value(service, "info.x-translator.component")
+        infores = tag_value(service, "info.x-translator.infores")
+        if component and infores and component == "KP":
+            test_data_location = tag_value(service, "info.x-trapi.test_data_location")
+            if test_data_location:
+                logger.info(f"\t{infores} 'test_data_location': {test_data_location}")
+                test_data_locations[infores] = test_data_location
+            else:
+                logger.warning(f"\t{infores} is missing its 'test_data_location'")
+                test_data_locations[infores] = None
+
+    return test_data_locations
