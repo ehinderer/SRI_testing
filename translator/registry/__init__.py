@@ -83,3 +83,15 @@ def iterate_services_from_registry(registry_data):
         except Exception as e:
             print(e)
     return service_status_data
+
+
+def iterate_test_data_from_registry(registry_data):
+    service_status_data = []
+    for index, service in enumerate(registry_data['hits']):
+        print(index, service['info']['title'], set_timestamp())
+        try:
+            pass
+        except Exception as e:
+            print(e)
+    return service_status_data
+
