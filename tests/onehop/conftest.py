@@ -6,7 +6,7 @@ import json
 import logging
 from collections import defaultdict
 from json import JSONDecodeError
-from typing import Set
+from typing import Optional, List, Tuple, Set, Dict
 
 from pytest_harvest import get_session_results_dct
 
@@ -126,31 +126,57 @@ def _build_filelist(entry):
     return filelist
 
 
+def get_kp_test_data_sources(metafunc) -> List[str]:
+    """
+    Returns a list of KPtest data sources.
+
+    First implementation just wraps the existing local test data files.
+    """
+    triple_source = metafunc.config.getoption('triple_source')
+
+    if not os.path.exists(triple_source):
+        print("No such location:", triple_source)
+        return []
+
+    filelist: List[str] = _build_filelist(triple_source)
+
+    return filelist
+
+
+def load_kp_test_data_source(source: str) -> Optional[Dict]:
+    """
+    Load one specified KP test data source.
+
+    First implementation just wraps the legacy local file loading code.
+    """
+    if not source.endswith('json'):
+        return None
+    with open(source, 'r') as inf:
+        try:
+            kpjson: Dict = json.load(inf)
+        except (JSONDecodeError, TypeError):
+            logger.error(f"generate_trapi_kp_tests(): input file '{source}': Invalid JSON")
+
+            # Previous use of an exit() statement here seemed a bit drastic bailout here...
+            # JSON errors in a single file? Rather, just skip over to the next file?
+            return None
+
+    return kpjson
+
+
 def generate_trapi_kp_tests(metafunc, biolink_release):
     """
     :param metafunc
     :param biolink_release
     """
-    triple_source = metafunc.config.getoption('triple_source')
     edges = []
     idlist = []
-    if not os.path.exists(triple_source):
-        print("No such location:", triple_source)
-        return edges
-    
-    filelist = _build_filelist(triple_source)
-    for kpfile in filelist:
-        if not kpfile.endswith('json'):
-            continue
-        with open(kpfile, 'r') as inf:
-            try:
-                kpjson = json.load(inf)
-            except (JSONDecodeError, TypeError):
-                logger.error(f"generate_trapi_kp_tests(): input file {kpfile}: Invalid JSON")
 
-                # Previous use of an exit() statement here seemed a bit drastic bailout here...
-                # JSON errors in a single file? Rather, just skip over to the next file?
-                continue
+    kp_data_sources: List[str] = get_kp_test_data_sources(metafunc)
+
+    for source in kp_data_sources:
+
+        kpjson = load_kp_test_data_source(source)
 
         dataset_level_test_exclusions: Set = set()
         if "exclude_tests" in kpjson:
@@ -172,12 +198,14 @@ def generate_trapi_kp_tests(metafunc, biolink_release):
                     # defer reporting of errors to higher level of test harness
                     edge['biolink_errors'] = model_version, errors
 
-                edge['location'] = kpfile
-                edge['api_name'] = kpfile.split('/')[-1]
+                # TODO: 'location', 'api_name', 'url', biolink_release should all
+                #       eventually be set from Translator SmartAPI Registry metadata
+                edge['location'] = source
+                edge['api_name'] = source.split('/')[-1]
                 edge['url'] = kpjson['url']
                 edge['biolink_release'] = biolink_release
 
-                if 'source_type' in    kpjson:
+                if 'source_type' in kpjson:
                     edge['source_type'] = kpjson['source_type']
                 else:
                     # If not specified, we assume that the KP is an "aggregator_knowledge_source"
@@ -187,7 +215,7 @@ def generate_trapi_kp_tests(metafunc, biolink_release):
                     edge['infores'] = kpjson['infores']
                 else:
                     logger.warning(
-                        f"generate_trapi_kp_tests(): input file '{kpfile}' is missing its 'infores' field value?"
+                        f"generate_trapi_kp_tests(): input file '{source}' is missing its 'infores' field value?"
                     )
                     edge['infores'] = None
 
@@ -210,7 +238,7 @@ def generate_trapi_kp_tests(metafunc, biolink_release):
 
                 edges.append(edge)
 
-                idlist.append(f'{kpfile}_{edge_i}')
+                idlist.append(f'{source}_{edge_i}')
 
                 if metafunc.config.getoption('one'):
                     break
@@ -240,6 +268,33 @@ def generate_trapi_kp_tests(metafunc, biolink_release):
     return edges
 
 
+def get_ara_test_data_sources(metafunc) -> List[str]:
+    """
+    Returns a list of ARA test data sources.
+
+    First implementation just wraps the existing local test data files.
+    """
+    ara_source = metafunc.config.getoption('ARA_source')
+
+    # Figure out which ARAs should be able to get which triples from which KPs
+    filelist: List[str] = _build_filelist(ara_source)
+
+    return filelist
+
+
+def load_ara_test_data_source(source: str) -> Tuple[str, Optional[Dict]]:
+    """
+    Load one specified ARA test data source.
+
+    First implementation just wraps the legacy local file loading code.
+    """
+    f: str = source.split('/')[-1]
+    with open(source, 'r') as inf:
+        arajson: Dict = json.load(inf)
+
+    return f, arajson
+
+
 # Once the smartapi tests are up, we'll want to pass them in here as well
 def generate_trapi_ara_tests(metafunc, kp_edges):
     """
@@ -250,16 +305,16 @@ def generate_trapi_ara_tests(metafunc, kp_edges):
     for e in kp_edges:
         # eh, not handling api name very well
         kp_dict[e['api_name'][:-5]].append(e)
+
     ara_edges = []
     idlist = []
-    ara_source = metafunc.config.getoption('ARA_source')
 
-    # Figure out which ARAs should be able to get which triples from which KPs
-    filelist = _build_filelist(ara_source)
-    for arafile in filelist:
-        f = arafile.split('/')[-1]
-        with open(arafile, 'r') as inf:
-            arajson = json.load(inf)
+    ara_data_sources: List[str] = get_ara_test_data_sources(metafunc)
+
+    for source in ara_data_sources:
+
+        f, arajson = load_ara_test_data_source(source)
+
         for kp in arajson['KPs']:
             for edge_i, kp_edge in enumerate(kp_dict['_'.join(kp.split())]):
                 edge = kp_edge.copy()
@@ -270,7 +325,7 @@ def generate_trapi_ara_tests(metafunc, kp_edges):
                     edge['ara_infores'] = arajson['infores']
                 else:
                     logger.warning(
-                        f"generate_trapi_ara_tests(): input file '{arafile}' " +
+                        f"generate_trapi_ara_tests(): input file '{source}' " +
                         "is missing its ARA 'infores' field...ARA provenance will not be properly tested?"
                     )
                     edge['ara_infores'] = None
