@@ -2,6 +2,7 @@
 Configure one hop tests
 """
 import os
+from sys import stderr
 import json
 import logging
 from collections import defaultdict
@@ -134,32 +135,56 @@ def get_kp_test_data_sources(metafunc) -> List[str]:
     """
     triple_source = metafunc.config.getoption('triple_source')
 
-    if not os.path.exists(triple_source):
-        print("No such location:", triple_source)
-        return []
+    filelist: List[str]
+    if triple_source == "REGISTRY":
+        # Access KP Test Data Source via the Translator SmartAPI Registry
+        filelist = list()
+    else:
+        # Access local set of KP test data triples
+        if not os.path.exists(triple_source):
+            print("No such location:", triple_source, flush=True, file=stderr)
+            return []
 
-    filelist: List[str] = _build_filelist(triple_source)
+        filelist = _build_filelist(triple_source)
 
     return filelist
 
 
-def load_kp_test_data_source(source: str) -> Optional[Dict]:
+def load_kp_test_data_source(source: str, biolink_release: str) -> Optional[Dict]:
     """
     Load one specified KP test data source.
 
     First implementation just wraps the legacy local file loading code.
     """
     if not source.endswith('json'):
+        # Source file, whatever its origin, should be a JSON file
         return None
-    with open(source, 'r') as inf:
-        try:
-            kpjson: Dict = json.load(inf)
-        except (JSONDecodeError, TypeError):
-            logger.error(f"generate_trapi_kp_tests(): input file '{source}': Invalid JSON")
 
-            # Previous use of an exit() statement here seemed a bit drastic bailout here...
-            # JSON errors in a single file? Rather, just skip over to the next file?
-            return None
+    kpjson: Dict
+    if source.startswith('http'):
+        # Source is an online test data repository,
+        # likely harvested from the Translator SmartAPI Registry
+        kpjson = dict()
+    else:
+        # Source is a local data file
+        with open(source, 'r') as inf:
+            try:
+                kpjson = json.load(inf)
+            except (JSONDecodeError, TypeError):
+                logger.error(f"generate_trapi_kp_tests(): input file '{source}': Invalid JSON")
+
+                # Previous use of an exit() statement here seemed a bit drastic bailout here...
+                # JSON errors in a single file? Rather, just skip over to the next file?
+                return None
+
+    # TODO: 'location', 'api_name', 'url', biolink_release, TRAPI version, etc.
+    #       should all eventually be set from Translator SmartAPI Registry metadata
+    kpjson['location'] = source
+    kpjson['api_name'] = source.split('/')[-1]
+
+    # We'll initially take the CLI override of the Biolink Model release,
+    # but may have some other heuristic here later
+    kpjson['biolink_release'] = biolink_release
 
     return kpjson
 
@@ -176,7 +201,10 @@ def generate_trapi_kp_tests(metafunc, biolink_release):
 
     for source in kp_data_sources:
 
-        kpjson = load_kp_test_data_source(source)
+        # User CLI may override here
+        # the target Biolink Model Release
+        # during KP test data preparation
+        kpjson = load_kp_test_data_source(source, biolink_release)
 
         dataset_level_test_exclusions: Set = set()
         if "exclude_tests" in kpjson:
@@ -192,7 +220,7 @@ def generate_trapi_kp_tests(metafunc, biolink_release):
                 model_version, errors = \
                     check_biolink_model_compliance_of_input_edge(
                         edge,
-                        biolink_release=biolink_release
+                        biolink_release=kpjson['biolink_release']
                     )
                 if errors:
                     # defer reporting of errors to higher level of test harness
@@ -200,10 +228,10 @@ def generate_trapi_kp_tests(metafunc, biolink_release):
 
                 # TODO: 'location', 'api_name', 'url', biolink_release should all
                 #       eventually be set from Translator SmartAPI Registry metadata
-                edge['location'] = source
-                edge['api_name'] = source.split('/')[-1]
+                edge['location'] = kpjson['location']
+                edge['api_name'] = kpjson['api_name']
                 edge['url'] = kpjson['url']
-                edge['biolink_release'] = biolink_release
+                edge['biolink_release'] = kpjson['biolink_release']
 
                 if 'source_type' in kpjson:
                     edge['source_type'] = kpjson['source_type']
@@ -276,8 +304,17 @@ def get_ara_test_data_sources(metafunc) -> List[str]:
     """
     ara_source = metafunc.config.getoption('ARA_source')
 
-    # Figure out which ARAs should be able to get which triples from which KPs
-    filelist: List[str] = _build_filelist(ara_source)
+    filelist: List[str]
+    if ara_source == "REGISTRY":
+        # Access ARA Test Data Source via the Translator SmartAPI Registry
+        filelist = list()
+    else:
+        if not os.path.exists(ara_source):
+            print("No such location:", ara_source, flush=True, file=stderr)
+            return []
+
+        # Figure out which ARAs should be able to get which triples from which KPs
+        filelist = _build_filelist(ara_source)
 
     return filelist
 
@@ -288,9 +325,21 @@ def load_ara_test_data_source(source: str) -> Tuple[str, Optional[Dict]]:
 
     First implementation just wraps the legacy local file loading code.
     """
+    if not source.endswith('json'):
+        # Source file, whatever its origin, should be a JSON file
+        return "", None
+
     f: str = source.split('/')[-1]
-    with open(source, 'r') as inf:
-        arajson: Dict = json.load(inf)
+
+    arajson: Dict
+    if source.startswith('http'):
+        # Source is an online ARA specification repository,
+        # likely harvested from the Translator SmartAPI Registry
+        arajson = dict()
+    else:
+
+        with open(source, 'r') as inf:
+            arajson: Dict = json.load(inf)
 
     return f, arajson
 
@@ -361,7 +410,10 @@ def pytest_generate_tests(metafunc):
     However, for the ARA tests, we still need to get the KP data, since that is where the triples live."""
     trapi_version = metafunc.config.getoption('TRAPI_Version')
     set_trapi_version(version=trapi_version)
+
+    # Bug or feature? The Biolink Model release may be overridden on the command line
     biolink_release = metafunc.config.getoption('Biolink_Release')
     trapi_kp_edges = generate_trapi_kp_tests(metafunc, biolink_release=biolink_release)
+
     if metafunc.definition.name == 'test_trapi_aras':
         generate_trapi_ara_tests(metafunc, trapi_kp_edges)

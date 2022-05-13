@@ -1,7 +1,7 @@
 """
 Unit tests for Translator SmartAPI Registry
 """
-from typing import List
+from typing import Tuple, Dict
 from sys import stderr
 import logging
 import pytest
@@ -21,9 +21,13 @@ def test_default_empty_query():
     assert len(registry_data) > 0, "Default query failed"
 
 
+_QUERY_SMART_API_EXCEPTION_PREFIX = "Translator SmartAPI Registry Access Exception cannot be accessed:"
+
+
 def test_fake_url():
-    registry_data = query_smart_api(url="fake url")
-    assert registry_data and registry_data.startswith("Invalid URL"), "Didn't get expected request exception?"
+    registry_data: Dict = query_smart_api(url="fake url")
+    assert registry_data and "Error" in registry_data, "Missing error message?"
+    assert registry_data["Error"].startswith(_QUERY_SMART_API_EXCEPTION_PREFIX), "Unexpected error message?"
 
 
 def test_trapi_entry_retrievals():
@@ -93,8 +97,8 @@ def test_trapi_entry_retrievals():
 
 
 def test_test_data_location_retrievals():
-    registry_data = query_smart_api(parameters=SMARTAPI_QUERY_PARAMETERS)
-    test_data_locations: List[str] = iterate_test_data_locations_from_registry(registry_data)
+    registry_data: Dict = query_smart_api(parameters=SMARTAPI_QUERY_PARAMETERS)
+    test_data_locations: Dict[str, str] = iterate_test_data_locations_from_registry(registry_data)
     assert len(test_data_locations) > 0, "No Test Data found?"
 
 
@@ -259,8 +263,8 @@ _TEST_REGISTRY_ENTRY = {
         )
     ]
 )
-def test_iterate_test_data_locations_from_registry(query):
-    test_data_locations = iterate_test_data_locations_from_registry(query[0])
+def test_iterate_test_data_locations_from_registry(query: Tuple[Dict, str, str]):
+    test_data_locations: Dict[str, str] = iterate_test_data_locations_from_registry(query[0])
     if not query[1]:
         assert len(test_data_locations) == 0, "Expecting empty 'test_data_locations'"
     else:
@@ -271,3 +275,5 @@ def test_iterate_test_data_locations_from_registry(query):
             f"Expected test_data_location '{query[2]}'  to be returned for infores '{query[1]}'"
 
         print("Test Data Locations: ", test_data_locations, flush=True, file=stderr)
+
+

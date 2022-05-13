@@ -48,16 +48,17 @@ def get_status(url, meta_path):
     return status
 
 
-def query_smart_api(url: str = SMARTAPI_URL, parameters: Optional[str] = None):
+def query_smart_api(url: str = SMARTAPI_URL, parameters: Optional[str] = None) -> Optional[Dict]:
     query_string = f"query?{parameters}" if parameters else "query"
-    data = None
+    data: Optional[Dict] = None
     try:
         request = requests.get(f"{url}{query_string}")
         if request.status_code == 200:
             data = request.json()
     except RequestException as re:
         print(re)
-        data = str(re)
+        data = {"Error": "Translator SmartAPI Registry Access Exception cannot be accessed: "+str(re)}
+
     return data
 
 
@@ -113,7 +114,7 @@ def tag_value(json_data, tag_path):
     return get_nested_tag_value(json_data, parts, 0)
 
 
-def iterate_test_data_locations_from_registry(registry_data) -> Dict[str, str]:
+def iterate_test_data_locations_from_registry(registry_data: Dict) -> Dict[str, str]:
     test_data_locations: Dict[str, Optional[str]] = dict()
     for index, service in enumerate(registry_data['hits']):
         component = tag_value(service, "info.x-translator.component")
