@@ -14,6 +14,7 @@ from pytest_harvest import get_session_results_dct
 from tests.onehop.util import get_unit_test_codes
 from reasoner_validator.biolink import check_biolink_model_compliance_of_input_edge
 from tests.onehop import util as oh_util
+from translator.registry import get_translator_kp_test_data_locations, get_translator_ara_test_data_locations
 from translator.trapi import set_trapi_version
 
 logger = logging.getLogger(__name__)
@@ -74,24 +75,28 @@ def pytest_addoption(parser):
     parser.addoption("--teststyle", action="store", default='all', help='Which Test to Run?')
     parser.addoption("--one", action="store_true", help="Only use first edge from each KP file")
     parser.addoption(
-        "--triple_source", action="store", default='test_triples/KP',
-        help="Directory or file from which to retrieve triples"
+        "--triple_source", action="store", default='REGISTRY',  # 'test_triples/KP',
+        help="'REGISTRY', directory or file from which to retrieve triples (Default: 'REGISTRY', which triggers " +
+             "the use of metadata, in KP entries from the Translator SmartAPI Registry, to configure the tests)."
     )
     parser.addoption(
-        "--ARA_source", action="store", default='test_triples/ARA',
-        help="Directory or file from which to retrieve ARA Config"
+        "--ARA_source", action="store", default='REGISTRY',  # 'test_triples/ARA',
+        help="'REGISTRY', directory or file from which to retrieve ARA Config (Default: 'REGISTRY', which triggers " +
+             "the use of metadata, in ARA entries from the Translator SmartAPI Registry, to configure the tests)."
     )
     # We hard code a 'current' version (1.2 as of March 2022)
-    # but we'll eventually use an endpoint's SmartAPI published value
+    # but we'll eventually use an endpoint's SmartAPI published value 'x-trapi' published metadata value
     parser.addoption(
         "--TRAPI_Version", action="store", default=None,
-        help='TRAPI API Version to use for the tests (default: latest public release)'
+        help='TRAPI API Version to use for the tests '
+             '(Default: latest public release or REGISTRY metadata value).'
     )
-    # We could eventually use a TRAPI/meta_knowledge_graph value,
+    # We could eventually use a TRAPI/meta_knowledge_graph 'x-trapi' published metadata value,
     # but we'll use the Biolink Model Toolkit default for now?
     parser.addoption(
         "--Biolink_Release", action="store", default=None,
-        help='Biolink Model Release to use for the tests (default: latest Biolink Model Toolkit default)'
+        help='Biolink Model Release to use for the tests ' +
+             '(Default: latest Biolink Model Toolkit default or REGISTRY metadata value).'
     )
 
 
@@ -138,7 +143,9 @@ def get_kp_test_data_sources(metafunc) -> List[str]:
     filelist: List[str]
     if triple_source == "REGISTRY":
         # Access KP Test Data Source via the Translator SmartAPI Registry
-        filelist = list()
+        # TODO: test_data_locations keys are the KP infores CURIE's... maybe useful downstream?
+        test_data_locations: Dict[str, str] = get_translator_kp_test_data_locations()
+        filelist = [location for location in test_data_locations]
     else:
         # Access local set of KP test data triples
         if not os.path.exists(triple_source):
@@ -307,7 +314,9 @@ def get_ara_test_data_sources(metafunc) -> List[str]:
     filelist: List[str]
     if ara_source == "REGISTRY":
         # Access ARA Test Data Source via the Translator SmartAPI Registry
-        filelist = list()
+        # TODO: test_data_locations keys are the ARA infores CURIE's... maybe useful downstream?
+        test_data_locations: Dict[str, str] = get_translator_ara_test_data_locations()
+        filelist = [location for location in test_data_locations]
     else:
         if not os.path.exists(ara_source):
             print("No such location:", ara_source, flush=True, file=stderr)

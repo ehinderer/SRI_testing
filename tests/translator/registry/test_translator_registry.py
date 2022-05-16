@@ -9,7 +9,8 @@ import pytest
 from translator.registry import (
     query_smart_api,
     SMARTAPI_QUERY_PARAMETERS,
-    iterate_test_data_locations_from_registry, tag_value
+    extract_kp_test_data_locations_from_registry, tag_value, extract_ara_test_data_locations_from_registry,
+    get_translator_kp_test_data_locations, get_translator_ara_test_data_locations
 )
 
 logger = logging.getLogger(__name__)
@@ -98,7 +99,7 @@ def test_trapi_entry_retrievals():
 
 def test_test_data_location_retrievals():
     registry_data: Dict = query_smart_api(parameters=SMARTAPI_QUERY_PARAMETERS)
-    test_data_locations: Dict[str, str] = iterate_test_data_locations_from_registry(registry_data)
+    test_data_locations: Dict[str, str] = extract_kp_test_data_locations_from_registry(registry_data)
     assert len(test_data_locations) > 0, "No Test Data found?"
 
 
@@ -140,12 +141,26 @@ def test_missing_end_tag_path():
     assert not value
 
 
-_TEST_REGISTRY_ENTRY = {
+def template_test_extract_component_test_data_locations_from_registry(
+        query: Tuple[Dict, str, str],
+        component_type: str,
+        method
+):
+    assert component_type in ["KP", "ARA"]
+    test_data_locations: Dict[str, str] = method(query[0])
+    if not query[1]:
+        assert len(test_data_locations) == 0, f"Expecting empty {component_type} 'test_data_locations'"
+    else:
+        assert test_data_locations, f"Expecting non-empty {component_type} 'test_data_locations'"
+        assert query[1] in test_data_locations, \
+            f"Expected infores '{query[1]}' missing in {component_type} '{test_data_locations}' dictionary?"
+        assert test_data_locations[query[1]] == query[2], \
+            f"Expected  {component_type} test_data_location '{query[2]}'  to be returned for infores '{query[1]}'"
 
-}
+        print(f"{component_type} Test Data Locations: ", test_data_locations, flush=True, file=stderr)
 
 
-# iterate_test_data_locations_from_registry(registry_data) -> Dict[str, str]
+# extract_kp_test_data_locations_from_registry(registry_data) -> Dict[str, str]
 @pytest.mark.parametrize(
     "query",
     [
@@ -159,14 +174,14 @@ _TEST_REGISTRY_ENTRY = {
                                     "infores": "infores:kp"
                                 },
                                 "x-trapi": {
-                                    "test_data_location": "http://web-test-data-directory"
+                                    "test_data_location": "http://kp-web-test-data-directory"
                                 }
                             }
                         }
                     ]
                 },
                 "infores:kp",
-                "http://web-test-data-directory"
+                "http://kp-web-test-data-directory"
         ),
         (   # Query 1 - Empty "hits" List
             {
@@ -263,17 +278,52 @@ _TEST_REGISTRY_ENTRY = {
         )
     ]
 )
-def test_iterate_test_data_locations_from_registry(query: Tuple[Dict, str, str]):
-    test_data_locations: Dict[str, str] = iterate_test_data_locations_from_registry(query[0])
-    if not query[1]:
-        assert len(test_data_locations) == 0, "Expecting empty 'test_data_locations'"
-    else:
-        assert test_data_locations, "Expecting non-empty 'test_data_locations'"
-        assert query[1] in test_data_locations, \
-            f"Expected infores '{query[1]}' missing in '{test_data_locations}' dictionary?"
-        assert test_data_locations[query[1]] == query[2], \
-            f"Expected test_data_location '{query[2]}'  to be returned for infores '{query[1]}'"
-
-        print("Test Data Locations: ", test_data_locations, flush=True, file=stderr)
+def test_extract_kp_test_data_locations_from_registry(query: Tuple[Dict, str, str]):
+    template_test_extract_component_test_data_locations_from_registry(
+        query, "KP",
+        extract_kp_test_data_locations_from_registry
+    )
 
 
+# extract_kp_test_data_locations_from_registry(registry_data) -> Dict[str, str]
+@pytest.mark.parametrize(
+    "query",
+    [
+        (  # Query 0 - Valid 'hits' entry with non-empty 'info.x-trapi.test_data_location'
+                {
+                    "hits": [
+                        {
+                            "info": {
+                                "x-translator": {
+                                    "component": "ARA",
+                                    "infores": "infores:kp"
+                                },
+                                "x-trapi": {
+                                    "test_data_location": "http://ara-web-test-data-directory"
+                                }
+                            }
+                        }
+                    ]
+                },
+                "infores:kp",
+                "http://ara-web-test-data-directory"
+        )
+    ]
+)
+def test_extract_ara_test_data_locations_from_registry(query: Tuple[Dict, str, str]):
+    template_test_extract_component_test_data_locations_from_registry(
+        query, "ARA",
+        extract_ara_test_data_locations_from_registry
+    )
+
+
+def test_get_translator_kp_test_data_locations():
+    test_data_locations = get_translator_kp_test_data_locations()
+    assert any([value for value in test_data_locations.values()]), \
+        "No 'KP' test_data_locations found in Translator SmartAPI Registry?"
+
+
+def test_get_translator_ara_test_data_locations():
+    test_data_locations = get_translator_ara_test_data_locations()
+    assert any([value for value in test_data_locations.values()]),\
+        "No 'ARA' test_data_locations found in Translator SmartAPI Registry?"

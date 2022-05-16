@@ -114,18 +114,49 @@ def tag_value(json_data, tag_path):
     return get_nested_tag_value(json_data, parts, 0)
 
 
-def iterate_test_data_locations_from_registry(registry_data: Dict) -> Dict[str, str]:
+def extract_component_test_data_locations_from_registry(registry_data: Dict, component_type: str) -> Dict[str, str]:
+    assert component_type in ["KP", "ARA"]
     test_data_locations: Dict[str, Optional[str]] = dict()
     for index, service in enumerate(registry_data['hits']):
         component = tag_value(service, "info.x-translator.component")
         infores = tag_value(service, "info.x-translator.infores")
-        if component and infores and component == "KP":
+        if component and infores and component == component_type:
             test_data_location = tag_value(service, "info.x-trapi.test_data_location")
             if test_data_location:
                 logger.info(f"\t{infores} 'test_data_location': {test_data_location}")
                 test_data_locations[infores] = test_data_location
             else:
-                logger.warning(f"\t{infores} is missing its 'test_data_location'")
+                logger.warning(f"\t{infores} is missing its {component_type} 'test_data_location'")
                 test_data_locations[infores] = None
 
     return test_data_locations
+
+
+def extract_kp_test_data_locations_from_registry(registry_data: Dict) -> Dict[str, str]:
+    return extract_component_test_data_locations_from_registry(registry_data, component_type="KP")
+
+
+def extract_ara_test_data_locations_from_registry(registry_data: Dict) -> Dict[str, str]:
+    return extract_component_test_data_locations_from_registry(registry_data, component_type="ARA")
+
+
+# Singleton reading of the Registry Data
+# (do I need to periodically refresh it in long-running applications?)
+_the_registry_data: Optional[Dict] = None
+
+
+def _get_the_registry_data():
+    global _the_registry_data
+    if not _the_registry_data:
+        _the_registry_data = query_smart_api(parameters=SMARTAPI_QUERY_PARAMETERS)
+    return _the_registry_data
+
+
+def get_translator_kp_test_data_locations() -> Dict[str, str]:
+    registry_data = _get_the_registry_data()
+    return extract_kp_test_data_locations_from_registry(registry_data)
+
+
+def get_translator_ara_test_data_locations() -> Dict[str, str]:
+    registry_data = _get_the_registry_data()
+    return extract_ara_test_data_locations_from_registry(registry_data)
