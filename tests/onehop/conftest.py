@@ -14,7 +14,7 @@ from pytest_harvest import get_session_results_dct
 from tests.onehop.util import get_unit_test_codes
 from reasoner_validator.biolink import check_biolink_model_compliance_of_input_edge
 from tests.onehop import util as oh_util
-from translator.registry import get_translator_kp_test_data_locations, get_translator_ara_test_data_locations
+from translator.registry import get_translator_kp_test_data_metadata, get_translator_ara_test_data_metadata
 from translator.trapi import set_trapi_version
 
 logger = logging.getLogger(__name__)
@@ -144,7 +144,7 @@ def get_kp_test_data_sources(metafunc) -> List[str]:
     if triple_source == "REGISTRY":
         # Access KP Test Data Source via the Translator SmartAPI Registry
         # TODO: test_data_locations keys are the KP infores CURIE's... maybe useful downstream?
-        test_data_locations: Dict[str, str] = get_translator_kp_test_data_locations()
+        test_data_locations: Dict[str, str] = get_translator_kp_test_data_metadata()
         filelist = [location for location in test_data_locations]
     else:
         # Access local set of KP test data triples
@@ -315,7 +315,7 @@ def get_ara_test_data_sources(metafunc) -> List[str]:
     if ara_source == "REGISTRY":
         # Access ARA Test Data Source via the Translator SmartAPI Registry
         # TODO: test_data_locations keys are the ARA infores CURIE's... maybe useful downstream?
-        test_data_locations: Dict[str, str] = get_translator_ara_test_data_locations()
+        test_data_locations: Dict[str, str] = get_translator_ara_test_data_metadata()
         filelist = [location for location in test_data_locations]
     else:
         if not os.path.exists(ara_source):

@@ -2,18 +2,19 @@
 Translator SmartAPI Registry access module.
 """
 from typing import Optional, List, Dict
-from sys import stderr
 from datetime import datetime
 
 import requests
 import yaml
+
 from requests.exceptions import RequestException
 
 import logging
 logger = logging.getLogger(__name__)
 
 SMARTAPI_URL = "https://smart-api.info/api/"
-SMARTAPI_QUERY_PARAMETERS = "q=__all__&tags=%22trapi%22&fields=info,_meta,_status,paths,tags,openapi,swagger&size=1000&from=0"
+SMARTAPI_QUERY_PARAMETERS = "q=__all__&tags=%22trapi%22&" +\
+                            "fields=info,_meta,_status,paths,tags,openapi,swagger&size=1000&from=0"
 
 
 def set_timestamp():
@@ -114,30 +115,78 @@ def tag_value(json_data, tag_path):
     return get_nested_tag_value(json_data, parts, 0)
 
 
-def extract_component_test_data_locations_from_registry(registry_data: Dict, component_type: str) -> Dict[str, str]:
+def capture_tag_value(service_metadata: Dict, resource: str, tag: str, value: str):
+    if value:
+        logger.info(f"\t{resource} '{tag}': {value}")
+        service_metadata[resource][tag] = value
+    else:
+        logger.warning(f"\t{resource} is missing its service '{tag}'")
+        service_metadata[resource][tag] = None
+
+
+def extract_component_test_metadata_from_registry(
+        registry_data: Dict,
+        component_type: str
+) -> Dict[str, Dict[str,  Optional[str]]]:
+
     assert component_type in ["KP", "ARA"]
-    test_data_locations: Dict[str, Optional[str]] = dict()
+
+    service_metadata: Dict[str, Dict[str, Optional[str]]] = dict()
+
     for index, service in enumerate(registry_data['hits']):
-        component = tag_value(service, "info.x-translator.component")
+        # Grab global metadata...
+        service_title = tag_value(service, "info.title")
+        service_version = tag_value(service, "info.version")
+
         infores = tag_value(service, "info.x-translator.infores")
-        if component and infores and component == component_type:
+        component = tag_value(service, "info.x-translator.component")
+
+        if infores and component and component == component_type:
+
+            # ...Grab more Translator/TRAPI metadata...
+            biolink_version = tag_value(service, "info.x-translator.biolink-version")
+            trapi_version = tag_value(service, "info.x-trapi.version")
             test_data_location = tag_value(service, "info.x-trapi.test_data_location")
-            if test_data_location:
-                logger.info(f"\t{infores} 'test_data_location': {test_data_location}")
-                test_data_locations[infores] = test_data_location
+
+            # ... create an infores bucket for it...
+            logger.debug(f"{index}: {infores} version {str(service_version)} metadata - {service_title}")
+            if infores not in service_metadata:
+                service_metadata[infores] = dict()
             else:
-                logger.warning(f"\t{infores} is missing its {component_type} 'test_data_location'")
-                test_data_locations[infores] = None
+                # TODO: duplicate infores may mean a distinction between a 'production' and 'development' service?
+                #       Just report the anomaly as a warning for now and ignore the entry?
+                logger.warning(
+                    f"Resource {infores} is duplicated in Translator SmartAPI Registry?\n" +
+                    "This may result for entries which are loosely tagged as 'production' versus 'development'?\n" +
+                    "We ignore this situation for now, pending availability of additional metadata?"
+                )
+                continue
 
-    return test_data_locations
+            # ... then store all the metadata...
+
+            capture_tag_value(service_metadata, infores, "service_title", service_title)
+            capture_tag_value(service_metadata, infores, "service_version", service_version)
+
+            logger.info(f"\t{infores} is a '{component}' component")
+            service_metadata[infores]["component"] = component
+
+            capture_tag_value(service_metadata, infores, "biolink_version", biolink_version)
+            capture_tag_value(service_metadata, infores, "trapi_version", trapi_version)
+            capture_tag_value(service_metadata, infores, "test_data_location", test_data_location)
+
+    return service_metadata
 
 
-def extract_kp_test_data_locations_from_registry(registry_data: Dict) -> Dict[str, str]:
-    return extract_component_test_data_locations_from_registry(registry_data, component_type="KP")
+def extract_kp_test_data_metadata_from_registry(
+        registry_data: Dict
+) -> Dict[str, Dict[str,  Optional[str]]]:
+    return extract_component_test_metadata_from_registry(registry_data, component_type="KP")
 
 
-def extract_ara_test_data_locations_from_registry(registry_data: Dict) -> Dict[str, str]:
-    return extract_component_test_data_locations_from_registry(registry_data, component_type="ARA")
+def extract_ara_test_data_metadata_from_registry(
+        registry_data: Dict
+) -> Dict[str, Dict[str,  Optional[str]]]:
+    return extract_component_test_metadata_from_registry(registry_data, component_type="ARA")
 
 
 # Singleton reading of the Registry Data
@@ -152,11 +201,11 @@ def _get_the_registry_data():
     return _the_registry_data
 
 
-def get_translator_kp_test_data_locations() -> Dict[str, str]:
-    registry_data = _get_the_registry_data()
-    return extract_kp_test_data_locations_from_registry(registry_data)
+def get_translator_kp_test_data_metadata() -> Dict[str, Dict[str, Optional[str]]]:
+    registry_data: Dict = _get_the_registry_data()
+    return extract_kp_test_data_metadata_from_registry(registry_data)
 
 
-def get_translator_ara_test_data_locations() -> Dict[str, str]:
-    registry_data = _get_the_registry_data()
-    return extract_ara_test_data_locations_from_registry(registry_data)
+def get_translator_ara_test_data_metadata() -> Dict[str, Dict[str, Optional[str]]]:
+    registry_data: Dict = _get_the_registry_data()
+    return extract_ara_test_data_metadata_from_registry(registry_data)
