@@ -7,14 +7,18 @@ import json
 import logging
 from collections import defaultdict
 from json import JSONDecodeError
-from typing import Optional, List, Tuple, Set, Dict
+from typing import Optional, List, Set, Dict
 
 from pytest_harvest import get_session_results_dct
 
 from tests.onehop.util import get_unit_test_codes
 from reasoner_validator.biolink import check_biolink_model_compliance_of_input_edge
 from tests.onehop import util as oh_util
-from translator.registry import get_translator_kp_test_data_metadata, get_translator_ara_test_data_metadata
+from translator.registry import (
+    get_remote_test_data_file,
+    get_the_registry_data,
+    extract_component_test_metadata_from_registry
+)
 from translator.trapi import set_trapi_version
 
 logger = logging.getLogger(__name__)
@@ -132,68 +136,105 @@ def _build_filelist(entry):
     return filelist
 
 
-def get_kp_test_data_sources(metafunc) -> List[str]:
+def get_test_data_sources(source: str, component_type: str) -> Dict[str, Dict[str, Optional[str]]]:
     """
-    Returns a list of KPtest data sources.
+    Retrieves a dictionary of metadata of 'component_type', indexed by name.
 
-    First implementation just wraps the existing local test data files.
+    If the 'source' is specified to be the string 'REGISTRY', then
+    this dictionary is populated from the Translator SmartAPI Registry,
+    using published 'test_data_location' values as keys.
+
+    Otherwise, a local file source of the metadata is assumed,
+    using the local data file name as a key (these should be unique).
+
+    :param source: str, specific remote or local source from which the test data sources are to be retrieved.
+    :param component_type: str, component type 'KP' or 'ARA'
+    :return:
     """
-    triple_source = metafunc.config.getoption('triple_source')
+    """
 
-    filelist: List[str]
-    if triple_source == "REGISTRY":
-        # Access KP Test Data Source via the Translator SmartAPI Registry
-        # TODO: test_data_locations keys are the KP infores CURIE's... maybe useful downstream?
-        test_data_locations: Dict[str, str] = get_translator_kp_test_data_metadata()
-        filelist = [location for location in test_data_locations]
+    """
+    service_metadata: Dict[str, Dict[str, Optional[str]]]
+
+    if source == "REGISTRY":
+        # Access service metadata from the Translator SmartAPI Registry,
+        # indexed using the "test_data_location" field as the unique key
+        registry_data: Dict = get_the_registry_data()
+        service_metadata = extract_component_test_metadata_from_registry(registry_data, component_type)
     else:
-        # Access local set of KP test data triples
-        if not os.path.exists(triple_source):
-            print("No such location:", triple_source, flush=True, file=stderr)
-            return []
+        # Access local set of test data triples
+        if not os.path.exists(source):
+            print("No such location:", source, flush=True, file=stderr)
+            return dict()
 
-        filelist = _build_filelist(triple_source)
+        filelist: List[str] = _build_filelist(source)
 
-    return filelist
+        # Create an empty "mock" service metadata structure
+        # indexed using the local file name as the unique key
+        # We will try to populate this metadata later, from
+        # the file contents or from default test conditions
+        metadata_template = {
+            "service_title": None,
+            "service_version": None,
+            "infores": None,
+            "biolink_version": None,
+            "trapi_version": None
+        }
+        service_metadata = {name: metadata_template.copy() for name in filelist}
+
+    return service_metadata
 
 
-def load_kp_test_data_source(source: str, biolink_release: str) -> Optional[Dict]:
+def load_test_data_source(
+        source: str,
+        metadata: Dict[str, Optional[str]],
+        biolink_release: Optional[str] = None
+) -> Optional[Dict]:
     """
-    Load one specified KP test data source.
+    Load one specified component test data source.
 
-    First implementation just wraps the legacy local file loading code.
+    :param source: source string, URL if from "remote"; file path if local
+    :param metadata: metadata associated with source
+    :param biolink_release: SemVer caller override of Biolink Model release target for validation (Default: None)
+    :return: json test data with (some) metadata; 'None' if unavailable
     """
+    # sanity check
+    assert metadata is not None
+
     if not source.endswith('json'):
-        # Source file, whatever its origin, should be a JSON file
+        # Source file, whatever its origin -
+        # local or Translator SmartAPI Registry x-trapi
+        # specified test_data_location - should be a JSON file.
+        # Ignore this test data source...
         return None
 
-    kpjson: Dict
+    test_data: Optional[Dict] = None
     if source.startswith('http'):
-        # Source is an online test data repository,
-        # likely harvested from the Translator SmartAPI Registry
-        kpjson = dict()
+        # Source is an online test data repository, likely harvested
+        # from the Translator SmartAPI Registry 'test_data_location'
+        test_data = get_remote_test_data_file(source)
     else:
         # Source is a local data file
-        with open(source, 'r') as inf:
+        with open(source, 'r') as local_file:
             try:
-                kpjson = json.load(inf)
+                test_data = json.load(local_file)
             except (JSONDecodeError, TypeError):
-                logger.error(f"generate_trapi_kp_tests(): input file '{source}': Invalid JSON")
+                logger.error(f"load_test_data_source(): input file '{source}': Invalid JSON")
 
-                # Previous use of an exit() statement here seemed a bit drastic bailout here...
-                # JSON errors in a single file? Rather, just skip over to the next file?
-                return None
+    if test_data is not None:
 
-    # TODO: 'location', 'api_name', 'url', biolink_release, TRAPI version, etc.
-    #       should all eventually be set from Translator SmartAPI Registry metadata
-    kpjson['location'] = source
-    kpjson['api_name'] = source.split('/')[-1]
+        # append test data to metadata
+        metadata.update(test_data)
 
-    # We'll initially take the CLI override of the Biolink Model release,
-    # but may have some other heuristic here later
-    kpjson['biolink_release'] = biolink_release
+        metadata['location'] = source
+        metadata['api_name'] = source.split('/')[-1]
 
-    return kpjson
+        # Possible CLI override of the metadata value of
+        # Biolink Model release used for data validation
+        if biolink_release:
+            metadata['biolink_release'] = biolink_release
+
+    return metadata
 
 
 def generate_trapi_kp_tests(metafunc, biolink_release):
@@ -204,14 +245,14 @@ def generate_trapi_kp_tests(metafunc, biolink_release):
     edges = []
     idlist = []
 
-    kp_data_sources: List[str] = get_kp_test_data_sources(metafunc)
+    triple_source = metafunc.config.getoption('triple_source')
 
-    for source in kp_data_sources:
+    kp_metadata: Dict[str, Dict[str, Optional[str]]] = get_test_data_sources(triple_source, component_type="KP")
 
-        # User CLI may override here
-        # the target Biolink Model Release
-        # during KP test data preparation
-        kpjson = load_kp_test_data_source(source, biolink_release)
+    for source, metadata in kp_metadata.items():
+
+        # User CLI may override here the target Biolink Model Release during KP test data preparation
+        kpjson = load_test_data_source(source, metadata, biolink_release)
 
         dataset_level_test_exclusions: Set = set()
         if "exclude_tests" in kpjson:
@@ -233,8 +274,6 @@ def generate_trapi_kp_tests(metafunc, biolink_release):
                     # defer reporting of errors to higher level of test harness
                     edge['biolink_errors'] = model_version, errors
 
-                # TODO: 'location', 'api_name', 'url', biolink_release should all
-                #       eventually be set from Translator SmartAPI Registry metadata
                 edge['location'] = kpjson['location']
                 edge['api_name'] = kpjson['api_name']
                 edge['url'] = kpjson['url']
@@ -303,56 +342,6 @@ def generate_trapi_kp_tests(metafunc, biolink_release):
     return edges
 
 
-def get_ara_test_data_sources(metafunc) -> List[str]:
-    """
-    Returns a list of ARA test data sources.
-
-    First implementation just wraps the existing local test data files.
-    """
-    ara_source = metafunc.config.getoption('ARA_source')
-
-    filelist: List[str]
-    if ara_source == "REGISTRY":
-        # Access ARA Test Data Source via the Translator SmartAPI Registry
-        # TODO: test_data_locations keys are the ARA infores CURIE's... maybe useful downstream?
-        test_data_locations: Dict[str, str] = get_translator_ara_test_data_metadata()
-        filelist = [location for location in test_data_locations]
-    else:
-        if not os.path.exists(ara_source):
-            print("No such location:", ara_source, flush=True, file=stderr)
-            return []
-
-        # Figure out which ARAs should be able to get which triples from which KPs
-        filelist = _build_filelist(ara_source)
-
-    return filelist
-
-
-def load_ara_test_data_source(source: str) -> Tuple[str, Optional[Dict]]:
-    """
-    Load one specified ARA test data source.
-
-    First implementation just wraps the legacy local file loading code.
-    """
-    if not source.endswith('json'):
-        # Source file, whatever its origin, should be a JSON file
-        return "", None
-
-    f: str = source.split('/')[-1]
-
-    arajson: Dict
-    if source.startswith('http'):
-        # Source is an online ARA specification repository,
-        # likely harvested from the Translator SmartAPI Registry
-        arajson = dict()
-    else:
-
-        with open(source, 'r') as inf:
-            arajson: Dict = json.load(inf)
-
-    return f, arajson
-
-
 # Once the smartapi tests are up, we'll want to pass them in here as well
 def generate_trapi_ara_tests(metafunc, kp_edges):
     """
@@ -367,16 +356,19 @@ def generate_trapi_ara_tests(metafunc, kp_edges):
     ara_edges = []
     idlist = []
 
-    ara_data_sources: List[str] = get_ara_test_data_sources(metafunc)
+    ara_source = metafunc.config.getoption('ARA_source')
 
-    for source in ara_data_sources:
+    ara_metadata: Dict[str, Dict[str, Optional[str]]] = get_test_data_sources(ara_source, component_type="ARA")
 
-        f, arajson = load_ara_test_data_source(source)
+    for source, metadata in ara_metadata.items():
+
+        # User CLI may override here the target Biolink Model Release during KP test data preparation
+        arajson = load_test_data_source(source, metadata)
 
         for kp in arajson['KPs']:
             for edge_i, kp_edge in enumerate(kp_dict['_'.join(kp.split())]):
                 edge = kp_edge.copy()
-                edge['api_name'] = f
+                edge['api_name'] = arajson['api_name']
                 edge['url'] = arajson['url']
 
                 if 'infores' in arajson:
@@ -406,7 +398,7 @@ def generate_trapi_ara_tests(metafunc, kp_edges):
                 else:
                     edge['query_opts'] = {}
 
-                idlist.append(f'{f}_{kp}_{edge_i}')
+                idlist.append(f"{arajson['api_name']}_{kp}_{edge_i}")
                 ara_edges.append(edge)
 
     metafunc.parametrize('ara_trapi_case', ara_edges, ids=idlist)

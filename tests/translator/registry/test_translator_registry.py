@@ -8,8 +8,8 @@ import pytest
 from translator.registry import (
     query_smart_api,
     SMARTAPI_QUERY_PARAMETERS,
-    extract_kp_test_data_metadata_from_registry, tag_value, extract_ara_test_data_metadata_from_registry,
-    get_translator_kp_test_data_metadata, get_translator_ara_test_data_metadata
+    tag_value,
+    extract_component_test_metadata_from_registry, get_the_registry_data
 )
 
 logger = logging.getLogger(__name__)
@@ -21,16 +21,16 @@ def test_default_empty_query():
     assert len(registry_data) > 0, "Default query failed"
 
 
-_QUERY_SMART_API_EXCEPTION_PREFIX = "Translator SmartAPI Registry Access Exception cannot be accessed:"
+_QUERY_SMART_API_EXCEPTION_PREFIX = "Translator SmartAPI Registry Access Exception:"
 
 
 def test_fake_url():
-    registry_data: Dict = query_smart_api(url="fake url")
+    registry_data: Dict = query_smart_api(url="fake URL")
     assert registry_data and "Error" in registry_data, "Missing error message?"
     assert registry_data["Error"].startswith(_QUERY_SMART_API_EXCEPTION_PREFIX), "Unexpected error message?"
 
 
-def test_trapi_entry_retrievals():
+def test_query_smart_api():
     registry_data = query_smart_api(parameters=SMARTAPI_QUERY_PARAMETERS)
     assert "total" in registry_data, f"\tMissing 'total' tag in results?"
     assert registry_data["total"] > 0, f"\tZero 'total' in results?"
@@ -67,12 +67,6 @@ def test_trapi_entry_retrievals():
                 logger.debug(f"\t'hit.info.x-trapi.test_data_location': '{test_data_location}'")
         else:
             logger.debug(f"\tIs an ARA?")
-
-
-def test_test_data_location_retrievals():
-    registry_data: Dict = query_smart_api(parameters=SMARTAPI_QUERY_PARAMETERS)
-    service_metadata: Dict[str, Dict[str,  Optional[str]]] = extract_kp_test_data_metadata_from_registry(registry_data)
-    assert len(service_metadata) > 0, "No Test Data found?"
 
 
 def test_empty_json_data():
@@ -113,36 +107,32 @@ def test_missing_end_tag_path():
     assert not value
 
 
-def assert_tag(metadata: Dict, infores: str, tag: str):
-    assert tag in metadata[infores], f"Missing tag {tag} in service metadata"
+def assert_tag(metadata: Dict, service: str, tag: str):
+    assert tag in metadata[service], f"Missing tag {tag} in metadata of service '{service}'?"
 
 
 def shared_test_extract_component_test_data_metadata_from_registry(
         query: Tuple[Dict, str, str],
-        component_type: str,
-        method
+        component_type: str
 ):
     assert component_type in ["KP", "ARA"]
-    service_metadata: Dict[str, Dict[str,  Optional[str]]] = method(query[0])
-    if not query[1]:
-        assert len(service_metadata) == 0, f"Expecting empty {component_type} service metadata"
-    else:
-        assert service_metadata, f"Expecting a non-empty {component_type} service metadata result?"
+    service_metadata: Dict[str, Dict[str,  Optional[str]]] = \
+        extract_component_test_metadata_from_registry(query[0], component_type=component_type)
 
-        logger.debug(f"{component_type} Service Metadata: {service_metadata}")
+    # Test expectation of missing 'test_data_location' key => expected missing metadata
+    if not query[1]:
+        assert len(service_metadata) == 0, f"Expecting empty {component_type} service metadata result?"
+    else:
+        assert len(service_metadata) != 0, f"Expecting a non-empty {component_type} service metadata result?"
 
         assert query[1] in service_metadata, \
-            f"Missing infores '{query[1]}' expected in {component_type} '{service_metadata}' dictionary?"
+            f"Missing test_data_location '{query[1]}' expected in {component_type} '{service_metadata}' dictionary?"
 
         assert_tag(service_metadata, query[1], "service_title")
         assert_tag(service_metadata, query[1], "service_version")
-        assert_tag(service_metadata, query[1], "component")
+        assert_tag(service_metadata, query[1], "infores")
         assert_tag(service_metadata, query[1], "biolink_version")
         assert_tag(service_metadata, query[1], "trapi_version")
-        assert_tag(service_metadata, query[1], "test_data_location")
-
-        assert service_metadata[query[1]]["test_data_location"] == query[2], \
-            f"Missing  {component_type} test_data_location '{query[2]}'  to be returned for infores '{query[1]}'"
 
 
 # extract_kp_test_data_metadata_from_registry(registry_data) -> Dict[str, str]
@@ -150,38 +140,38 @@ def shared_test_extract_component_test_data_metadata_from_registry(
     "query",
     [
         (  # Query 0 - Valid 'hits' entry with non-empty 'info.x-trapi.test_data_location'
-                {
-                    "hits": [
-                        {
-                            "info": {
-                                "title": "Some KP",
-                                "version": "0.0.1",
-                                "x-translator": {
-                                    "component": "KP",
-                                    "infores": "infores:some-kp"
-                                },
-                                "x-trapi": {
-                                    "test_data_location": "http://some-kp-web-test-data-directory"
-                                }
+            {
+                "hits": [
+                    {
+                        "info": {
+                            "title": "Some Valid KP",
+                            "version": "0.0.1",
+                            "x-translator": {
+                                "infores": "infores:some-kp",
+                                "component": "KP",
+                                "team": "some-translator-team",
+                                "biolink-version": "2.2.16"
+                            },
+                            "x-trapi": {
+                                "version": "1.2.0",
+                                "test_data_location": "http://some-kp-web-test-data-directory"
                             }
                         }
-                    ]
-                },
-                "infores:some-kp",
-                "http://some-kp-web-test-data-directory"
+                    }
+                ]
+            },
+            "http://some-kp-web-test-data-directory"  # test_data_location
         ),
         (   # Query 1 - Empty "hits" List
             {
                 "hits": []
             },
-            None,
             None
         ),
         (   # Query 2 - Empty "hits" entry
             {
                 "hits": [{}]
             },
-            None,
             None
         ),
         (   # Query 3 - "hits" entry with missing 'component' (and 'infores')
@@ -193,7 +183,6 @@ def shared_test_extract_component_test_data_metadata_from_registry(
                     }
                 ]
             },
-            None,
             None
         ),
         (   # Query 4 - "hits" ARA component entry
@@ -209,7 +198,6 @@ def shared_test_extract_component_test_data_metadata_from_registry(
                     }
                 ]
             },
-            None,
             None
         ),
         (   # Query 5 - "hits" KP component entry with missing 'infores'
@@ -224,7 +212,6 @@ def shared_test_extract_component_test_data_metadata_from_registry(
                     }
                 ]
             },
-            None,
             None
         ),
         (   # Query 6 - "hits" KP component entry with missing 'info.x-trapi'
@@ -232,6 +219,7 @@ def shared_test_extract_component_test_data_metadata_from_registry(
                 "hits": [
                     {
                         "info": {
+                            "title": "KP component entry with missing info.x-trapi",
                             "x-translator": {
                                 "infores": "infores:some-kp",
                                 "component": "KP"
@@ -240,15 +228,14 @@ def shared_test_extract_component_test_data_metadata_from_registry(
                     }
                 ]
             },
-            "infores:some-kp",
             None
         ),
-        (   # Query 7 - "hits" KP component entry with missing 'info.x-trapi.test_data_location' tag value
+        (   # Query 7 - "hits" KP component entry with missing info.x-trapi.test_data_location tag value
             {
                 "hits": [
                     {
                         "info": {
-                            "title": "KP component entry with missing 'info.x-trapi.test_data_location",
+                            "title": "KP component entry with missing info.x-trapi.test_data_location tag value",
                             "x-translator": {
                                 "infores": "infores:some-kp",
                                 "component": "KP"
@@ -260,16 +247,12 @@ def shared_test_extract_component_test_data_metadata_from_registry(
                     }
                 ]
             },
-            "infores:some-kp",
             None
         )
     ]
 )
 def test_extract_kp_test_data_metadata_from_registry(query: Tuple[Dict, str, str]):
-    shared_test_extract_component_test_data_metadata_from_registry(
-        query, "KP",
-        extract_kp_test_data_metadata_from_registry
-    )
+    shared_test_extract_component_test_data_metadata_from_registry(query, "KP")
 
 
 # extract_kp_test_data_metadata_from_registry(registry_data) -> Dict[str, str]
@@ -281,7 +264,7 @@ def test_extract_kp_test_data_metadata_from_registry(query: Tuple[Dict, str, str
                     "hits": [
                         {
                             "info": {
-                                "title": "Some ARA",
+                                "title": "Some Valid ARA",
                                 "version": "0.0.1",
                                 "x-translator": {
                                     "infores": "infores:some-ara",
@@ -297,25 +280,23 @@ def test_extract_kp_test_data_metadata_from_registry(query: Tuple[Dict, str, str
                         }
                     ]
                 },
-                "infores:some-ara",
-                "http://some-ara-web-test-data-directory"
+                "http://some-ara-web-test-data-directory"   # test_data_location
         )
     ]
 )
 def test_extract_ara_test_data_metadata_from_registry(query: Tuple[Dict, str, str]):
-    shared_test_extract_component_test_data_metadata_from_registry(
-        query, "ARA",
-        extract_ara_test_data_metadata_from_registry
-    )
+    shared_test_extract_component_test_data_metadata_from_registry(query, "ARA")
 
 
 def test_get_translator_kp_test_data_metadata():
-    service_metadata = get_translator_kp_test_data_metadata()
-    assert any([value for value in service_metadata.values()]), \
-        "No 'KP' service metadata found in Translator SmartAPI Registry?"
+    registry_data: Dict = get_the_registry_data()
+    service_metadata = extract_component_test_metadata_from_registry(registry_data, "KP")
+    assert len(service_metadata) > 0, \
+        "No 'KP' services found with a 'test_data_location' value in the Translator SmartAPI Registry?"
 
 
 def test_get_translator_ara_test_data_metadata():
-    service_metadata = get_translator_ara_test_data_metadata()
-    assert any([value for value in service_metadata.values()]),\
-        "No 'ARA' service metadata found in Translator SmartAPI Registry?"
+    registry_data: Dict = get_the_registry_data()
+    service_metadata = extract_component_test_metadata_from_registry(registry_data, "ARA")
+    assert len(service_metadata) > 0, \
+        "No 'ARA' services found with a 'test_data_location' value in the Translator SmartAPI Registry?"
