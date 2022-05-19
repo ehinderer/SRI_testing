@@ -188,14 +188,14 @@ def get_test_data_sources(source: str, component_type: str) -> Dict[str, Dict[st
 def load_test_data_source(
         source: str,
         metadata: Dict[str, Optional[str]],
-        biolink_release: Optional[str] = None
+        biolink_version: Optional[str] = None
 ) -> Optional[Dict]:
     """
     Load one specified component test data source.
 
     :param source: source string, URL if from "remote"; file path if local
     :param metadata: metadata associated with source
-    :param biolink_release: SemVer caller override of Biolink Model release target for validation (Default: None)
+    :param biolink_version: SemVer caller override of Biolink Model release target for validation (Default: None)
     :return: json test data with (some) metadata; 'None' if unavailable
     """
     # sanity check
@@ -231,16 +231,18 @@ def load_test_data_source(
 
         # Possible CLI override of the metadata value of
         # Biolink Model release used for data validation
-        if biolink_release:
-            metadata['biolink_release'] = biolink_release
+        if biolink_version:
+            metadata['biolink_version'] = biolink_version
 
     return metadata
 
 
-def generate_trapi_kp_tests(metafunc, biolink_release):
+def generate_trapi_kp_tests(metafunc, biolink_version):
     """
+    Generate set of TRAPI Knowledge Provider unit tests with test data edges.
+
     :param metafunc
-    :param biolink_release
+    :param biolink_version
     """
     edges = []
     idlist = []
@@ -252,7 +254,7 @@ def generate_trapi_kp_tests(metafunc, biolink_release):
     for source, metadata in kp_metadata.items():
 
         # User CLI may override here the target Biolink Model Release during KP test data preparation
-        kpjson = load_test_data_source(source, metadata, biolink_release)
+        kpjson = load_test_data_source(source, metadata, biolink_version)
 
         dataset_level_test_exclusions: Set = set()
         if "exclude_tests" in kpjson:
@@ -268,7 +270,7 @@ def generate_trapi_kp_tests(metafunc, biolink_release):
                 model_version, errors = \
                     check_biolink_model_compliance_of_input_edge(
                         edge,
-                        biolink_release=kpjson['biolink_release']
+                        biolink_version=kpjson['biolink_version']
                     )
                 if errors:
                     # defer reporting of errors to higher level of test harness
@@ -277,7 +279,7 @@ def generate_trapi_kp_tests(metafunc, biolink_release):
                 edge['location'] = kpjson['location']
                 edge['api_name'] = kpjson['api_name']
                 edge['url'] = kpjson['url']
-                edge['biolink_release'] = kpjson['biolink_release']
+                edge['biolink_version'] = kpjson['biolink_version']
 
                 if 'source_type' in kpjson:
                     edge['source_type'] = kpjson['source_type']
@@ -343,10 +345,13 @@ def generate_trapi_kp_tests(metafunc, biolink_release):
 
 
 # Once the smartapi tests are up, we'll want to pass them in here as well
-def generate_trapi_ara_tests(metafunc, kp_edges):
+def generate_trapi_ara_tests(metafunc, kp_edges, biolink_version):
     """
+    Generate set of TRAPI Autonomous Relay Agents (ARA) unit tests with KP test data edges.
+
     :param metafunc
     :param kp_edges
+    :param biolink_version
     """
     kp_dict = defaultdict(list)
     for e in kp_edges:
@@ -363,7 +368,7 @@ def generate_trapi_ara_tests(metafunc, kp_edges):
     for source, metadata in ara_metadata.items():
 
         # User CLI may override here the target Biolink Model Release during KP test data preparation
-        arajson = load_test_data_source(source, metadata)
+        arajson = load_test_data_source(source, metadata, biolink_version)
 
         for kp in arajson['KPs']:
             for edge_i, kp_edge in enumerate(kp_dict['_'.join(kp.split())]):
@@ -413,8 +418,8 @@ def pytest_generate_tests(metafunc):
     set_trapi_version(version=trapi_version)
 
     # Bug or feature? The Biolink Model release may be overridden on the command line
-    biolink_release = metafunc.config.getoption('Biolink_Release')
-    trapi_kp_edges = generate_trapi_kp_tests(metafunc, biolink_release=biolink_release)
+    biolink_version = metafunc.config.getoption('Biolink_Release')
+    trapi_kp_edges = generate_trapi_kp_tests(metafunc, biolink_version=biolink_version)
 
     if metafunc.definition.name == 'test_trapi_aras':
-        generate_trapi_ara_tests(metafunc, trapi_kp_edges)
+        generate_trapi_ara_tests(metafunc, trapi_kp_edges, biolink_version=biolink_version)

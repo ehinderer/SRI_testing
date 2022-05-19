@@ -269,7 +269,7 @@ def execute_trapi_lookup(case, creator, rbag):
     model_version, errors = \
         check_biolink_model_compliance_of_knowledge_graph(
             graph=response_message['knowledge_graph'],
-            biolink_release=case['biolink_release']
+            biolink_version=case['biolink_version']
         )
     assert not errors, \
         f"{err_msg_prefix} TRAPI response:\n{_output(response_message)}\n" +\

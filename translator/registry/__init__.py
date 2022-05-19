@@ -264,7 +264,11 @@ def extract_component_test_metadata_from_registry(
         # Grab additional service metadata, then store it all
 
         service_version = tag_value(service, "info.version")
+
         infores = tag_value(service, "info.x-translator.infores")
+        # Internally, within SRI Testing, we only track the object_id of the infores CURIE
+        infores = infores.replace("infores:", "") if infores else None
+
         biolink_version = tag_value(service, "info.x-translator.biolink-version")
         trapi_version = tag_value(service, "info.x-trapi.version")
 
