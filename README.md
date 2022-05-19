@@ -35,6 +35,7 @@ pytest tests/onehop/test_onehops.py --help
 
 which include SRI Testing-specific custom options:
 
+```
   --teststyle=TESTSTYLE
                         Which Test to Run?
   --one                 Only use first edge from each KP file
@@ -52,5 +53,6 @@ which include SRI Testing-specific custom options:
   --Biolink_Release=BIOLINK_RELEASE
                         Biolink Model Release to use for the tests
                         (Default: latest Biolink Model Toolkit default or REGISTRY metadata value).
+```
 
 Such options include one
