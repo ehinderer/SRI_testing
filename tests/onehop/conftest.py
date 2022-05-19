@@ -2,17 +2,23 @@
 Configure one hop tests
 """
 import os
+from sys import stderr
 import json
 import logging
 from collections import defaultdict
 from json import JSONDecodeError
-from typing import Set
+from typing import Optional, List, Set, Dict
 
 from pytest_harvest import get_session_results_dct
 
 from tests.onehop.util import get_unit_test_codes
 from reasoner_validator.biolink import check_biolink_model_compliance_of_input_edge
 from tests.onehop import util as oh_util
+from translator.registry import (
+    get_remote_test_data_file,
+    get_the_registry_data,
+    extract_component_test_metadata_from_registry
+)
 from translator.trapi import set_trapi_version
 
 logger = logging.getLogger(__name__)
@@ -73,24 +79,28 @@ def pytest_addoption(parser):
     parser.addoption("--teststyle", action="store", default='all', help='Which Test to Run?')
     parser.addoption("--one", action="store_true", help="Only use first edge from each KP file")
     parser.addoption(
-        "--triple_source", action="store", default='test_triples/KP',
-        help="Directory or file from which to retrieve triples"
+        "--triple_source", action="store", default='REGISTRY',  # 'test_triples/KP',
+        help="'REGISTRY', directory or file from which to retrieve triples (Default: 'REGISTRY', which triggers " +
+             "the use of metadata, in KP entries from the Translator SmartAPI Registry, to configure the tests)."
     )
     parser.addoption(
-        "--ARA_source", action="store", default='test_triples/ARA',
-        help="Directory or file from which to retrieve ARA Config"
+        "--ARA_source", action="store", default='REGISTRY',  # 'test_triples/ARA',
+        help="'REGISTRY', directory or file from which to retrieve ARA Config (Default: 'REGISTRY', which triggers " +
+             "the use of metadata, in ARA entries from the Translator SmartAPI Registry, to configure the tests)."
     )
     # We hard code a 'current' version (1.2 as of March 2022)
-    # but we'll eventually use an endpoint's SmartAPI published value
+    # but we'll eventually use an endpoint's SmartAPI published value 'x-trapi' published metadata value
     parser.addoption(
         "--TRAPI_Version", action="store", default=None,
-        help='TRAPI API Version to use for the tests (default: latest public release)'
+        help='TRAPI API Version to use for the tests '
+             '(Default: latest public release or REGISTRY metadata value).'
     )
-    # We could eventually use a TRAPI/meta_knowledge_graph value,
+    # We could eventually use a TRAPI/meta_knowledge_graph 'x-trapi' published metadata value,
     # but we'll use the Biolink Model Toolkit default for now?
     parser.addoption(
         "--Biolink_Release", action="store", default=None,
-        help='Biolink Model Release to use for the tests (default: latest Biolink Model Toolkit default)'
+        help='Biolink Model Release to use for the tests ' +
+             '(Default: latest Biolink Model Toolkit default or REGISTRY metadata value).'
     )
 
 
@@ -126,31 +136,125 @@ def _build_filelist(entry):
     return filelist
 
 
-def generate_trapi_kp_tests(metafunc, biolink_release):
+def get_test_data_sources(source: str, component_type: str) -> Dict[str, Dict[str, Optional[str]]]:
     """
+    Retrieves a dictionary of metadata of 'component_type', indexed by name.
+
+    If the 'source' is specified to be the string 'REGISTRY', then
+    this dictionary is populated from the Translator SmartAPI Registry,
+    using published 'test_data_location' values as keys.
+
+    Otherwise, a local file source of the metadata is assumed,
+    using the local data file name as a key (these should be unique).
+
+    :param source: str, specific remote or local source from which the test data sources are to be retrieved.
+    :param component_type: str, component type 'KP' or 'ARA'
+    :return:
+    """
+    """
+
+    """
+    service_metadata: Dict[str, Dict[str, Optional[str]]]
+
+    if source == "REGISTRY":
+        # Access service metadata from the Translator SmartAPI Registry,
+        # indexed using the "test_data_location" field as the unique key
+        registry_data: Dict = get_the_registry_data()
+        service_metadata = extract_component_test_metadata_from_registry(registry_data, component_type)
+    else:
+        # Access local set of test data triples
+        if not os.path.exists(source):
+            print("No such location:", source, flush=True, file=stderr)
+            return dict()
+
+        filelist: List[str] = _build_filelist(source)
+
+        # Create an empty "mock" service metadata structure
+        # indexed using the local file name as the unique key
+        # We will try to populate this metadata later, from
+        # the file contents or from default test conditions
+        metadata_template = {
+            "service_title": None,
+            "service_version": None,
+            "infores": None,
+            "biolink_version": None,
+            "trapi_version": None
+        }
+        service_metadata = {name: metadata_template.copy() for name in filelist}
+
+    return service_metadata
+
+
+def load_test_data_source(
+        source: str,
+        metadata: Dict[str, Optional[str]],
+        biolink_version: Optional[str] = None
+) -> Optional[Dict]:
+    """
+    Load one specified component test data source.
+
+    :param source: source string, URL if from "remote"; file path if local
+    :param metadata: metadata associated with source
+    :param biolink_version: SemVer caller override of Biolink Model release target for validation (Default: None)
+    :return: json test data with (some) metadata; 'None' if unavailable
+    """
+    # sanity check
+    assert metadata is not None
+
+    if not source.endswith('json'):
+        # Source file, whatever its origin -
+        # local or Translator SmartAPI Registry x-trapi
+        # specified test_data_location - should be a JSON file.
+        # Ignore this test data source...
+        return None
+
+    test_data: Optional[Dict] = None
+    if source.startswith('http'):
+        # Source is an online test data repository, likely harvested
+        # from the Translator SmartAPI Registry 'test_data_location'
+        test_data = get_remote_test_data_file(source)
+    else:
+        # Source is a local data file
+        with open(source, 'r') as local_file:
+            try:
+                test_data = json.load(local_file)
+            except (JSONDecodeError, TypeError):
+                logger.error(f"load_test_data_source(): input file '{source}': Invalid JSON")
+
+    if test_data is not None:
+
+        # append test data to metadata
+        metadata.update(test_data)
+
+        metadata['location'] = source
+        metadata['api_name'] = source.split('/')[-1]
+
+        # Possible CLI override of the metadata value of
+        # Biolink Model release used for data validation
+        if biolink_version:
+            metadata['biolink_version'] = biolink_version
+
+    return metadata
+
+
+def generate_trapi_kp_tests(metafunc, biolink_version):
+    """
+    Generate set of TRAPI Knowledge Provider unit tests with test data edges.
+
     :param metafunc
-    :param biolink_release
+    :param biolink_version
     """
-    triple_source = metafunc.config.getoption('triple_source')
     edges = []
     idlist = []
-    if not os.path.exists(triple_source):
-        print("No such location:", triple_source)
-        return edges
-    
-    filelist = _build_filelist(triple_source)
-    for kpfile in filelist:
-        if not kpfile.endswith('json'):
-            continue
-        with open(kpfile, 'r') as inf:
-            try:
-                kpjson = json.load(inf)
-            except (JSONDecodeError, TypeError):
-                logger.error(f"generate_trapi_kp_tests(): input file {kpfile}: Invalid JSON")
 
-                # Previous use of an exit() statement here seemed a bit drastic bailout here...
-                # JSON errors in a single file? Rather, just skip over to the next file?
-                continue
+    triple_source = metafunc.config.getoption('triple_source')
+
+    kp_metadata: Dict[str, Dict[str, Optional[str]]] = get_test_data_sources(triple_source, component_type="KP")
+
+    for source, metadata in kp_metadata.items():
+
+        # User CLI may override here the target Biolink Model Release during KP test data preparation
+        kpjson = load_test_data_source(source, metadata, biolink_version)
 
         dataset_level_test_exclusions: Set = set()
         if "exclude_tests" in kpjson:
@@ -166,18 +270,18 @@ def generate_trapi_kp_tests(metafunc, biolink_release):
                 model_version, errors = \
                     check_biolink_model_compliance_of_input_edge(
                         edge,
-                        biolink_release=biolink_release
+                        biolink_version=kpjson['biolink_version']
                     )
                 if errors:
                     # defer reporting of errors to higher level of test harness
                     edge['biolink_errors'] = model_version, errors
 
-                edge['location'] = kpfile
-                edge['api_name'] = kpfile.split('/')[-1]
+                edge['location'] = kpjson['location']
+                edge['api_name'] = kpjson['api_name']
                 edge['url'] = kpjson['url']
-                edge['biolink_release'] = biolink_release
+                edge['biolink_version'] = kpjson['biolink_version']
 
-                if 'source_type' in    kpjson:
+                if 'source_type' in kpjson:
                     edge['source_type'] = kpjson['source_type']
                 else:
                     # If not specified, we assume that the KP is an "aggregator_knowledge_source"
@@ -187,7 +291,7 @@ def generate_trapi_kp_tests(metafunc, biolink_release):
                     edge['infores'] = kpjson['infores']
                 else:
                     logger.warning(
-                        f"generate_trapi_kp_tests(): input file '{kpfile}' is missing its 'infores' field value?"
+                        f"generate_trapi_kp_tests(): input file '{source}' is missing its 'infores' field value?"
                     )
                     edge['infores'] = None
 
@@ -210,7 +314,7 @@ def generate_trapi_kp_tests(metafunc, biolink_release):
 
                 edges.append(edge)
 
-                idlist.append(f'{kpfile}_{edge_i}')
+                idlist.append(f'{source}_{edge_i}')
 
                 if metafunc.config.getoption('one'):
                     break
@@ -241,36 +345,42 @@ def generate_trapi_kp_tests(metafunc, biolink_release):
 
 
 # Once the smartapi tests are up, we'll want to pass them in here as well
-def generate_trapi_ara_tests(metafunc, kp_edges):
+def generate_trapi_ara_tests(metafunc, kp_edges, biolink_version):
     """
+    Generate set of TRAPI Autonomous Relay Agents (ARA) unit tests with KP test data edges.
+
     :param metafunc
     :param kp_edges
+    :param biolink_version
     """
     kp_dict = defaultdict(list)
     for e in kp_edges:
         # eh, not handling api name very well
         kp_dict[e['api_name'][:-5]].append(e)
+
     ara_edges = []
     idlist = []
+
     ara_source = metafunc.config.getoption('ARA_source')
 
-    # Figure out which ARAs should be able to get which triples from which KPs
-    filelist = _build_filelist(ara_source)
-    for arafile in filelist:
-        f = arafile.split('/')[-1]
-        with open(arafile, 'r') as inf:
-            arajson = json.load(inf)
+    ara_metadata: Dict[str, Dict[str, Optional[str]]] = get_test_data_sources(ara_source, component_type="ARA")
+
+    for source, metadata in ara_metadata.items():
+
+        # User CLI may override here the target Biolink Model Release during KP test data preparation
+        arajson = load_test_data_source(source, metadata, biolink_version)
+
         for kp in arajson['KPs']:
             for edge_i, kp_edge in enumerate(kp_dict['_'.join(kp.split())]):
                 edge = kp_edge.copy()
-                edge['api_name'] = f
+                edge['api_name'] = arajson['api_name']
                 edge['url'] = arajson['url']
 
                 if 'infores' in arajson:
                     edge['ara_infores'] = arajson['infores']
                 else:
                     logger.warning(
-                        f"generate_trapi_ara_tests(): input file '{arafile}' " +
+                        f"generate_trapi_ara_tests(): input file '{source}' " +
                         "is missing its ARA 'infores' field...ARA provenance will not be properly tested?"
                     )
                     edge['ara_infores'] = None
@@ -293,7 +403,7 @@ def generate_trapi_ara_tests(metafunc, kp_edges):
                 else:
                     edge['query_opts'] = {}
 
-                idlist.append(f'{f}_{kp}_{edge_i}')
+                idlist.append(f"{arajson['api_name']}_{kp}_{edge_i}")
                 ara_edges.append(edge)
 
     metafunc.parametrize('ara_trapi_case', ara_edges, ids=idlist)
@@ -306,7 +416,10 @@ def pytest_generate_tests(metafunc):
     However, for the ARA tests, we still need to get the KP data, since that is where the triples live."""
     trapi_version = metafunc.config.getoption('TRAPI_Version')
     set_trapi_version(version=trapi_version)
-    biolink_release = metafunc.config.getoption('Biolink_Release')
-    trapi_kp_edges = generate_trapi_kp_tests(metafunc, biolink_release=biolink_release)
+
+    # Bug or feature? The Biolink Model release may be overridden on the command line
+    biolink_version = metafunc.config.getoption('Biolink_Release')
+    trapi_kp_edges = generate_trapi_kp_tests(metafunc, biolink_version=biolink_version)
+
     if metafunc.definition.name == 'test_trapi_aras':
-        generate_trapi_ara_tests(metafunc, trapi_kp_edges)
+        generate_trapi_ara_tests(metafunc, trapi_kp_edges, biolink_version=biolink_version)

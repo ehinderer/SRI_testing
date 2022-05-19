@@ -7,7 +7,7 @@ from pprint import PrettyPrinter
 import requests
 from jsonschema import ValidationError
 
-from reasoner_validator import validate
+from reasoner_validator import validate, DEFAULT_TRAPI_VERSION
 from reasoner_validator.util import latest
 
 
@@ -26,12 +26,8 @@ DEFAULT_TRAPI_POST_TIMEOUT = 600.0
 # TRAPI response knowledge graph, during edge content tests
 MAX_NO_OF_EDGES = 10
 
-# TODO: We'd rather NOT hard code a default TRAPI here,
-#       but do it for now pending clarity on how to guide
-#       the choice of TRAPI from a Translator SmartAPI entry
 # Default is actually specifically 1.2.0 as of March 2022,
-# but the ReasonerAPI should discern this
-DEFAULT_TRAPI_VERSION = "1"
+# but the reasoner_validator should discern this
 _current_trapi_version = None
 
 
@@ -273,7 +269,7 @@ def execute_trapi_lookup(case, creator, rbag):
     model_version, errors = \
         check_biolink_model_compliance_of_knowledge_graph(
             graph=response_message['knowledge_graph'],
-            biolink_release=case['biolink_release']
+            biolink_version=case['biolink_version']
         )
     assert not errors, \
         f"{err_msg_prefix} TRAPI response:\n{_output(response_message)}\n" +\
