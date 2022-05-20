@@ -166,6 +166,35 @@ or
 pytest test_onehops.py::test_trapi_kps --triple_source=test_triples/KP/Ranking_Agent/Automat_CTD.json
 ```
 
+The full set of available command line options may be viewed using the help function:
+
+
+```shell
+pytest tests/onehop/test_onehops.py --help
+```
+
+These include the following SRI Testing-specific custom options:
+
+```
+  --teststyle=TESTSTYLE
+                        Which Test to Run?
+  --one                 Only use first edge from each KP file
+  --triple_source=TRIPLE_SOURCE
+                        'REGISTRY', directory or file from which to retrieve triples.
+                        (Default: 'REGISTRY', which triggers the use of metadata, in KP entries
+                        from the Translator SmartAPI Registry, to configure the tests).
+  --ARA_source=ARA_SOURCE
+                        'REGISTRY', directory or file from which to retrieve ARA Config.
+                        (Default: 'REGISTRY', which triggers the use of metadata, in ARA entries
+                        from the Translator SmartAPI Registry, to configure the tests).
+  --TRAPI_Version=TRAPI_VERSION
+                        TRAPI API Version to use for the tests 
+                        (Default: latest public release  or REGISTRY metadata value).
+  --Biolink_Release=BIOLINK_RELEASE
+                        Biolink Model Release to use for the tests
+                        (Default: latest Biolink Model Toolkit default or REGISTRY metadata value).
+```
+
 ### Running only the ARA tests
 
 To run only ARA tests (testing all ARAs for all KPs)
