@@ -262,6 +262,13 @@ def generate_trapi_kp_tests(metafunc, biolink_version):
                 [test for test in kpjson["exclude_tests"] if test in get_unit_test_codes()]
             )
 
+        if not ('url' in kpjson and kpjson['url'].startswith("http")):
+            err_msg = f"generate_trapi_kp_tests(): source '{source}' url "
+            err_msg += f"{str(kpjson['url'])} is invalid" if 'url' in kpjson else "field is missing"
+            err_msg += "... Skipping test data source?"
+            logger.error(err_msg)
+            continue
+
         if 'url' in kpjson:
             for edge_i, edge in enumerate(kpjson['edges']):
 

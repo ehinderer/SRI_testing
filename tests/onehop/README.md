@@ -41,7 +41,7 @@ For each KP, we need a file with one triple of each type that the KP can provide
 {
     "url": "https://automat.renci.org/ontological-hierarchy/1.2",
     "source_type": "original",
-    "infores": "automat",   # mandatory object id of InfoRes CURIE for the KP as a knowledge source
+    "infores": "automat",
     "exclude_tests": ["RPBS"],
     "edges": [
         {
@@ -63,7 +63,9 @@ For each KP, we need a file with one triple of each type that the KP can provide
 }
 ```
 
-For provenance testing, we need to declare the KP's infores CURIE as a value of the `infores` JSON tag. In addition, the type of knowledge source is declared, by setting the `source_type`JSON tag, to the prefix of the knowledge source type, i.e. `"original"` for `biolink:original_knowledge_source`, `"primary"` for `biolink:primary_knowledge_source` or `"aggregator"` for `biolink:aggregator_knowledge_source`. Note that if the KP is a `biolink:aggregator_knowledge_source`, then the source_type tag-value is optional (since `"aggregator"` is the default value for a KP).
+The `url` tag **must** be a well-formed _resolvable_ TRAPI URL (namely, with **http://** or **https://** scheme).
+
+For provenance testing, we need to declare the KP's infores CURIE as a value of the `infores` JSON tag (mandatory). In addition, the type of knowledge source is declared, by setting the `source_type`JSON tag, to the prefix of the knowledge source type, i.e. `"original"` for `biolink:original_knowledge_source`, `"primary"` for `biolink:primary_knowledge_source` or `"aggregator"` for `biolink:aggregator_knowledge_source`. Note that if the KP is a `biolink:aggregator_knowledge_source`, then the source_type tag-value is optional (since `"aggregator"` is the default value for a KP).
 
 This KP provides two kinds of edges for testing: AnatomicalEntity-subclass_of->AnatomicalEntity and CellularComponent-subclass_of->AnatomicalEntity. For each of these kinds of edges, we have an entry in the file with a specific subject and object, and from these, we can create a variety of tests.
 
@@ -107,13 +109,16 @@ For each ARA, we want to ensure that it is able to extract information correctly
 ```
 {
     "url": "https://aragorn.renci.org/1.2",
-    "infores": "aragorn",   # mandatory object id of InfoRes CURIE for the ARA as a knowledge source
+    "infores": "aragorn",   
     "KPs": [
         "Automat Panther",
         "Automat Ontological Hierarchy"
     ]
 }
 ```
+Once again, the `url` tag **must** be a well-formed _resolvable_ TRAPI URL (namely, with **http://** or **https://** scheme).
+
+The `infores` given is mandatory and is the 'object identifier' of InfoRes CURIE referring to the ARA itself.
 
 In order to correctly link ARAs to KPs, ARAs will need to:
 
@@ -123,6 +128,8 @@ In order to correctly link ARAs to KPs, ARAs will need to:
 Note: as with the KP template files, you can selectively exclude complete ARA test files or whole subfolders of such files from execution, by appending *_SKIP* to the specific file or subfolder name. 
 
 ARA test templates do not explicitly show the edges to be be tested, but rather, inherit the test data of their dereferenced KP's.  Once again, an infores tag value should be specified, in this case, for the ARA. However, all ARA's are expected to be `biolink:aggregator_knowledge_source` types of knowledge sources, hence, no `source_type` tag is needed (nor expected) here; however, they are checked for proper `'biolink:aggregator_knowledge_source': '<ARA infores CURIE>'` provenance declarations of their TRAPI knowledge graph edge attributes.
+
+
 
 ## Running the Tests
 

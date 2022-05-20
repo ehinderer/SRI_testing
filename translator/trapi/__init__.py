@@ -177,9 +177,16 @@ def check_provenance(ara_case, ara_response):
             break
 
 
-def call_trapi(url, opts, trapi_message):
-    """Given an url and a TRAPI message, post the message to the url and return the status and json response"""
+def call_trapi(url: str, opts, trapi_message):
+    """
+    Given an url and a TRAPI message, post the message
+    to the url and return the status and json response.
 
+    :param url:
+    :param opts:
+    :param trapi_message:
+    :return:
+    """
     query_url = f'{url}/query'
 
     # print(f"\ncall_trapi({query_url}):\n\t{dumps(trapi_message, sort_keys=False, indent=4)}", file=stderr, flush=True)
