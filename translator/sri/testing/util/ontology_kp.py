@@ -105,14 +105,13 @@ def get_ontology_parent(curie, btype):
         return None
 
 
-def get_parent(curie, category):
+def get_parent(curie, category, biolink_version):
     """
     :param curie: CURIE of a concept instance
     :param category: Biolink Category of the concept instance
+    :param biolink_version: Biolink Model version to use in validation (SemVer string specification)
     """
-    # TODO: the Biolink Model Toolkit is now set to the default 'latest'
-    #       release. Would this be problematic, for some Ontology use cases?
-    tk = get_biolink_model_toolkit()
+    tk = get_biolink_model_toolkit(biolink_version=biolink_version)
     if not tk.is_category(category):
         assert False, f"{category} is not a Biolink Model Category!"
 
