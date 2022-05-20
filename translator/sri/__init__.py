@@ -61,22 +61,23 @@ def get_aliases(identifier: str):
 
     clique = result[identifier]
 
-    if clique and "id" not in clique.keys():
-        logging.warning(f"get_aliases(): missing the preferred 'id' for the '{identifier}' clique?")
-        return list()
-
-    # TODO: Don't need the canonical identifier for method
-    #       but when you do, this is how you'll get it?
-    # clique_id = clique["id"]
-    # preferred_curie = preferred_id["identifier"]
-    # preferred_name = preferred_id["label"]
-
-    if clique and "equivalent_identifiers" not in clique.keys():
-        logging.warning(f"get_aliases(): missing the 'equivalent identifiers' for the '{identifier}' clique?")
-        return list()
-
-    aliases: List[str] = [entry["identifier"] for entry in clique["equivalent_identifiers"]]
-    aliases.remove(identifier)
-    # print(dumps(aliases, indent=2))
+    aliases: List[str] = list()
+    if clique:
+        if "id" in clique.keys():
+            # TODO: Don't need the canonical identifier for method
+            #       but when you do, this is how you'll get it?
+            # clique_id = clique["id"]
+            # preferred_curie = preferred_id["identifier"]
+            # preferred_name = preferred_id["label"]
+            if "equivalent_identifiers" in clique.keys():
+                aliases: List[str] = [entry["identifier"] for entry in clique["equivalent_identifiers"]]
+                aliases.remove(identifier)
+                # print(dumps(aliases, indent=2))
+            else:
+                logging.warning(f"get_aliases(): missing the 'equivalent identifiers' for the '{identifier}' clique?")
+        else:
+            logging.warning(f"get_aliases(): missing the preferred 'id' for the '{identifier}' clique?")
+    else:
+        logging.warning(f"get_aliases(): '{identifier}' is a singleton in its clique thus has no aliases...")
 
     return aliases
