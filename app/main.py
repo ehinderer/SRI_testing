@@ -47,6 +47,32 @@ class TestRunParameters(BaseModel):
     biolink_version: Optional[str] = None
 
 
+@app.post("/execute_tests")
+async def execute_tests(test_parameters: TestRunParameters):
+
+    trapi_version = latest.get(test_parameters.trapi_version)
+    biolink_version = test_parameters.biolink_version
+
+    return {
+        "test_run_id": str(uuid4())
+    }
+
+
+@app.get("/status")
+async def get_status():
+
+    return {
+        "test_run_id": str(uuid4())
+    }
+
+
+@app.get("/report")
+async def get_results():
+
+    return {
+        "test_run_id": str(uuid4())
+    }
+
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=80)
