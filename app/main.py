@@ -2,16 +2,18 @@
 FastAPI web service wrapper for SRI Testing harness
 (i.e. for reports to a Translator Runtime Status Dashboard)
 """
-from typing import Optional, List
+from typing import Optional
 from uuid import uuid4
 from pydantic import BaseModel
 
 import uvicorn
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI
 
 from reasoner_validator import DEFAULT_TRAPI_VERSION
 from reasoner_validator.util import latest
 
+# TODO: better to get 'latest' from BMT?
+DEFAULT_BIOLINK_VERSION = "2.2.16"
 
 app = FastAPI()
 
@@ -44,34 +46,28 @@ class TestRunParameters(BaseModel):
     # SRI Testing will be applied to Translator KPs and ARA's.
     # This version will override Translator SmartAPI Registry
     # KP entry specified x-translator specified model releases.
-    biolink_version: Optional[str] = None
+    biolink_version: Optional[str] = DEFAULT_BIOLINK_VERSION
 
 
-@app.post("/execute_tests")
-async def execute_tests(test_parameters: TestRunParameters):
+@app.post("/run_tests")
+async def run_tests(test_parameters: TestRunParameters):
 
     trapi_version = latest.get(test_parameters.trapi_version)
     biolink_version = test_parameters.biolink_version
 
     return {
-        "test_run_id": str(uuid4())
+        "session_id": str(uuid4())
     }
 
 
-@app.get("/status")
-async def get_status():
-
-    return {
-        "test_run_id": str(uuid4())
-    }
+@app.get("/status/{session_id}")
+def get_status(session_id: str):
+    return {"session_id": session_id}
 
 
-@app.get("/report")
-async def get_results():
-
-    return {
-        "test_run_id": str(uuid4())
-    }
+@app.get("/report/{session_id}")
+async def get_results(session_id: str):
+    return {"session_id": session_id}
 
 
 if __name__ == "__main__":
