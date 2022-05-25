@@ -9,7 +9,6 @@ import pytest
 from translator.trapi import set_trapi_version, get_trapi_version, check_provenance
 
 logger = logging.getLogger(__name__)
-logger.setLevel("DEBUG")
 
 
 def test_set_default_global_environment():

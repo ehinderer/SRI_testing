@@ -95,11 +95,11 @@ def pytest_addoption(parser):
         help='TRAPI API Version to use for the tests '
              '(Default: latest public release or REGISTRY metadata value).'
     )
-    # We could eventually use a TRAPI/meta_knowledge_graph 'x-trapi' published metadata value,
+    # We could eventually use a TRAPI/meta_knowledge_graph 'x-translator' published metadata value,
     # but we'll use the Biolink Model Toolkit default for now?
     parser.addoption(
-        "--Biolink_Release", action="store", default=None,
-        help='Biolink Model Release to use for the tests ' +
+        "--Biolink_Version", action="store", default=None,
+        help='Biolink Model Version to use for the tests ' +
              '(Default: latest Biolink Model Toolkit default or REGISTRY metadata value).'
     )
 
@@ -253,7 +253,7 @@ def generate_trapi_kp_tests(metafunc, biolink_version):
 
     for source, metadata in kp_metadata.items():
 
-        # User CLI may override here the target Biolink Model Release during KP test data preparation
+        # User CLI may override here the target Biolink Model version during KP test data preparation
         kpjson = load_test_data_source(source, metadata, biolink_version)
 
         dataset_level_test_exclusions: Set = set()
@@ -374,7 +374,7 @@ def generate_trapi_ara_tests(metafunc, kp_edges, biolink_version):
 
     for source, metadata in ara_metadata.items():
 
-        # User CLI may override here the target Biolink Model Release during KP test data preparation
+        # User CLI may override here the target Biolink Model version during KP test data preparation
         arajson = load_test_data_source(source, metadata, biolink_version)
 
         for kp in arajson['KPs']:
@@ -425,7 +425,7 @@ def pytest_generate_tests(metafunc):
     set_trapi_version(version=trapi_version)
 
     # Bug or feature? The Biolink Model release may be overridden on the command line
-    biolink_version = metafunc.config.getoption('Biolink_Release')
+    biolink_version = metafunc.config.getoption('Biolink_Version')
     trapi_kp_edges = generate_trapi_kp_tests(metafunc, biolink_version=biolink_version)
 
     if metafunc.definition.name == 'test_trapi_aras':

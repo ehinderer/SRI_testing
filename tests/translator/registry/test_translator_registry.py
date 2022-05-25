@@ -13,7 +13,6 @@ from translator.registry import (
 )
 
 logger = logging.getLogger(__name__)
-logger.setLevel("DEBUG")
 
 
 def test_default_empty_query():
