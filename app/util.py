@@ -5,38 +5,23 @@ The module launches the SRT Testing test harness using the Python 'multiprocesso
 See https://docs.python.org/3/library/multiprocessing.html?highlight=multiprocessing for details.
 """
 from typing import Optional
-from uuid import uuid4
-import multiprocessing as mp
-import os
 import logging
+
+from tests.onehop import ONEHOP_TEST_DIRECTORY
+from translator.sri.testing.processor import run_test_harness
 
 logger = logging.getLogger()
 
 
-def test_harness(lock: mp.Lock, queue: mp.Queue, cmd: str):
-    lock.acquire()
-    try:
-        msg = f"Executing Test Harness command: '{cmd}'"
-        queue.put(msg)
-        print(f"{msg}!")
-        print('module name:', __name__)
-        print('parent process:', os.getppid())
-        print('process id:', os.getpid())
-    finally:
-        lock.release()
-
-
-def run_test_harness(
+def run_onehop_test_harness(
     trapi_version: Optional[str] = None,
     biolink_version: Optional[str] = None,
     triple_source: Optional[str] = None,
     ara_source:  Optional[str] = None,
     one: bool = False
-) -> Optional[str]:
+) -> Optional[int]:
     """
-    Run the SRT Testing test harness as a separate process.
-
-    TODO: First iteration is a "blocking" call. We need to run this as a background child process?
+    Run the SRT Testing test harness as a worker process.
 
     :param trapi_version: Optional[str], TRAPI version assumed for test run (default: None)
 
@@ -54,31 +39,14 @@ def run_test_harness(
 
     :return: str, session identifier for this testing run
     """
-    session_id = str(uuid4())
 
-    cmd = "pytest test_onehops.py"
+    cmd = f"cd {ONEHOP_TEST_DIRECTORY}; pytest test_onehops.py"
     cmd += f" --TRAPI_Version={trapi_version}" if trapi_version else ""
-    cmd += f" --Biolink_Release={biolink_version}" if biolink_version else ""
+    cmd += f" --Biolink_Version={biolink_version}" if biolink_version else ""
     cmd += f" --triple_source={triple_source}" if triple_source else ""
     cmd += f" --ara_source={ara_source}" if ara_source else ""
     cmd += " --one" if one else ""
 
-    logger.debug(f"run_test_harness() cmd: {cmd}")
+    logger.debug(f"run_onehop_test_harness() cmd: {cmd}")
 
-    # TODO: if I need to manage several worker processes, then look at Pools, see
-    #       https://docs.python.org/3/library/multiprocessing.html?highlight=multiprocessing#module-multiprocessing
-    try:
-        ctx = mp.get_context('spawn')
-        queue = ctx.Queue()
-        lock = ctx.Lock()
-        p = ctx.Process(target=test_harness, args=(lock, queue, cmd))
-        p.start()
-        msg = queue.get()
-        print(f"{msg} inside child process!")
-        p.join()
-
-    except RuntimeWarning:
-        logger.warning(f"run_test_harness() cmd: {cmd} raised an exception?")
-        return None
-
-    return session_id
+    return run_test_harness(cmd)

@@ -130,16 +130,15 @@ Note: as with the KP template files, you can selectively exclude complete ARA te
 ARA test templates do not explicitly show the edges to be be tested, but rather, inherit the test data of their dereferenced KP's.  Once again, an infores tag value should be specified, in this case, for the ARA. However, all ARA's are expected to be `biolink:aggregator_knowledge_source` types of knowledge sources, hence, no `source_type` tag is needed (nor expected) here; however, they are checked for proper `'biolink:aggregator_knowledge_source': '<ARA infores CURIE>'` provenance declarations of their TRAPI knowledge graph edge attributes.
 
 
-
 ## Running the Tests
 
-Tests are implemented with pytest.  To run all tests, simply run:
+Tests are implemented with pytest.  To run all tests, from _within_ the `tests/onehop` project subdirectory, simply run:
 
 ```
 pytest test_onehops.py
 ```
 
-But this takes quite some time, so frequently you will want to limit the tests run.
+But this likely takes quite some time, so frequently you will want to limit the tests run.
 
 ### Running only the KP tests
 
@@ -159,18 +158,24 @@ pytest test_onehops.py::test_trapi_kps --triple_source=<triple_source>
 ```
 e.g.
 ```
-pytest test_onehops.py::test_trapi_kps --triple_source=test_triples/KP/Ranking_Agent
+pytest test_onehops.py::test_trapi_kps --triple_source=test_triples/KP/Unit_Test_KP
 ```
 or
 ```
-pytest test_onehops.py::test_trapi_kps --triple_source=test_triples/KP/Ranking_Agent/Automat_CTD.json
+pytest test_onehops.py::test_trapi_kps --triple_source=test_triples/KP/Unit_Test_KP/Test_KP.json
+```
+
+The tests may be globally constrained to validate against a specified TRAPI and/or Biolink Version, as follows:
+
+```shell
+pytest test_onehops.py::test_trapi_kps --TRAPI_Version ="1.2" --Biolink_Version="2.2.0"
 ```
 
 The full set of available command line options may be viewed using the help function:
 
 
 ```shell
-pytest tests/onehop/test_onehops.py --help
+pytest test_onehops.py --help
 ```
 
 These include the following Testing-specific custom options:
@@ -197,18 +202,4 @@ These include the following Testing-specific custom options:
 
 ### Running only the ARA tests
 
-To run only ARA tests (testing all ARAs for all KPs)
-```
-pytest test_onehops.py::test_trapi_aras
-```
-
-Options for restricting test triples for KPs also work for ARAs.  To test a single triple from the Automat CTD against all ARAs that use that KP:
-```
-pytest test_onehops.py::test_trapi_aras --one --triple_source=test_triples/KP/Ranking_Agent/Automat_CTD.json
-```
-
-The ARAs can also be restricted to a particular json or directory, e.g.
-
-```
-pytest test_onehops.py::test_trapi_aras --one --triple_source=test_triples/KP/Ranking_Agent/Automat_CTD.json --ARA_source=test_triples/ARA/Ranking_Agent/Strider.json
-```
+The ARA tests cannot generally be run in isolation of the above KP tests (given their dependency on the generation of the KP test cases).

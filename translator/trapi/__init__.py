@@ -10,12 +10,10 @@ from jsonschema import ValidationError
 from reasoner_validator import validate, DEFAULT_TRAPI_VERSION
 from reasoner_validator.util import latest
 
-
 from reasoner_validator.biolink import check_biolink_model_compliance_of_knowledge_graph
 from translator.sri import get_aliases
 
 logger = logging.getLogger(__name__)
-logger.setLevel("DEBUG")
 
 pp = PrettyPrinter(indent=4)
 

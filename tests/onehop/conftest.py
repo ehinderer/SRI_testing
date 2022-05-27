@@ -22,7 +22,6 @@ from translator.registry import (
 from translator.trapi import set_trapi_version
 
 logger = logging.getLogger(__name__)
-logger.setLevel("DEBUG")
 
 
 def _clean_up_filename(source: str):
@@ -422,10 +421,12 @@ def pytest_generate_tests(metafunc):
     for each test_* function, and you can only parameterize an argument to that specific test_* function.
     However, for the ARA tests, we still need to get the KP data, since that is where the triples live."""
     trapi_version = metafunc.config.getoption('TRAPI_Version')
+    logger.debug(f"pytest_generate_tests(): TRAPI_Version == {trapi_version}")
     set_trapi_version(version=trapi_version)
 
     # Bug or feature? The Biolink Model release may be overridden on the command line
     biolink_version = metafunc.config.getoption('Biolink_Version')
+    logger.debug(f"pytest_generate_tests(): Biolink_Version == {biolink_version}")
     trapi_kp_edges = generate_trapi_kp_tests(metafunc, biolink_version=biolink_version)
 
     if metafunc.definition.name == 'test_trapi_aras':
