@@ -40,7 +40,7 @@ def run_onehop_test_harness(
     :return: str, session identifier for this testing run
     """
 
-    cmd = f"cd {ONEHOP_TEST_DIRECTORY} {CMD_DELIMITER} pytest test_onehops.py"
+    cmd = f"cd {ONEHOP_TEST_DIRECTORY} {CMD_DELIMITER} pytest -ra test_onehops.py"
     cmd += f" --TRAPI_Version={trapi_version}" if trapi_version else ""
     cmd += f" --Biolink_Version={biolink_version}" if biolink_version else ""
     cmd += f" --triple_source={triple_source}" if triple_source else ""
