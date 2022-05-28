@@ -9,7 +9,7 @@ from typing import Optional, List
 import logging
 from uuid import UUID
 
-from translator.sri.testing.processor import CMD_DELIMITER, run_command
+from translator.sri.testing.processor import CMD_DELIMITER, WorkerProcess
 from tests.onehop import ONEHOP_TEST_DIRECTORY
 
 logger = logging.getLogger()
@@ -19,7 +19,7 @@ logger = logging.getLogger()
 #
 DEFAULT_WORKER_TIMEOUT = 120  # 2 minutes for small PyTests?
 
-STRI = '='*27 + ' short test summary info ' + '='*28 + '\n'
+_STRI = '='*27 + ' short test summary info ' + '='*28 + '\n'
 
 
 def _parse_result(raw_report: str) -> List[str]:
@@ -31,7 +31,7 @@ def _parse_result(raw_report: str) -> List[str]:
     """
     if not raw_report:
         return ["Empty report?"]
-    part = raw_report.split(STRI)
+    part = raw_report.split(_STRI)
     if len(part) > 1:
         report = part[-1].strip()
     else:
@@ -50,7 +50,7 @@ class OneHopTestHarness:
     def get_session_id(self) -> str:
         return str(self._session_id)
 
-    def get_report(self) -> str:
+    def get_report(self) -> List[str]:
         return self._report
 
     def run(
@@ -76,7 +76,7 @@ class OneHopTestHarness:
                                              (Default: 'REGISTRY', which triggers the use of metadata, in ARA entries
                                              from the Translator SmartAPI Registry, to configure the tests).
 
-        :param one: bool, Only use first edge from each KP file (default: False).
+        :param one: bool, Only use first edge from each KP file (default: False if omitted).
 
         :return: str, session identifier for this testing run
         """
@@ -90,10 +90,11 @@ class OneHopTestHarness:
         command_line += " --one" if one else ""
 
         logger.debug(f"OneHopTestHarness.run() command line: {command_line}")
-
-        self._session_id, self._result = run_command(command_line, self._timeout)
+        wp = WorkerProcess(self._timeout)
+        self._session_id = wp.run_command(command_line)
 
         if self._session_id:
+            self._result = wp.get_output(self._session_id)
             if self._result:
                 self._report = _parse_result(self._result)
         else:

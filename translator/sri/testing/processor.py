@@ -30,12 +30,8 @@ else:
     print(f"Warning: other OS platform '{platform}' encountered?")
     CMD_DELIMITER = ";"
 
-# Bidirectional(?) map in between Process and Session identifiers
-_worker_pid_2_sid: Dict[int, UUID] = dict()
-# _worker_sid_2_pid: Dict[UUID, int] = dict()
 
-
-def worker_process(lock: mp.Lock, queue: mp.Queue, command_line: str):
+def _worker_process(lock: mp.Lock, queue: mp.Queue, command_line: str):
     """
     Wrapper for a background worker process which runs a specified command.
 
@@ -100,93 +96,139 @@ def worker_process(lock: mp.Lock, queue: mp.Queue, command_line: str):
     queue.put(result)
 
 
-def run_command(
-        command_line: str,
-        timeout: Optional[int] = None
-) -> Tuple[Optional[UUID], Optional[str]]:
-    """
-    Run a provided command line string, as a background process.
+class WorkerProcess:
+    
+    # Bidirectional(?) WorkerProcess class map
+    # between Process and Session identifiers
+    _worker_pid_2_sid: Dict[int, UUID] = dict()
+    # _worker_sid_2_pid: Dict[UUID, int] = dict()
+    
+    def _create_session_id(self):
+        # encapsulate process identifier with a UUID session identifier
+        session_id = uuid4()
+        self._worker_pid_2_sid[self._process_id] = session_id
+        # self._worker_sid_2_pid[session_id] = self.process_id
 
-    :param command_line: str, command line string to run as a shell command in a background worker process.
-    :param timeout: int, worker process data query access timeout (Default: None, blocking queue data access?)
-
-    :return: Tuple[int, str], (process identifier, optional raw text standard output) for this background command.
-             If process_identifier is zero, then the process is considered inaccessible; otherwise, the returned
-             'process_id' may be used to track and access background worker process again in the future.
-    """
-    assert command_line  # should not be empty?
-
-    logger.debug(f"run_test_harness() command: {command_line}")
-
-    bg_process = Optional[Process]
-    process_id: int = 0
-    session_id: Optional[UUID] = None
-    result: Optional[Union[CompletedProcess, CalledProcessError, TimeoutExpired, Empty]] = None
-    report: Optional[str] = None
-
-    # TODO: might need to manage several worker processes, therefore, may need to use multiprocessing Pools? see
-    #       https://docs.python.org/3/library/multiprocessing.html?highlight=multiprocessing#module-multiprocessing
-    try:
-        # Get things started...
-        ctx: BaseContext = mp.get_context('spawn')
-        queue = ctx.Queue()
-        lock = ctx.Lock()
-        bg_process = ctx.Process(target=worker_process, args=(lock, queue, command_line))
-        bg_process.start()
-
-        pid_tries: int = 10
-        while not process_id and pid_tries:
-            try:
-                process_id = queue.get(block=True, timeout=timeout)
-            except Empty:
-                logger.debug("run_test_harness() 'process_id' not available (yet) in the interprocess Queue?")
-                process_id = 0  # return a zero PID to signal 'Empty'?
-            pid_tries -= 1
-
-        # for some reason, the worker process didn't send back a
-        # 'process_id', with queue access timeouts after several retries
-        if not process_id:
-            bg_process.kill()
-            bg_process = None
-            process_id = 0
-            report = "Background process did not start up properly?"
+    def get_session_id(self) -> Optional[UUID]:
+        if self._process_id and self._process_id in self._worker_pid_2_sid:
+            return self._worker_pid_2_sid[self._process_id]
         else:
-            # encapsulate process identifier with a UUID session identifier
-            session_id = uuid4()
-            _worker_pid_2_sid[process_id] = session_id
-            # _worker_sid_2_pid[session_id] = process_id
+            return None
+    
+    def __init__(self, timeout: Optional[int] = None):
+        """
+        Constructor for WorkerProcess.
+        
+        :param timeout: int, worker process data query access timeout (Default: None => queue data access is blocking?)
+        """
+        self._timeout: Optional[int] = timeout
+        self._result: Optional[Union[CompletedProcess, CalledProcessError, TimeoutExpired, Empty]] = None
+        self._output: Optional[str] = None
+        self._ctx: BaseContext = mp.get_context('spawn')
+        self._queue = self._ctx.Queue()
+        self._lock = self._ctx.Lock()
+        self._process: Optional[Process] = None
+        self._process_id: int = 0
+
+    def run_command(self, command_line: str) -> Optional[UUID]:
+        """
+        Run a provided command line string, as a background process.
+
+        :param command_line: str, command line string to run as a shell command in a background worker process.
+
+        :return: Optional[UUID], session identifier for this background Worker Process executing the command line.
+                 If the method returns None, then the process is considered inaccessible; otherwise, the returned
+                 UUID may be used to access background worker process results using the 'output()' method.
+        """
+        assert command_line  # should not be empty?
+
+        logger.debug(f"run_command() command: {command_line}")
+
+        # TODO: might need to manage several worker processes, therefore, may need to use multiprocessing Pools? see
+        #       https://docs.python.org/3/library/multiprocessing.html?highlight=multiprocessing#module-multiprocessing
+        try:
+            # Sanity check: WorkProcess is a singleton?
+            assert not self._process
+            
+            self._process = self._ctx.Process(target=_worker_process, args=(self._lock, self._queue, command_line))
+            self._process.start()
+
+            pid_tries: int = 10
+            while not self._process_id and pid_tries:
+                try:
+                    self._process_id = self._queue.get(block=True, timeout=self._timeout)
+                except Empty:
+                    logger.debug("run_command() 'process_id' not available (yet) in the interprocess Queue?")
+                    self._process_id = 0  # return a zero PID to signal 'Empty'?
+                pid_tries -= 1
+
+            # for some reason, the worker process didn't send back a
+            # 'process_id', with queue access timeouts after several retries
+            if not self._process_id:
+                self._process.kill()
+                self._process = None
+                self._process_id = 0
+                self._output = "Background process did not start up properly?"
+            else:
+                self._create_session_id()
+
+        except Exception as ex:
+
+            logger.warning(f"run_command() command: '{command_line}' raised an exception: {str(ex)}?")
+
+            if self._process:
+                self._process.kill()
+                self._process = None
+            
+            self._output = f"Background process start-up exception: {str(ex)}?"
+
+        return self.get_session_id()
+
+    def get_output(self, session_id: UUID) -> Optional[str]:
+        """
+        Retrieves the raw STDOUT output or (alternately) error messages
+        from the WorkerProcess, when it is complete.
+        
+        :param session_id: UUID, Universally Unique IDentifier assigned to a worker process
+        :return: Optional[str], output which may be a raw worker process result,
+                                an error message or None if not yet available.
+        """
+        # Sanity check
+        assert session_id
+
+        # this method is idempotent: once a non-empty output is
+        # retrieved the first time, it is deemed ached for future access
+        if not self._output:
             try:
-                result = queue.get(block=True, timeout=timeout)
-                logger.debug(f"run_test_harness() result:\n\t{result}")
+                self._result = self._queue.get(block=True, timeout=self._timeout)
+                logger.debug(f"WorkerProcess.output() result:\n\t{self._result}")
             except Empty as empty:
-                # TODO: something sensible here... maybe fall through and try again later in another handler call
-                logger.debug("run_test_harness() 'result' not available (yet) in the interprocess Queue?")
-                result = empty
+                logger.debug("Worker Process output is not (yet) available?")
+                self._result = empty
 
-    except Exception as ex:
-        logger.warning(f"run_test_harness() command: '{command_line}' raised an exception: {str(ex)}?")
-        if bg_process:
-            bg_process.kill()
-        if process_id and process_id in _worker_pid_2_sid:
-            session_id = _worker_pid_2_sid[process_id]
-        report = f"Background process start-up exception: {str(ex)}?"
+            if self._result:
+                if isinstance(self._result, CompletedProcess):
+                    self._output = decode(self._result.stdout)[0]  # sending back full raw process standard output
+                    if self._result.returncode != 0:
+                        # A special warning is added to the output?
+                        self._output = "WARNING: Worker Process returned a non-zero return code: " + \
+                                      f"'{str(self._result.returncode)}': \n\t{self._output}"
+                    self._process.join()
 
-    if result:
-        if isinstance(result, CompletedProcess):
-            report = decode(result.stdout)[0]  # sending back full raw process standard output
-            if result.returncode != 0:
-                report = f"Warning... Non-zero return code '{str(result.returncode)}': \n\t{report}"
-            bg_process.join()
-        elif isinstance(result, Empty) or isinstance(result, TimeoutExpired):
-            # Worker process still running, bg_process likely still running and the 'process_id'
-            # is likely (still) valid. Defer access to raw data output... try again later?
-            report = "Worker process still executing?"
-        elif isinstance(result, CalledProcessError):
-            # process aborted by internal error?
-            report = decode(result.stdout)[0]
-            if bg_process:
-                bg_process.kill()
-        else:
-            raise RuntimeError(f"Unexpected result type encountered from worker process: {type(result)}")
+                elif isinstance(self._result, Empty) or isinstance(self._result, TimeoutExpired):
+                    # Worker process still running, self.process likely still running and the 'process_id'
+                    # is likely (still) valid. Data 'output' is left None for now? Try again later...
+                    pass
 
-    return session_id, report
+                elif isinstance(self._result, CalledProcessError):
+                    # process aborted by internal error?
+                    self._output = decode(self._result.stdout)[0]
+                    if self._process:
+                        self._process.kill()
+                        self._process = None
+                else:
+                    raise RuntimeError(
+                        f"ERROR: Unexpected result type encountered from worker process: {type(self._result)}"
+                    )
+            
+        return self._output

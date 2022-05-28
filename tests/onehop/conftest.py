@@ -76,7 +76,7 @@ def pytest_addoption(parser):
     :param parser:
     """
     parser.addoption("--teststyle", action="store", default='all', help='Which Test to Run?')
-    parser.addoption("--one", action="store", default=False, help="Only use first edge from each KP file")
+    parser.addoption("--one", action="store_true", help="Only use first edge from each KP file")
     parser.addoption(
         "--triple_source", action="store", default='REGISTRY',  # 'test_triples/KP',
         help="'REGISTRY', directory or file from which to retrieve triples (Default: 'REGISTRY', which triggers " +
@@ -322,7 +322,7 @@ def generate_trapi_kp_tests(metafunc, biolink_version):
 
                 idlist.append(f'{source}_{edge_i}')
 
-                if metafunc.config.getoption('one'):
+                if metafunc.config.getoption('one', default=False):
                     break
 
     if "kp_trapi_case" in metafunc.fixturenames:

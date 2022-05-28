@@ -6,41 +6,57 @@ from typing import Optional
 import logging
 from uuid import UUID
 
-from translator.sri.testing.processor import run_command, CMD_DELIMITER
+from translator.sri.testing.processor import CMD_DELIMITER, WorkerProcess
 from tests.onehop import ONEHOP_TEST_DIRECTORY
 
 logger = logging.getLogger()
 
 
-def _report_outcome(label: str, session_id: UUID, report: str, expected_report: Optional[str] = None):
+def _report_outcome(
+        test_name: str,
+        command_line: str,
+        timeout: Optional[int] = None,
+        expecting_output: bool = True,
+        expected_output: Optional[str] = None
+):
+    wp = WorkerProcess(timeout)
+    session_id = wp.run_command(command_line)
     assert session_id
-    print(f"{label}() worker 'session_id': {session_id}", file=stderr)
-    assert report
-    msg = '\n'.join(report.split('\r\n'))
-    spacer = '\n' + '#'*80 + '\n'
-    print(f"{label}() worker process 'report':{spacer}{msg}{spacer}", file=stderr)
-    if expected_report:
-        assert report == expected_report
+    print(f"{test_name}() worker 'session_id': {session_id}", file=stderr)
+    output = wp.get_output(session_id)
+    if expecting_output:
+        assert output, f"{test_name}() is missing Worker Process output?"
+        msg = '\n'.join(output.split('\r\n'))
+        spacer = '\n' + '#'*80 + '\n'
+        print(f"{test_name}() worker process 'output':{spacer}{msg}{spacer}", file=stderr)
+        if expected_output:
+            # Strip leading and training whitespace of the report for the comparison
+            assert output.strip() == expected_output
+    else:
+        assert not output, f"{test_name}() has unexpected non-empty Worker Process output: {output}?"
 
 
 def test_run_command():
-    session_id, report = run_command(f"dir .* {CMD_DELIMITER} python --version")
-    _report_outcome("test_run_command", session_id, report)
+    _report_outcome("test_run_command", f"dir .* {CMD_DELIMITER} python --version")
 
 
 def test_cd_path():
-    session_id, report = run_command(f"cd {ONEHOP_TEST_DIRECTORY} {CMD_DELIMITER} cd")
-    _report_outcome("test_cd_path", session_id, report)
+    _report_outcome(
+        "test_cd_path", f"cd {ONEHOP_TEST_DIRECTORY} {CMD_DELIMITER} cd",
+        expected_output=ONEHOP_TEST_DIRECTORY
+    )
 
 
 def test_run_pytest_command():
-    session_id, report = run_command(f"cd {ONEHOP_TEST_DIRECTORY} {CMD_DELIMITER} pytest --version")
-    _report_outcome("test_run_pytest_command", session_id, report)
+    _report_outcome("test_run_pytest_command", f"cd {ONEHOP_TEST_DIRECTORY} {CMD_DELIMITER} pytest --version")
 
 
 def test_run_process_timeout():
-    session_id, report = run_command(
-        command_line=f"PING -n 10 127.0.0.1 > nul",
-        timeout=1  # one second, very short?
+    # one second timeout, very short relative to
+    # the runtime of the specified command line
+    _report_outcome(
+        "test_run_process_timeout",
+        f"PING -n 10 127.0.0.1 > nul",
+        timeout=1,
+        expecting_output=False
     )
-    _report_outcome("test_run_process_timeout", session_id, report, 'Worker process still executing?')
