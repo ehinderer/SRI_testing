@@ -4,7 +4,7 @@ Utility module to support SRI Testing web service.
 The module launches the SRT Testing test harness using the Python 'multiprocessor' library.
 See https://docs.python.org/3/library/multiprocessing.html?highlight=multiprocessing for details.
 """
-from typing import Optional
+from typing import Optional, List
 
 import logging
 from uuid import UUID
@@ -19,10 +19,10 @@ logger = logging.getLogger()
 #
 DEFAULT_WORKER_TIMEOUT = 120  # 2 minutes for small PyTests?
 
-STRI = '='*27 + ' short test summary info ' + '='*27
+STRI = '='*27 + ' short test summary info ' + '='*28 + '\n'
 
 
-def _parse_result(raw_report: str) -> str:
+def _parse_result(raw_report: str) -> List[str]:
     """
     Extract summary of Pytest output as SRI Testing report.
     TODO: raw passthrough method needs to be further refined(?)
@@ -30,27 +30,28 @@ def _parse_result(raw_report: str) -> str:
     :return: str, short summary of test outcome (mostly errors)
     """
     if not raw_report:
-        return ""
+        return ["Empty report?"]
     part = raw_report.split(STRI)
     if len(part) > 1:
-        return part[-1]
+        report = part[-1].strip()
     else:
-        return part[0]
+        report = part[0].strip()
+    return report.split("\n")
 
 
 class OneHopTestHarness:
 
     def __init__(self, timeout: Optional[int] = DEFAULT_WORKER_TIMEOUT):
-        self.session_id: Optional[UUID] = None
-        self.result: Optional[str] = None
-        self.report: Optional[str] = None
-        self.timeout: Optional[int] = timeout
+        self._session_id: Optional[UUID] = None
+        self._result: Optional[str] = None
+        self._report: List[str] = list()
+        self._timeout: Optional[int] = timeout
 
-    def get_session_id(self):
-        return self.session_id
+    def get_session_id(self) -> str:
+        return str(self._session_id)
 
-    def get_report(self):
-        return self.report
+    def get_report(self) -> str:
+        return self._report
 
     def run(
             self,
@@ -59,7 +60,7 @@ class OneHopTestHarness:
             triple_source: Optional[str] = None,
             ara_source:  Optional[str] = None,
             one: bool = False
-    ) -> Optional[str]:
+    ) -> List[str]:
         """
         Run the SRT Testing test harness as a worker process.
 
@@ -80,7 +81,8 @@ class OneHopTestHarness:
         :return: str, session identifier for this testing run
         """
 
-        command_line: str = f"cd {ONEHOP_TEST_DIRECTORY} {CMD_DELIMITER} pytest -rA test_onehops.py"
+        command_line: str = f"cd {ONEHOP_TEST_DIRECTORY} {CMD_DELIMITER} " + \
+                            f"pytest -rA --tb=line --log-cli-level=ERROR test_onehops.py"
         command_line += f" --TRAPI_Version={trapi_version}" if trapi_version else ""
         command_line += f" --Biolink_Version={biolink_version}" if biolink_version else ""
         command_line += f" --triple_source={triple_source}" if triple_source else ""
@@ -89,15 +91,18 @@ class OneHopTestHarness:
 
         logger.debug(f"OneHopTestHarness.run() command line: {command_line}")
 
-        self.session_id, self.result = run_command(command_line, self.timeout)
+        self._session_id, self._result = run_command(command_line, self._timeout)
 
-        if self.session_id:
-            if self.result:
-                self.report = _parse_result(self.result)
+        if self._session_id:
+            if self._result:
+                self._report = _parse_result(self._result)
         else:
-            if self.result:
-                self.report = self.result  # likely a simple raw error message
+            if self._result:
+                self._report = [self._result]  # likely a simple raw error message
             else:
-                self.report = f"Worker process failed to execute command line '{command_line}'?"
+                self._report = [f"Worker process failed to execute command line '{command_line}'?"]
 
-        return self.report
+        # TODO: it would be nice to also report the *actual* TRAPI
+        #       and Biolink Model versions used in the testing,
+        #       but this may technically be tricky at this code level.
+        return self._report

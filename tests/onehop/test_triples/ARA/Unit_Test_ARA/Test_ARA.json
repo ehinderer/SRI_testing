@@ -1,7 +1,7 @@
 {
     "url": "https://aragorn.renci.org/1.2",
-    "infores": "aragorn",
+    "infores": "unit_test",
     "KPs": [
-        "Automat Panther"
+        "Test KP"
     ]
 }

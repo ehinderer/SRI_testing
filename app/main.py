@@ -2,20 +2,14 @@
 FastAPI web service wrapper for SRI Testing harness
 (i.e. for reports to a Translator Runtime Status Dashboard)
 """
-from typing import Optional, Dict
-from uuid import uuid4
+from typing import Optional, Dict, List
 from pydantic import BaseModel
 
 import uvicorn
 from fastapi import FastAPI
 
-from reasoner_validator import DEFAULT_TRAPI_VERSION
 from reasoner_validator.util import latest
-
-# TODO: better to get 'latest' from BMT?
-from app.util import run_command
-
-DEFAULT_BIOLINK_VERSION = "2.2.16"
+from app.util import OneHopTestHarness, DEFAULT_WORKER_TIMEOUT
 
 app = FastAPI()
 
@@ -60,6 +54,10 @@ class TestRunParameters(BaseModel):
     # specified Biolink Model version (Default: None)..
     biolink_version: Optional[str] = None
 
+    # Worker Process data access timeout; defaults to DEFAULT_WORKER_TIMEOUT
+    # which implies caller blocking until the data is available
+    timeout: Optional[int] = DEFAULT_WORKER_TIMEOUT
+
 
 @app.post("/run_tests")
 async def run_tests(test_parameters: TestRunParameters) -> Dict:
@@ -67,15 +65,28 @@ async def run_tests(test_parameters: TestRunParameters) -> Dict:
     trapi_version: Optional[str] = latest.get(test_parameters.trapi_version) if test_parameters.trapi_version else None
     biolink_version: Optional[str] = test_parameters.biolink_version
 
-    session_id = run_command(
+    onehop_test = OneHopTestHarness(test_parameters.timeout)
+    report: List[str] = onehop_test.run(
         trapi_version=trapi_version,
         biolink_version=biolink_version
     )
 
+    session_id = onehop_test.get_session_id()
+
     return {
         "session_id": session_id,
-        "trapi_version": trapi_version,
-        "biolink_version": biolink_version,
+
+        # TODO: user specified TRAPI version...
+        #       we should somehow try to report the
+        #       actual version used by the system
+        # "trapi_version": trapi_version,
+
+        # TODO: user specified Biolink Model version...
+        #       we should somehow try to report the
+        #       actual version used by the system
+        # "biolink_version": biolink_version,
+
+        "report": report
     }
 
 

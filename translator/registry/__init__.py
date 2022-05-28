@@ -23,27 +23,27 @@ _MOCK_TRANSLATOR_SMARTAPI_REGISTRY_METADATA = {
     "hits": [
         {
             "info": {
-                "title": "Automat Wrapped Panther Knowledge Provider",
+                "title": "Unit Test Knowledge Provider",
                 "version": "0.0.1",
                 "x-translator": {
                     "component": "KP",
-                    "infores": "infores:panther",
+                    "infores": "infores:unit_test",
                     "team": "Ranking Agent",
                     "biolink-version": "2.2.16"
                 },
                 "x-trapi": {
                     "version": "1.2.0",
                     "test_data_location": "https://raw.githubusercontent.com/TranslatorSRI/SRI_testing/main/" +
-                                          "tests/onehop/test_triples/KP/Other_Test_KP_SKIP/Automat_Panther.json"
+                                          "tests/onehop/test_triples/KP/Unit_Test_KP/Test_KP.json"
                 }
             }
         },
         {
             "info": {
-                "title": "Ranking Agent ARAGORN Automatic Relay Agent",
+                "title": "Unit Test Automatic Relay Agent",
                 "version": "0.0.1",
                 "x-translator": {
-                    "infores": "infores:aragorn",
+                    "infores": "infores:unit_test",
                     "component": "ARA",
                     "team": "Ranking Agent",
                     "biolink-version": "2.2.16"
@@ -51,7 +51,7 @@ _MOCK_TRANSLATOR_SMARTAPI_REGISTRY_METADATA = {
                 "x-trapi": {
                     "version": "1.2.0",
                     "test_data_location": "https://raw.githubusercontent.com/TranslatorSRI/SRI_testing/main/" +
-                                          "tests/onehop/test_triples/ARA/Other_Test_ARA_SKIP/Test_3_ARA.json"
+                                          "tests/onehop/test_triples/ARA/Unit_Test_ARA/Test_ARA.json"
                 }
             }
         }

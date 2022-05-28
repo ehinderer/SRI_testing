@@ -20,12 +20,10 @@ from uuid import uuid4, UUID
 logger = logging.getLogger()
 
 
-
-
 if platform == "win32":
     # Windoze
     CMD_DELIMITER = "&&"
-elif platform in ["linux1", "linux2", "darwin"]:
+elif platform in ["linux", "linux1", "linux2", "darwin"]:
     # *nix
     CMD_DELIMITER = ";"
 else:
