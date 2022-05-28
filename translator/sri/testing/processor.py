@@ -19,10 +19,7 @@ from uuid import uuid4, UUID
 
 logger = logging.getLogger()
 
-#
-# Application-specific parameters
-#
-DEFAULT_WORKER_TIMEOUT = 120  # 2 minutes?
+
 
 
 if platform == "win32":
@@ -106,12 +103,14 @@ def worker_process(lock: mp.Lock, queue: mp.Queue, command_line: str):
 
 
 def run_command(
-        command_line: str
+        command_line: str,
+        timeout: Optional[int] = None
 ) -> Tuple[Optional[UUID], Optional[str]]:
     """
     Run a provided command line string, as a background process.
 
     :param command_line: str, command line string to run as a shell command in a background worker process.
+    :param timeout: int, worker process data query access timeout (Default: None, blocking queue data access?)
 
     :return: Tuple[int, str], (process identifier, optional raw text standard output) for this background command.
              If process_identifier is zero, then the process is considered inaccessible; otherwise, the returned
@@ -140,7 +139,7 @@ def run_command(
         pid_tries: int = 10
         while not process_id and pid_tries:
             try:
-                process_id = queue.get(block=True, timeout=DEFAULT_WORKER_TIMEOUT)
+                process_id = queue.get(block=True, timeout=timeout)
             except Empty:
                 logger.debug("run_test_harness() 'process_id' not available (yet) in the interprocess Queue?")
                 process_id = 0  # return a zero PID to signal 'Empty'?
@@ -159,7 +158,7 @@ def run_command(
             _worker_pid_2_sid[process_id] = session_id
             # _worker_sid_2_pid[session_id] = process_id
             try:
-                result = queue.get(block=True, timeout=DEFAULT_WORKER_TIMEOUT)
+                result = queue.get(block=True, timeout=timeout)
                 logger.debug(f"run_test_harness() result:\n\t{result}")
             except Empty as empty:
                 # TODO: something sensible here... maybe fall through and try again later in another handler call
