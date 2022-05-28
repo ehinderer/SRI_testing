@@ -5,14 +5,18 @@ The module launches the SRT Testing test harness using the Python 'multiprocesso
 See https://docs.python.org/3/library/multiprocessing.html?highlight=multiprocessing for details.
 """
 from multiprocessing import Process
+from multiprocessing.context import BaseContext
 from sys import platform, stdout, stderr
 from encodings.utf_8 import decode
-from queue import Empty
-from typing import Optional, Union, Tuple
+
+from typing import Optional, Union, Tuple, Dict
 import multiprocessing as mp
+from queue import Empty
 from subprocess import run, CompletedProcess, CalledProcessError, TimeoutExpired
 import os
 import logging
+from uuid import uuid4, UUID
+
 logger = logging.getLogger()
 
 #
@@ -31,6 +35,10 @@ else:
     print(f"Warning: other OS platform '{platform}' encountered?")
     CMD_DELIMITER = ";"
 
+# Bidirectional(?) map in between Process and Session identifiers
+_worker_pid_2_sid: Dict[int, UUID] = dict()
+# _worker_sid_2_pid: Dict[UUID, int] = dict()
+
 
 def worker_process(lock: mp.Lock, queue: mp.Queue, command_line: str):
     """
@@ -39,7 +47,7 @@ def worker_process(lock: mp.Lock, queue: mp.Queue, command_line: str):
     :param lock: Lock, process lock used to synchronize background output
     :param queue: Queue, used for communication of worker process to caller
     :param command_line: str, the worker process command to execute
-    :return:
+    :return: None (process state indirectly returned via Queue)
     """
     lock.acquire()
     try:
@@ -99,7 +107,7 @@ def worker_process(lock: mp.Lock, queue: mp.Queue, command_line: str):
 
 def run_command(
         command_line: str
-) -> Tuple[int, Optional[str]]:
+) -> Tuple[Optional[UUID], Optional[str]]:
     """
     Run a provided command line string, as a background process.
 
@@ -115,6 +123,7 @@ def run_command(
 
     bg_process = Optional[Process]
     process_id: int = 0
+    session_id: Optional[UUID] = None
     result: Optional[Union[CompletedProcess, CalledProcessError, TimeoutExpired, Empty]] = None
     report: Optional[str] = None
 
@@ -122,7 +131,7 @@ def run_command(
     #       https://docs.python.org/3/library/multiprocessing.html?highlight=multiprocessing#module-multiprocessing
     try:
         # Get things started...
-        ctx = mp.get_context('spawn')
+        ctx: BaseContext = mp.get_context('spawn')
         queue = ctx.Queue()
         lock = ctx.Lock()
         bg_process = ctx.Process(target=worker_process, args=(lock, queue, command_line))
@@ -137,14 +146,18 @@ def run_command(
                 process_id = 0  # return a zero PID to signal 'Empty'?
             pid_tries -= 1
 
-        # for some reason, the worker process didn't send back
-        # a 'process_id', after several retries with timeouts
+        # for some reason, the worker process didn't send back a
+        # 'process_id', with queue access timeouts after several retries
         if not process_id:
             bg_process.kill()
             bg_process = None
             process_id = 0
             report = "Background process did not start up properly?"
         else:
+            # encapsulate process identifier with a UUID session identifier
+            session_id = uuid4()
+            _worker_pid_2_sid[process_id] = session_id
+            # _worker_sid_2_pid[session_id] = process_id
             try:
                 result = queue.get(block=True, timeout=DEFAULT_WORKER_TIMEOUT)
                 logger.debug(f"run_test_harness() result:\n\t{result}")
@@ -157,8 +170,8 @@ def run_command(
         logger.warning(f"run_test_harness() command: '{command_line}' raised an exception: {str(ex)}?")
         if bg_process:
             bg_process.kill()
-        process_id = 0
-        result = None
+        if process_id and process_id in _worker_pid_2_sid:
+            session_id = _worker_pid_2_sid[process_id]
         report = f"Background process start-up exception: {str(ex)}?"
 
     if result:
@@ -167,19 +180,16 @@ def run_command(
             if result.returncode != 0:
                 report = f"Warning... Non-zero return code '{str(result.returncode)}': \n\t{report}"
             bg_process.join()
-        elif isinstance(result, Empty):
-            # test still running, bg_process likely still running and the 'process_id'
+        elif isinstance(result, Empty) or isinstance(result, TimeoutExpired):
+            # Worker process still running, bg_process likely still running and the 'process_id'
             # is likely (still) valid. Defer access to raw data output... try again later?
-            pass
+            report = "Worker process still executing?"
         elif isinstance(result, CalledProcessError):
             # process aborted by internal error?
             report = decode(result.stdout)[0]
             if bg_process:
                 bg_process.kill()
-            process_id = 0  # signal failed execution of worker process?
-        elif isinstance(result, TimeoutExpired):
-            # Indeterminate process state(?), 'process_id' may be unknown
-            # but *maybe* try accessing background process again later?
-            pass
+        else:
+            raise RuntimeError(f"Unexpected result type encountered from worker process: {type(result)}")
 
-    return process_id, report
+    return session_id, report

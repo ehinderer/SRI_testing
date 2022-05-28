@@ -4,9 +4,7 @@ Utility module to support SRI Testing web service.
 The module launches the SRT Testing test harness using the Python 'multiprocessor' library.
 See https://docs.python.org/3/library/multiprocessing.html?highlight=multiprocessing for details.
 """
-from typing import Optional, Tuple
-from queue import Empty
-from subprocess import CompletedProcess, CalledProcessError, TimeoutExpired
+from typing import Optional
 
 import logging
 
@@ -16,14 +14,23 @@ from tests.onehop import ONEHOP_TEST_DIRECTORY
 logger = logging.getLogger()
 
 
+STRI = '='*27 + ' short test summary info ' + '='*27
+
+
 def _parse_result(raw_report: str) -> str:
     """
     Extract summary of Pytest output as SRI Testing report.
-    TODO: raw passthrough method needs to be further implemented
+    TODO: raw passthrough method needs to be further refined(?)
     :param raw_report: str, raw Pytest output
     :return: str, short summary of test outcome (mostly errors)
     """
-    return raw_report
+    if not raw_report:
+        return ""
+    part = raw_report.split(STRI)
+    if len(part) > 1:
+        return part[-1]
+    else:
+        return part[0]
 
 
 def run_onehop_test_harness(
@@ -53,7 +60,7 @@ def run_onehop_test_harness(
     :return: str, session identifier for this testing run
     """
 
-    command_line: str = f"cd {ONEHOP_TEST_DIRECTORY} {CMD_DELIMITER} pytest -ra test_onehops.py"
+    command_line: str = f"cd {ONEHOP_TEST_DIRECTORY} {CMD_DELIMITER} pytest -rA test_onehops.py"
     command_line += f" --TRAPI_Version={trapi_version}" if trapi_version else ""
     command_line += f" --Biolink_Version={biolink_version}" if biolink_version else ""
     command_line += f" --triple_source={triple_source}" if triple_source else ""
@@ -62,13 +69,16 @@ def run_onehop_test_harness(
 
     logger.debug(f"run_onehop_test_harness() cmd: {command_line}")
 
-    process_id, result = run_command(command_line)
+    session_id, result = run_command(command_line)
 
     report: Optional[str] = None
-    if process_id:
+    if session_id:
         if result:
             report = _parse_result(result)
     else:
-        report = result  # likely a raw error message, or None?
+        if result:
+            report = result  # likely a raw error message
+        else:
+            report = f"Command line {command_line} failed to execute?"
 
     return report
