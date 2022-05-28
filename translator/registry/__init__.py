@@ -27,7 +27,7 @@ _MOCK_TRANSLATOR_SMARTAPI_REGISTRY_METADATA = {
                 "version": "0.0.1",
                 "x-translator": {
                     "component": "KP",
-                    "infores": "infores:unit_test",
+                    "infores": "infores:panther",
                     "team": "Ranking Agent",
                     "biolink-version": "2.2.16"
                 },
@@ -43,7 +43,7 @@ _MOCK_TRANSLATOR_SMARTAPI_REGISTRY_METADATA = {
                 "title": "Unit Test Automatic Relay Agent",
                 "version": "0.0.1",
                 "x-translator": {
-                    "infores": "infores:unit_test",
+                    "infores": "infores:aragorn",
                     "component": "ARA",
                     "team": "Ranking Agent",
                     "biolink-version": "2.2.16"
