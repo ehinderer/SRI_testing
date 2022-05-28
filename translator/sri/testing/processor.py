@@ -15,6 +15,11 @@ import os
 import logging
 logger = logging.getLogger()
 
+#
+# Application-specific parameters
+#
+DEFAULT_WORKER_TIMEOUT = 120  # 2 minutes?
+
 
 if platform == "win32":
     # Windoze
@@ -126,7 +131,7 @@ def run_command(
         pid_tries: int = 10
         while not process_id and pid_tries:
             try:
-                process_id = queue.get(block=True, timeout=10)
+                process_id = queue.get(block=True, timeout=DEFAULT_WORKER_TIMEOUT)
             except Empty:
                 logger.debug("run_test_harness() 'process_id' not available (yet) in the interprocess Queue?")
                 process_id = 0  # return a zero PID to signal 'Empty'?
@@ -141,7 +146,7 @@ def run_command(
             report = "Background process did not start up properly?"
         else:
             try:
-                result = queue.get(block=True, timeout=10)
+                result = queue.get(block=True, timeout=DEFAULT_WORKER_TIMEOUT)
                 logger.debug(f"run_test_harness() result:\n\t{result}")
             except Empty as empty:
                 # TODO: something sensible here... maybe fall through and try again later in another handler call
@@ -159,8 +164,8 @@ def run_command(
     if result:
         if isinstance(result, CompletedProcess):
             report = decode(result.stdout)[0]  # sending back full raw process standard output
-            # TODO: first iteration is "blocking" join, but maybe we want to split this out in another
-            #       process access method, to enable web service polling of the background process
+            if result.returncode != 0:
+                report = f"Warning... Non-zero return code '{str(result.returncode)}': \n\t{report}"
             bg_process.join()
         elif isinstance(result, Empty):
             # test still running, bg_process likely still running and the 'process_id'
@@ -171,7 +176,7 @@ def run_command(
             report = decode(result.stdout)[0]
             if bg_process:
                 bg_process.kill()
-            process_id = 0  # signal dead end worker process?
+            process_id = 0  # signal failed execution of worker process?
         elif isinstance(result, TimeoutExpired):
             # Indeterminate process state(?), 'process_id' may be unknown
             # but *maybe* try accessing background process again later?
