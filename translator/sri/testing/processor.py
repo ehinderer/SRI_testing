@@ -4,9 +4,11 @@ Utility module to support SRI Testing harness background processing
 The module launches the SRT Testing test harness using the Python 'multiprocessor' library.
 See https://docs.python.org/3/library/multiprocessing.html?highlight=multiprocessing for details.
 """
+from multiprocessing import Process
 from sys import platform, stdout, stderr
+from encodings.utf_8 import decode
 from queue import Empty
-from typing import Optional, Union, List
+from typing import Optional, Union, Tuple
 import multiprocessing as mp
 from subprocess import run, CompletedProcess, CalledProcessError, TimeoutExpired
 import os
@@ -90,21 +92,26 @@ def worker_process(lock: mp.Lock, queue: mp.Queue, command_line: str):
     queue.put(result)
 
 
-def run_command(command_line: str) -> Optional[str]:
+def run_command(
+        command_line: str
+) -> Tuple[int, Optional[str]]:
     """
-    Run a SRT Testing test harness command as a background process.
+    Run a provided command line string, as a background process.
 
-    TODO: First iteration is a "blocking" call. We need to run this as a background child process?
+    :param command_line: str, command line string to run as a shell command in a background worker process.
 
-    :param command_line: List[str], command line interface sequence to run as a background child process.
-
-    :return: str, process identifier for this background command
+    :return: Tuple[int, str], (process identifier, optional raw text standard output) for this background command.
+             If process_identifier is zero, then the process is considered inaccessible; otherwise, the returned
+             'process_id' may be used to track and access background worker process again in the future.
     """
     assert command_line  # should not be empty?
 
     logger.debug(f"run_test_harness() command: {command_line}")
 
-    process_id: Optional[int] = None
+    bg_process = Optional[Process]
+    process_id: int = 0
+    result: Optional[Union[CompletedProcess, CalledProcessError, TimeoutExpired, Empty]] = None
+    report: Optional[str] = None
 
     # TODO: might need to manage several worker processes, therefore, may need to use multiprocessing Pools? see
     #       https://docs.python.org/3/library/multiprocessing.html?highlight=multiprocessing#module-multiprocessing
@@ -113,27 +120,61 @@ def run_command(command_line: str) -> Optional[str]:
         ctx = mp.get_context('spawn')
         queue = ctx.Queue()
         lock = ctx.Lock()
-        p = ctx.Process(target=worker_process, args=(lock, queue, command_line))
-        p.start()
+        bg_process = ctx.Process(target=worker_process, args=(lock, queue, command_line))
+        bg_process.start()
 
-        try:
-            process_id = queue.get(block=True, timeout=10)
-        except Empty:
-            # TODO: something sensible here
-            logger.debug("run_test_harness() 'process_id' not available (yet) in the interprocess Queue?")
+        pid_tries: int = 10
+        while not process_id and pid_tries:
+            try:
+                process_id = queue.get(block=True, timeout=10)
+            except Empty:
+                logger.debug("run_test_harness() 'process_id' not available (yet) in the interprocess Queue?")
+                process_id = 0  # return a zero PID to signal 'Empty'?
+            pid_tries -= 1
 
-        try:
-            result: Union[CompletedProcess, CalledProcessError, TimeoutExpired] = queue.get(block=True, timeout=10)
-            logger.debug(f"run_test_harness() result:\n\t{result}")
-        except Empty:
-            # TODO: something sensible here... maybe fall through and try again later in another handler call
-            logger.debug("run_test_harness() 'result' not available (yet) in the interprocess Queue?")
-
-        # TODO: first iteration is "blocking" join, but we want to split
-        #       this out for web service polling of the background process
-        p.join()
+        # for some reason, the worker process didn't send back
+        # a 'process_id', after several retries with timeouts
+        if not process_id:
+            bg_process.kill()
+            bg_process = None
+            process_id = 0
+            report = "Background process did not start up properly?"
+        else:
+            try:
+                result = queue.get(block=True, timeout=10)
+                logger.debug(f"run_test_harness() result:\n\t{result}")
+            except Empty as empty:
+                # TODO: something sensible here... maybe fall through and try again later in another handler call
+                logger.debug("run_test_harness() 'result' not available (yet) in the interprocess Queue?")
+                result = empty
 
     except Exception as ex:
         logger.warning(f"run_test_harness() command: '{command_line}' raised an exception: {str(ex)}?")
+        if bg_process:
+            bg_process.kill()
+        process_id = 0
+        result = None
+        report = f"Background process start-up exception: {str(ex)}?"
 
-    return process_id
+    if result:
+        if isinstance(result, CompletedProcess):
+            report = decode(result.stdout)[0]  # sending back full raw process standard output
+            # TODO: first iteration is "blocking" join, but maybe we want to split this out in another
+            #       process access method, to enable web service polling of the background process
+            bg_process.join()
+        elif isinstance(result, Empty):
+            # test still running, bg_process likely still running and the 'process_id'
+            # is likely (still) valid. Defer access to raw data output... try again later?
+            pass
+        elif isinstance(result, CalledProcessError):
+            # process aborted by internal error?
+            report = decode(result.stdout)[0]
+            if bg_process:
+                bg_process.kill()
+            process_id = 0  # signal dead end worker process?
+        elif isinstance(result, TimeoutExpired):
+            # Indeterminate process state(?), 'process_id' may be unknown
+            # but *maybe* try accessing background process again later?
+            pass
+
+    return process_id, report
