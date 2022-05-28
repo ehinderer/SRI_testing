@@ -1,6 +1,6 @@
 # One-hop Tests
 
-This suite tests our ability to retrieve given triples, which we know exist, from their KPs under a variety of transformations, both directly, and indirectly, via ARAs.
+This suite tests the ability to retrieve given triples, which we know exist, from instances of **Translator Knowledge Provider** ("KP") under a variety of transformations, both directly, and indirectly, via instances of **Translator Autonomous Relay Agent** ("ARA").
 
 - [How the Framework works](#how-the-testing-harness-works)
 - [Configuring the Tests](#configuring-the-tests)
@@ -13,19 +13,19 @@ This suite tests our ability to retrieve given triples, which we know exist, fro
 
 ## How the Testing Harness Works
 
-The tests are dynamically generated from sample data triples, currently recorded in JSON files located within the folder `test_triples/KP`.  
+The tests are dynamically generated from sample data Subject-Predicate-Object ("S-P-O") statement triples for each KP with test data currently recorded in JSON files located within the folder `test_triples/KP`.  
 
 The KP files contain sample data for each triple that the KP can provide.  Each triple noted therein is used to build a set of distinct types of unit tests (see the [One Hop utility module](util.py) for the specific code dynamically generating each specific TRAPI query test message within the unit test set for that triple).  The following specific unit tests are currently available:
 
-The ARAs being tested are configured for testing their expected outputs using the list of KPs noted in their corresponding JSON configuration files located within `test_triples/ARA`.
+Instances of ARA being tested are configured for testing their expected outputs using the list of KPs noted in their corresponding JSON configuration files located within `test_triples/ARA`.
 
 For some KP resources or maybe, just specific instances of triples published by the KP, certain types of unit tests are expected to fail _a priori_ (i.e. the resource is not expected to have knowledge to answer the query). In such cases, such specific unit tests may be excluded from execution (see below).
 
 ### Biolink Model Compliance (Test Input Edges)
 
-While being processed for inclusion into an SRI test, every KP input S-P-O triple is screened for Biolink Model Compliance during the test setup by calling a function `check_biolink_model_compliance()` implemented in the **translator.sri.testing** package module. This method runs a series of tests against templated edge - using the currently defined Biolink Model Toolkit - capturing Biolink Model violations, in a list of returned error messages. This function is called within the `generate_trapi_kp_tests()` KP use case set up method in the **test.onehop.conftest** module. Edges with a non-zero list of error messages are so tagged as _'biolink_errors'_, which later advises the generic KP and ARA unit tests - within the PyTest run in the **tests.onehops.test_onehops** module - to formally skip the specific edge-data-template defined use case and report those errors. 
+While being processed for inclusion into a test, every KP input S-P-O triple is screened for Biolink Model Compliance during the test setup by calling a function `check_biolink_model_compliance()` implemented in the **translator.sri.testing** package module. This method runs a series of tests against templated edge - using the currently defined Biolink Model Toolkit - capturing Biolink Model violations, in a list of returned error messages. This function is called within the `generate_trapi_kp_tests()` KP use case set up method in the **test.onehop.conftest** module. Edges with a non-zero list of error messages are so tagged as _'biolink_errors'_, which later advises the generic KP and ARA unit tests - within the PyTest run in the **tests.onehops.test_onehops** module - to formally skip the specific edge-data-template defined use case and report those errors. 
 
-**Note:** at the moment, the SRI Test harness reports the identical Biolink Model violation for all SRI unit tests on the defective edge. This test output duplication is a bit verbose but tricky to avoid (some clever SRI Testing PyTest logic - as yet unimplemented - may be needed to avoid this).
+**Note:** at the moment, the Test harness reports the identical Biolink Model violation for all unit tests on the defective edge. This test output duplication is a bit verbose but tricky to avoid (some clever Testing PyTest logic - as yet unimplemented - may be needed to avoid this).
 
 ### Provenance Checking (ARA Level)
 
@@ -130,16 +130,15 @@ Note: as with the KP template files, you can selectively exclude complete ARA te
 ARA test templates do not explicitly show the edges to be be tested, but rather, inherit the test data of their dereferenced KP's.  Once again, an infores tag value should be specified, in this case, for the ARA. However, all ARA's are expected to be `biolink:aggregator_knowledge_source` types of knowledge sources, hence, no `source_type` tag is needed (nor expected) here; however, they are checked for proper `'biolink:aggregator_knowledge_source': '<ARA infores CURIE>'` provenance declarations of their TRAPI knowledge graph edge attributes.
 
 
-
 ## Running the Tests
 
-Tests are implemented with pytest.  To run all tests, simply run:
+Tests are implemented with pytest.  To run all tests, from _within_ the `tests/onehop` project subdirectory, simply run:
 
 ```
 pytest test_onehops.py
 ```
 
-But this takes quite some time, so frequently you will want to limit the tests run.
+But this likely takes quite some time, so frequently you will want to limit the tests run.
 
 ### Running only the KP tests
 
@@ -153,27 +152,33 @@ To run KP Tests, but only using one triple from each KP:
 pytest test_onehops.py::test_trapi_kps --one
 ```
 
-To restrict test triples to those from a given directory or file:
+To restrict test triples to one accessed from "REGISTRY" (the default value), that is, KP test data files retrieved from the 'test_data_location' URL defined in the KP records in the Translator SmartAPI Registry Translatorthose from a given directory or file:
 ```
 pytest test_onehops.py::test_trapi_kps --triple_source=<triple_source>
 ```
 e.g.
 ```
-pytest test_onehops.py::test_trapi_kps --triple_source=test_triples/KP/Ranking_Agent
+pytest test_onehops.py::test_trapi_kps --triple_source=test_triples/KP/Unit_Test_KP
 ```
 or
 ```
-pytest test_onehops.py::test_trapi_kps --triple_source=test_triples/KP/Ranking_Agent/Automat_CTD.json
+pytest test_onehops.py::test_trapi_kps --triple_source=test_triples/KP/Unit_Test_KP/Test_KP.json
+```
+
+The tests may be globally constrained to validate against a specified TRAPI and/or Biolink Version, as follows:
+
+```shell
+pytest test_onehops.py::test_trapi_kps --TRAPI_Version ="1.2" --Biolink_Version="2.2.0"
 ```
 
 The full set of available command line options may be viewed using the help function:
 
 
 ```shell
-pytest tests/onehop/test_onehops.py --help
+pytest test_onehops.py --help
 ```
 
-These include the following SRI Testing-specific custom options:
+These include the following Testing-specific custom options:
 
 ```
   --teststyle=TESTSTYLE
@@ -189,26 +194,12 @@ These include the following SRI Testing-specific custom options:
                         from the Translator SmartAPI Registry, to configure the tests).
   --TRAPI_Version=TRAPI_VERSION
                         TRAPI API Version to use for the tests 
-                        (Default: latest public release  or REGISTRY metadata value).
-  --Biolink_Release=BIOLINK_RELEASE
-                        Biolink Model Release to use for the tests
+                        (Default: latest public release or REGISTRY metadata value).
+  --Biolink_Version=BIOLINK_VERSION
+                        Biolink Model Version to use for the tests
                         (Default: latest Biolink Model Toolkit default or REGISTRY metadata value).
 ```
 
 ### Running only the ARA tests
 
-To run only ARA tests (testing all ARAs for all KPs)
-```
-pytest test_onehops.py::test_trapi_aras
-```
-
-Options for restricting test triples for KPs also work for ARAs.  To test a single triple from the Automat CTD against all ARAs that use that KP:
-```
-pytest test_onehops.py::test_trapi_aras --one --triple_source=test_triples/KP/Ranking_Agent/Automat_CTD.json
-```
-
-The ARAs can also be restricted to a particular json or directory, e.g.
-
-```
-pytest test_onehops.py::test_trapi_aras --one --triple_source=test_triples/KP/Ranking_Agent/Automat_CTD.json --ARA_source=test_triples/ARA/Ranking_Agent/Strider.json
-```
+The ARA tests cannot generally be run in isolation of the above KP tests (given their dependency on the generation of the KP test cases).

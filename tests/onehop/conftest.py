@@ -22,7 +22,6 @@ from translator.registry import (
 from translator.trapi import set_trapi_version
 
 logger = logging.getLogger(__name__)
-logger.setLevel("DEBUG")
 
 
 def _clean_up_filename(source: str):
@@ -77,7 +76,7 @@ def pytest_addoption(parser):
     :param parser:
     """
     parser.addoption("--teststyle", action="store", default='all', help='Which Test to Run?')
-    parser.addoption("--one", action="store_true", help="Only use first edge from each KP file")
+    parser.addoption("--one", action="store_true", default='false', help="Only use first edge from each KP file")
     parser.addoption(
         "--triple_source", action="store", default='REGISTRY',  # 'test_triples/KP',
         help="'REGISTRY', directory or file from which to retrieve triples (Default: 'REGISTRY', which triggers " +
@@ -95,11 +94,11 @@ def pytest_addoption(parser):
         help='TRAPI API Version to use for the tests '
              '(Default: latest public release or REGISTRY metadata value).'
     )
-    # We could eventually use a TRAPI/meta_knowledge_graph 'x-trapi' published metadata value,
+    # We could eventually use a TRAPI/meta_knowledge_graph 'x-translator' published metadata value,
     # but we'll use the Biolink Model Toolkit default for now?
     parser.addoption(
-        "--Biolink_Release", action="store", default=None,
-        help='Biolink Model Release to use for the tests ' +
+        "--Biolink_Version", action="store", default=None,
+        help='Biolink Model Version to use for the tests ' +
              '(Default: latest Biolink Model Toolkit default or REGISTRY metadata value).'
     )
 
@@ -253,7 +252,7 @@ def generate_trapi_kp_tests(metafunc, biolink_version):
 
     for source, metadata in kp_metadata.items():
 
-        # User CLI may override here the target Biolink Model Release during KP test data preparation
+        # User CLI may override here the target Biolink Model version during KP test data preparation
         kpjson = load_test_data_source(source, metadata, biolink_version)
 
         dataset_level_test_exclusions: Set = set()
@@ -374,7 +373,7 @@ def generate_trapi_ara_tests(metafunc, kp_edges, biolink_version):
 
     for source, metadata in ara_metadata.items():
 
-        # User CLI may override here the target Biolink Model Release during KP test data preparation
+        # User CLI may override here the target Biolink Model version during KP test data preparation
         arajson = load_test_data_source(source, metadata, biolink_version)
 
         for kp in arajson['KPs']:
@@ -422,10 +421,12 @@ def pytest_generate_tests(metafunc):
     for each test_* function, and you can only parameterize an argument to that specific test_* function.
     However, for the ARA tests, we still need to get the KP data, since that is where the triples live."""
     trapi_version = metafunc.config.getoption('TRAPI_Version')
+    logger.debug(f"pytest_generate_tests(): TRAPI_Version == {trapi_version}")
     set_trapi_version(version=trapi_version)
 
     # Bug or feature? The Biolink Model release may be overridden on the command line
-    biolink_version = metafunc.config.getoption('Biolink_Release')
+    biolink_version = metafunc.config.getoption('Biolink_Version')
+    logger.debug(f"pytest_generate_tests(): Biolink_Version == {biolink_version}")
     trapi_kp_edges = generate_trapi_kp_tests(metafunc, biolink_version=biolink_version)
 
     if metafunc.definition.name == 'test_trapi_aras':
