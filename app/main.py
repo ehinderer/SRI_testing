@@ -13,7 +13,7 @@ from reasoner_validator import DEFAULT_TRAPI_VERSION
 from reasoner_validator.util import latest
 
 # TODO: better to get 'latest' from BMT?
-from app.util import run_test_harness
+from app.util import run_command
 
 DEFAULT_BIOLINK_VERSION = "2.2.16"
 
@@ -67,7 +67,7 @@ async def run_tests(test_parameters: TestRunParameters) -> Dict:
     trapi_version: Optional[str] = latest.get(test_parameters.trapi_version) if test_parameters.trapi_version else None
     biolink_version: Optional[str] = test_parameters.biolink_version
 
-    session_id = run_test_harness(
+    session_id = run_command(
         trapi_version=trapi_version,
         biolink_version=biolink_version
     )

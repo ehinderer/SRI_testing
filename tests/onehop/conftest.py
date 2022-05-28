@@ -76,7 +76,7 @@ def pytest_addoption(parser):
     :param parser:
     """
     parser.addoption("--teststyle", action="store", default='all', help='Which Test to Run?')
-    parser.addoption("--one", action="store_true", help="Only use first edge from each KP file")
+    parser.addoption("--one", action="store_true", default='false', help="Only use first edge from each KP file")
     parser.addoption(
         "--triple_source", action="store", default='REGISTRY',  # 'test_triples/KP',
         help="'REGISTRY', directory or file from which to retrieve triples (Default: 'REGISTRY', which triggers " +

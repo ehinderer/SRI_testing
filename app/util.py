@@ -7,8 +7,8 @@ See https://docs.python.org/3/library/multiprocessing.html?highlight=multiproces
 from typing import Optional
 import logging
 
+from translator.sri.testing.processor import CMD_DELIMITER, run_command
 from tests.onehop import ONEHOP_TEST_DIRECTORY
-from translator.sri.testing.processor import run_test_harness
 
 logger = logging.getLogger()
 
@@ -40,13 +40,13 @@ def run_onehop_test_harness(
     :return: str, session identifier for this testing run
     """
 
-    cmd = f"cd {ONEHOP_TEST_DIRECTORY}; pytest test_onehops.py"
+    cmd = f"cd {ONEHOP_TEST_DIRECTORY} {CMD_DELIMITER} pytest test_onehops.py"
     cmd += f" --TRAPI_Version={trapi_version}" if trapi_version else ""
     cmd += f" --Biolink_Version={biolink_version}" if biolink_version else ""
     cmd += f" --triple_source={triple_source}" if triple_source else ""
-    cmd += f" --ara_source={ara_source}" if ara_source else ""
+    cmd += f" --ARA_source={ara_source}" if ara_source else ""
     cmd += " --one" if one else ""
 
     logger.debug(f"run_onehop_test_harness() cmd: {cmd}")
 
-    return run_test_harness(cmd)
+    return run_command(cmd)
