@@ -5,7 +5,7 @@ httpx
 pyyaml
 biothings-explorer>=1.1.0
 bmt>=0.8.4
-reasoner-validator>=2.2.4
+reasoner-validator>=2.2.5
 pytest>=7.1.1
 pytest-asyncio
 pytest-harvest

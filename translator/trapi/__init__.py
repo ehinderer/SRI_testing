@@ -229,11 +229,11 @@ def execute_trapi_lookup(case, creator, rbag):
         assert False, f"\nexecute_trapi_lookup(): creator method '{creator.__name__}' " +\
                       f"for test case \n\t{_output(case)}\ncould not generate a valid TRAPI query request object?"
 
-    err_msg_prefix = f"execute_trapi_lookup(test '{creator.__name__}' to endpoint {case['url']}): " +\
-                     f"TRAPI query request\n{_output(trapi_request)}\n error: "
-
     # query use cases pertain to a particular TRAPI version
     trapi_version = get_trapi_version()
+
+    err_msg_prefix = f"execute_trapi_lookup(test '{creator.__name__}' to endpoint {case['url']}): " +\
+                     f"TRAPI {trapi_version} query request\n{_output(trapi_request)}\n error: "
 
     if not is_valid_trapi(trapi_request, trapi_version=trapi_version):
         # This is a problem with the testing framework.

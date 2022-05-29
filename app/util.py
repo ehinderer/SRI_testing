@@ -4,14 +4,17 @@ Utility module to support SRI Testing web service.
 The module launches the SRT Testing test harness using the Python 'multiprocessor' library.
 See https://docs.python.org/3/library/multiprocessing.html?highlight=multiprocessing for details.
 """
-from typing import Optional, List, Dict
+from typing import Optional, Union, List, Dict
+from os import linesep
 
-import logging
 from uuid import UUID
+
+import re
 
 from translator.sri.testing.processor import CMD_DELIMITER, WorkerProcess
 from tests.onehop import ONEHOP_TEST_DIRECTORY
 
+import logging
 logger = logging.getLogger()
 
 #
@@ -19,24 +22,39 @@ logger = logging.getLogger()
 #
 DEFAULT_WORKER_TIMEOUT = 120  # 2 minutes for small PyTests?
 
-_STRI = '='*27 + ' short test summary info ' + '='*28 + '\n'
+SHORT_TEST_SUMMARY_INFO_HEADER_PATTERN = re.compile(rf"\=+\sshort\stest\ssummary\sinfo\s\=+{linesep}")
 
 
-def _parse_result(raw_report: str) -> List[str]:
+def _parse_result(raw_report: str) -> List[Union[str, List[str]]]:
     """
     Extract summary of Pytest output as SRI Testing report.
-    TODO: raw passthrough method needs to be further refined(?)
+
     :param raw_report: str, raw Pytest output
     :return: str, short summary of test outcome (mostly errors)
     """
     if not raw_report:
         return ["Empty report?"]
-    part = raw_report.split(_STRI)
+    part = SHORT_TEST_SUMMARY_INFO_HEADER_PATTERN.split(raw_report)
     if len(part) > 1:
-        report = part[-1].strip()
+        output = part[-1].strip()
     else:
-        report = part[0].strip()
-    return report.split("\n")
+        output = part[0].strip()
+
+    report: List[Union[str, List[str]]] = list()
+    top_level = output.split(linesep)
+    previous: Union[str, List[str]] = ""
+    for item in top_level:
+        if item.startswith("\t"):
+            item = item.strip()
+            if isinstance(previous, str):
+                previous = [previous] if previous else []
+            previous.append(item)
+        else:
+            if previous:
+                report.append(previous)
+            previous = item
+    report.append(previous)
+    return report
 
 
 class OneHopTestHarness:
@@ -49,20 +67,14 @@ class OneHopTestHarness:
         self._process: Optional[WorkerProcess] = None
         self._session_id: Optional[UUID] = None
         self._result: Optional[str] = None
-        self._report: List[str] = list()
+        self._report: List[Union[str, List[str]]] = list()
         self._timeout: Optional[int] = timeout
 
     def get_worker(self) -> Optional[WorkerProcess]:
         return self._process
 
-    def set_result(self, result: Optional[str]):
-        self._result = result
-
     def get_result(self) -> Optional[str]:
         return self._result
-
-    def set_report(self, report: List[str]):
-        self._report = report
 
     def get_session_id(self) -> Optional[str]:
         if self._session_id:
@@ -126,7 +138,7 @@ class OneHopTestHarness:
 
         return session_id_string
     
-    def get_testrun_report(self):
+    def get_testrun_report(self) -> List[Union[str, List[str]]]:
         # generate and cache the report the first time this method is called
         if not self._report:
             if self._session_id:
@@ -145,7 +157,7 @@ class OneHopTestHarness:
         return self._report
     
     @classmethod
-    def get_report(cls, session_id_str: str) -> List[str]:
+    def get_report(cls, session_id_str: str) -> List[Union[str, List[str]]]:
         """
 
         :param session_id_str: str, UUID session_id of the OneHopTestHarness running the test

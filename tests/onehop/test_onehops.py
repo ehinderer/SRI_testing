@@ -1,7 +1,7 @@
 """
 One Hops Testing Suite
 """
-import logging
+from os import linesep
 from typing import List, Dict
 
 import pytest
@@ -10,10 +10,9 @@ from tests.onehop.util import in_excluded_tests
 from translator.trapi import check_provenance, execute_trapi_lookup
 from tests.onehop import util as oh_util
 
+import logging
 logger = logging.getLogger(__name__)
 logger.setLevel("DEBUG")
-
-EOL = "\n\t"
 
 _edge_error_seen_already: List = list()
 
@@ -32,7 +31,7 @@ def _report_and_skip_edge(test: str, edge: Dict):
         pytest.skip(
             f"\nKP TRAPI test case S-P-O triple '{label}') " +
             f"from {location} since it is not Biolink Model compliant " +
-            f"with model version {model_version}\nErrors:\n\t{EOL.join(errors)}"
+            f"with model version {model_version}:{linesep}{linesep.join(errors)}"
         )
     else:
         pytest.skip(

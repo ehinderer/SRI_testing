@@ -10,7 +10,7 @@ jsonschema~=3.2.0
 httpx
 pyyaml
 biothings-explorer>=1.1.0
-reasoner-validator>=2.2.4
+reasoner-validator>=2.2.5
 pytest>=7.1.1
 pytest-asyncio
 pytest-harvest
