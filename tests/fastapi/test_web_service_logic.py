@@ -56,6 +56,30 @@ def test_run_local_onehop_tests_all():
     _report_outcome("test_run_local_onehop_tests", session_id)
 
 
+def test_run_local_onehop_tests_all_older_trapi_version():
+    onehop_test = OneHopTestHarness()
+    session_id: str = onehop_test.run(
+        trapi_version="1.0.0",
+        biolink_version="2.2.16",
+        triple_source="test_triples/KP/Unit_Test_KP/Test_KP.json",
+        ara_source="test_triples/ARA/Unit_Test_ARA/Test_ARA.json"
+    )
+    assert session_id
+    _report_outcome("test_run_local_onehop_tests", session_id)
+
+
+def test_run_local_onehop_tests_all_older_blm_version():
+    onehop_test = OneHopTestHarness()
+    session_id: str = onehop_test.run(
+        trapi_version="1.2.0",
+        biolink_version="1.8.2",
+        triple_source="test_triples/KP/Unit_Test_KP/Test_KP.json",
+        ara_source="test_triples/ARA/Unit_Test_ARA/Test_ARA.json"
+    )
+    assert session_id
+    _report_outcome("test_run_local_onehop_tests", session_id)
+
+
 def test_run_onehop_tests_from_registry():
     onehop_test = OneHopTestHarness()
     session_id: str = onehop_test.run(

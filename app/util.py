@@ -22,7 +22,14 @@ logger = logging.getLogger()
 #
 DEFAULT_WORKER_TIMEOUT = 120  # 2 minutes for small PyTests?
 
-SHORT_TEST_SUMMARY_INFO_HEADER_PATTERN = re.compile(rf"\=+\sshort\stest\ssummary\sinfo\s\=+{linesep}")
+SHORT_TEST_SUMMARY_INFO_HEADER_PATTERN = re.compile(rf"=+\sshort\stest\ssummary\sinfo\s=+{linesep}")
+
+#
+# Examples:
+# "PASSED test_onehops.py::test_trapi_aras[Test_ARA.json_Test KP_0-by_subject]"
+# "SKIPPED [11] test_onehops.py:32: "
+# "FAILED test_onehops.py::test_trapi_aras[Test_ARA.json_Test KP_0-by_subject]"
+PASSED_SKIPPED_FAILED_PATTERN = re.compile(r"^(PASSED|SKIPPED|FAILED)\s(\[\d+]\s)?(test_onehops.py:.+)$")
 
 
 def _parse_result(raw_report: str) -> List[Union[str, List[str]]]:
@@ -40,19 +47,27 @@ def _parse_result(raw_report: str) -> List[Union[str, List[str]]]:
     else:
         output = part[0].strip()
 
-    report: List[Union[str, List[str]]] = list()
+    # This splits the test section of interest
+    # into lines, to facilitate further processing
     top_level = output.split(linesep)
+
+    report: List[Union[str, List[str]]] = list()
     previous: Union[str, List[str]] = ""
-    for item in top_level:
-        if item.startswith("\t"):
-            item = item.strip()
-            if isinstance(previous, str):
-                previous = [previous] if previous else []
-            previous.append(item)
+    for line in top_level:
+        if PASSED_SKIPPED_FAILED_PATTERN.match(line):
+            previous = [line]
         else:
-            if previous:
-                report.append(previous)
-            previous = item
+            if line.startswith("\t"):
+                line = line.strip()
+                if isinstance(previous, str):
+                    previous = [previous] if previous else []
+                previous.append(line)
+            else:
+                if previous:
+                    report.append(previous)
+                previous = line
+
+
     report.append(previous)
     return report
 
@@ -150,10 +165,8 @@ class OneHopTestHarness:
                     self._report = [self._result]  # likely a simple raw error message
                 else:
                     self._report = [f"Worker process failed to execute command line '{self._command_line}'?"]
-
-            # TODO: it would be nice to also directly report back the *actual*
-            #       versions of TRAPI and Biolink Model used in the testing,
-            #       but this may be technically tricky at the moment.
+            # TODO: at this point, we might wish to cache generated reports
+            #       to the local hard disk system, indexed by the session_id
         return self._report
     
     @classmethod
