@@ -9,7 +9,7 @@ from multiprocessing.context import BaseContext
 from sys import platform, stdout, stderr
 from encodings.utf_8 import decode
 
-from typing import Optional, Union, Tuple, Dict
+from typing import Optional, Union, Dict
 import multiprocessing as mp
 from queue import Empty
 from subprocess import run, CompletedProcess, CalledProcessError, TimeoutExpired

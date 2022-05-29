@@ -11,9 +11,9 @@ The project has two top level folders:
 
 # Getting Started
 
-The tests are run using Python 3.7 or better. Creation of a virtual environment is recommended.
+The tests are recommended to be run using Python 3.9 or better. 
 
-A portion of the test suite is operating system aware and biased towards Unix-type operating systems. The tests are not all guaranteed to work properly under Microsoft Windows (except within Docker containers?).
+If not running inside a Docker container, the creation of a virtual environment is recommended.
 
 ## Python Dependencies
 

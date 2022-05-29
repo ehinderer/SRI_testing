@@ -4,7 +4,6 @@ Unit tests for the backend logic of the web services application
 from sys import stderr
 from typing import Optional
 import logging
-from uuid import UUID
 
 from translator.sri.testing.processor import CMD_DELIMITER, WorkerProcess
 from tests.onehop import ONEHOP_TEST_DIRECTORY

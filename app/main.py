@@ -65,13 +65,11 @@ async def run_tests(test_parameters: TestRunParameters) -> Dict:
     trapi_version: Optional[str] = latest.get(test_parameters.trapi_version) if test_parameters.trapi_version else None
     biolink_version: Optional[str] = test_parameters.biolink_version
 
-    onehop_test = OneHopTestHarness(test_parameters.timeout)
-    report: List[str] = onehop_test.run(
+    testrun = OneHopTestHarness(test_parameters.timeout)
+    session_id: str = testrun.run(
         trapi_version=trapi_version,
         biolink_version=biolink_version
     )
-
-    session_id = onehop_test.get_session_id()
 
     return {
         "session_id": session_id,
@@ -85,19 +83,16 @@ async def run_tests(test_parameters: TestRunParameters) -> Dict:
         #       we should somehow try to report the
         #       actual version used by the system
         # "biolink_version": biolink_version,
-
-        "report": report
     }
 
 
-@app.get("/status/{session_id}")
-def get_status(session_id: str):
-    return {"session_id": session_id}
-
-
 @app.get("/report/{session_id}")
-async def get_results(session_id: str):
-    return {"session_id": session_id}
+async def get_report(session_id: str):
+    report: List[str] = OneHopTestHarness.get_report(session_id)
+    return {
+        "session_id": session_id,
+        "report": report
+    }
 
 
 if __name__ == "__main__":

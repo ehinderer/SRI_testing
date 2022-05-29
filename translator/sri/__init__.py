@@ -52,7 +52,7 @@ def get_aliases(identifier: str):
         try:
             result: Dict = response.json()
         except (JSONDecodeError, UnicodeDecodeError) as je:
-            logging.warning(f"get_aliases(): Node Normalizer response JSON could not be decoded?")
+            logging.warning(f"get_aliases(): Node Normalizer response JSON could not be decoded: {str(je)}?")
             return list()
 
     if result and identifier not in result.keys():

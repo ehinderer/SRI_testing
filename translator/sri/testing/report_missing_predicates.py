@@ -119,7 +119,7 @@ if __name__ == '__main__':
 
     # Specify optional biolink release SemVer
     if len(argv) > 1:
-        biolink_release = argv[1]
-        _bmtk = get_biolink_model_toolkit(biolink_release=biolink_release)
+        biolink_version = argv[1]
+        _bmtk = get_biolink_model_toolkit(biolink_version=biolink_version)
 
     aggregate_missing_predicates()
