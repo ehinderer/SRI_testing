@@ -19,7 +19,7 @@ from app.util import (
         f"{linesep}== short test summary info =={linesep}"
     ]
 )
-def test_stsi_header_pattern(query):
+def test_stsi_header_pattern_search(query):
     assert SHORT_TEST_SUMMARY_INFO_HEADER_PATTERN.search(query)
 
 
@@ -29,6 +29,15 @@ def test_stsi_header_pattern_splitting():
     assert len(part) == 2
     assert part[0] == f"Pytest report prefix{linesep}"
     assert part[1] == "Pytest Report Suffix"
+
+
+_SAMPLE_BIOLINK_ERRORS = [
+    "BLM Version 1.8.2 Error in Knowledge Graph: 'biolink:SmallMolecule' for node " +
+    "'PUBCHEM.COMPOUND:597' is not a recognized Biolink Model category?",
+
+    "BLM Version 2.2.16 Error in Knowledge Graph: Edge 'NCBIGene:29974--biolink:interacts_with->" +
+    "PUBCHEM.COMPOUND:597' has missing or empty attributes?"
+]
 
 
 @pytest.mark.parametrize(
@@ -83,10 +92,29 @@ def test_stsi_header_pattern_splitting():
             "'(PANTHER.FAMILY:PTHR34921:SF1:biolink:GeneFamily)--[biolink:part_of]->" +
             "(PANTHER.FAMILY:PTHR34921:biolink:GeneFamily)'?"
 
+        ),
+        (
+            "SKIPPED [1] test_onehops.py:38: [https://raw.githubusercontent.com/TranslatorSRI/SRI_testing/main/tests/" +
+            "onehop/test_triples/KP/Unit_Test_KP/Test_KP.json] ARA test case S-P-O triple " +
+            "'(PANTHER.FAMILY:PTHR34921:SF1:biolink:GeneFamily)--[biolink:part_of]->" +
+            "(PANTHER.FAMILY:PTHR34921:biolink:GeneFamily)', since it is not Biolink Model compliant " +
+            f"with model version 2.2.16:",
+
+            "SKIPPED",
+
+            None,  # not a 'component' test
+
+            "https://raw.githubusercontent.com/TranslatorSRI/SRI_testing/main/tests/" +
+            "onehop/test_triples/KP/Unit_Test_KP/Test_KP.json",
+
+            " ARA test case S-P-O triple " +
+            "'(PANTHER.FAMILY:PTHR34921:SF1:biolink:GeneFamily)--[biolink:part_of]->" +
+            "(PANTHER.FAMILY:PTHR34921:biolink:GeneFamily)', since it is not Biolink Model compliant " +
+            f"with model version 2.2.16:"
         )
     ]
 )
-def test_stsi_header_pattern(query):
+def test_stsi_header_pattern_match(query):
     m = PASSED_SKIPPED_FAILED_PATTERN.match(query[0])
     assert m
     if query[1]:
