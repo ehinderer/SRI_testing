@@ -29,14 +29,13 @@ def _report_and_skip_edge(test: str, edge: Dict):
     if 'biolink_errors' in edge:
         model_version, errors = edge['biolink_errors']
         pytest.skip(
-            f"\nKP TRAPI test case S-P-O triple '{label}') " +
-            f"from {location} since it is not Biolink Model compliant " +
-            f"with model version {model_version}:{linesep}{linesep.join(errors)}"
+            f"[{location}] {test} test case S-P-O triple '{label}', since it is not Biolink Model compliant " +
+            f"with model version {model_version}:{linesep}{linesep.join(errors)}?"
         )
     else:
         pytest.skip(
-            f"Test explicitly excluded for all test triples from {test} '{location}' or " +
-            f"just for this particular test triple: '{label}'"
+            f"[{location}] {test} test for all test case S-P-O triples from this location or " +
+            f"just for the test case S-P-O triple '{label}'?"
         )
 
 

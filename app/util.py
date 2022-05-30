@@ -28,8 +28,12 @@ SHORT_TEST_SUMMARY_INFO_HEADER_PATTERN = re.compile(rf"=+\sshort\stest\ssummary\
 # Examples:
 # "PASSED test_onehops.py::test_trapi_aras[Test_ARA.json_Test KP_0-by_subject]"
 # "SKIPPED [11] test_onehops.py:32: "
-# "FAILED test_onehops.py::test_trapi_aras[Test_ARA.json_Test KP_0-by_subject]"
-PASSED_SKIPPED_FAILED_PATTERN = re.compile(r"^(PASSED|SKIPPED|FAILED)\s(\[\d+]\s)?(test_onehops.py:.+)$")
+# "FAILED test_onehops.py::tes
+# t_trapi_aras[Test_ARA.json_Test KP_0-by_subject]"
+PASSED_SKIPPED_FAILED_PATTERN = re.compile(
+    r"^(?P<outcome>PASSED|SKIPPED|FAILED)\s(\[\d+]\s)?test_onehops.py:(\d+)?:" +
+    r"(test_trapi_(?P<component>kp|ara)s|\s)?(\[(?P<case>[^]]+)])?(?P<tail>.+)?$"
+)
 
 
 def _parse_result(raw_report: str) -> List[Union[str, List[str]]]:
@@ -51,10 +55,35 @@ def _parse_result(raw_report: str) -> List[Union[str, List[str]]]:
     # into lines, to facilitate further processing
     top_level = output.split(linesep)
 
-    report: List[Union[str, List[str]]] = list()
-    previous: Union[str, List[str]] = ""
+    report: Dict[
+        str,
+        List[
+            Union[
+                str,
+                List[str]
+            ]
+        ]
+    ] = {
+        "PASSED": list(),
+        "FAILED": list(),
+        "SKIPPED": list(),
+    }
+    previous: str = ""
     for line in top_level:
-        if PASSED_SKIPPED_FAILED_PATTERN.match(line):
+        line = line.strip()  # spurious leading and trailing whitespace removed
+        # TODO: might later use these regex outputs
+        #       to introduce more structure into the report
+        psf = PASSED_SKIPPED_FAILED_PATTERN.match(line)
+        if psf:
+            outcome = psf["outcome"]
+            component = psf["component"]
+            if not (component and component in ["kp", "ara"]):
+                component = "input"
+            case = psf["case"]
+            if not case:
+                component = "input"
+            tail = psf["tail"]
+
             previous = [line]
         else:
             if line.startswith("\t"):
