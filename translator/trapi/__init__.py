@@ -175,6 +175,10 @@ def check_provenance(ara_case, ara_response):
             break
 
 
+def _output(json):
+    return dumps(json, sort_keys=False, indent=4)
+
+
 def call_trapi(url: str, opts, trapi_message):
     """
     Given an url and a TRAPI message, post the message
@@ -195,6 +199,15 @@ def call_trapi(url: str, opts, trapi_message):
         # fake response object
         response = requests.Response()
         response.status_code = 408
+    except requests.RequestException as re:
+        # perhaps another unexpected Request failure?
+        logger.error(
+            f"call_trapi(\n\turl: '{url}',\n\topts: '{_output(opts)}',"
+            f"\n\ttrapi_message: '{_output(trapi_message)}') - "
+            f"Request POST exception:\n\t\t{str(re)}"
+        )
+        response = requests.Response()
+        response.status_code = 408
 
     response_json = None
     if response.status_code == 200:
@@ -204,10 +217,6 @@ def call_trapi(url: str, opts, trapi_message):
             logger.error(f"call_trapi({query_url}) JSON access error: {str(exc)}")
 
     return {'status_code': response.status_code, 'response_json': response_json}
-
-
-def _output(json):
-    return dumps(json, sort_keys=False, indent=4)
 
 
 def execute_trapi_lookup(case, creator, rbag):

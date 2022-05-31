@@ -93,7 +93,7 @@ _SAMPLE_BIOLINK_ERRORS = [
             "(PANTHER.FAMILY:PTHR34921:biolink:GeneFamily)'?"
 
         ),
-        (
+        (   # Query 5 - Another really complex Pytest output line
             "SKIPPED [1] test_onehops.py:38: [https://raw.githubusercontent.com/TranslatorSRI/SRI_testing/main/tests/" +
             "onehop/test_triples/KP/Unit_Test_KP/Test_KP.json] ARA test case S-P-O triple " +
             "'(PANTHER.FAMILY:PTHR34921:SF1:biolink:GeneFamily)--[biolink:part_of]->" +
