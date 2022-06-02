@@ -30,7 +30,7 @@ def _report_and_skip_edge(test: str, edge: Dict):
         model_version, errors = edge['biolink_errors']
         pytest.skip(
             f"[{location}] {test} test case S-P-O triple '{label}', since it is not Biolink Model compliant " +
-            f"with model version {model_version}:{linesep}{linesep.join(errors)}"
+            f"with model version {model_version}{linesep}{linesep.join(errors)}"
         )
     else:
         pytest.skip(

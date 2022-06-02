@@ -1,0 +1,114 @@
+============================= test session starts =============================
+platform win32 -- Python 3.9.7, pytest-7.1.1, pluggy-1.0.0
+rootdir: C:\Users\richa\PycharmProjects\SRI_testing\tests\onehop
+plugins: anyio-3.5.0, asyncio-0.18.2, harvest-1.10.3
+asyncio: mode=legacy
+collected 66 items
+
+test_onehops.py::test_trapi_kps[https://raw.githubusercontent.com/TranslatorSRI/SRI_testing/main/tests/onehop/test_triples/KP/Unit_Test_KP/Test_KP.json_0-by_subject] PASSED [  1%]
+test_onehops.py::test_trapi_kps[https://raw.githubusercontent.com/TranslatorSRI/SRI_testing/main/tests/onehop/test_triples/KP/Unit_Test_KP/Test_KP.json_0-inverse_by_new_subject] PASSED [  3%]
+test_onehops.py::test_trapi_kps[https://raw.githubusercontent.com/TranslatorSRI/SRI_testing/main/tests/onehop/test_triples/KP/Unit_Test_KP/Test_KP.json_0-by_object] PASSED [  4%]
+test_onehops.py::test_trapi_kps[https://raw.githubusercontent.com/TranslatorSRI/SRI_testing/main/tests/onehop/test_triples/KP/Unit_Test_KP/Test_KP.json_0-raise_subject_entity] SKIPPED [  6%]
+test_onehops.py::test_trapi_kps[https://raw.githubusercontent.com/TranslatorSRI/SRI_testing/main/tests/onehop/test_triples/KP/Unit_Test_KP/Test_KP.json_0-raise_object_by_subject] PASSED [  7%]
+test_onehops.py::test_trapi_kps[https://raw.githubusercontent.com/TranslatorSRI/SRI_testing/main/tests/onehop/test_triples/KP/Unit_Test_KP/Test_KP.json_0-raise_predicate_by_subject] PASSED [  9%]
+test_onehops.py::test_trapi_kps[https://raw.githubusercontent.com/TranslatorSRI/SRI_testing/main/tests/onehop/test_triples/KP/Unit_Test_KP/Test_KP.json_1-by_subject] SKIPPED [ 10%]
+test_onehops.py::test_trapi_kps[https://raw.githubusercontent.com/TranslatorSRI/SRI_testing/main/tests/onehop/test_triples/KP/Unit_Test_KP/Test_KP.json_1-inverse_by_new_subject] SKIPPED [ 12%]
+test_onehops.py::test_trapi_kps[https://raw.githubusercontent.com/TranslatorSRI/SRI_testing/main/tests/onehop/test_triples/KP/Unit_Test_KP/Test_KP.json_1-by_object] SKIPPED [ 13%]
+test_onehops.py::test_trapi_kps[https://raw.githubusercontent.com/TranslatorSRI/SRI_testing/main/tests/onehop/test_triples/KP/Unit_Test_KP/Test_KP.json_1-raise_subject_entity] SKIPPED [ 15%]
+test_onehops.py::test_trapi_kps[https://raw.githubusercontent.com/TranslatorSRI/SRI_testing/main/tests/onehop/test_triples/KP/Unit_Test_KP/Test_KP.json_1-raise_object_by_subject] SKIPPED [ 16%]
+test_onehops.py::test_trapi_kps[https://raw.githubusercontent.com/TranslatorSRI/SRI_testing/main/tests/onehop/test_triples/KP/Unit_Test_KP/Test_KP.json_1-raise_predicate_by_subject] SKIPPED [ 18%]
+test_onehops.py::test_trapi_kps[https://raw.githubusercontent.com/TranslatorSRI/SRI_testing/main/tests/onehop/test_triples/KP/Unit_Test_KP/Test_KP.json_2-by_subject] SKIPPED [ 19%]
+test_onehops.py::test_trapi_kps[https://raw.githubusercontent.com/TranslatorSRI/SRI_testing/main/tests/onehop/test_triples/KP/Unit_Test_KP/Test_KP.json_2-inverse_by_new_subject] SKIPPED [ 21%]
+test_onehops.py::test_trapi_kps[https://raw.githubusercontent.com/TranslatorSRI/SRI_testing/main/tests/onehop/test_triples/KP/Unit_Test_KP/Test_KP.json_2-by_object] SKIPPED [ 22%]
+test_onehops.py::test_trapi_kps[https://raw.githubusercontent.com/TranslatorSRI/SRI_testing/main/tests/onehop/test_triples/KP/Unit_Test_KP/Test_KP.json_2-raise_subject_entity] SKIPPED [ 24%]
+test_onehops.py::test_trapi_kps[https://raw.githubusercontent.com/TranslatorSRI/SRI_testing/main/tests/onehop/test_triples/KP/Unit_Test_KP/Test_KP.json_2-raise_object_by_subject] SKIPPED [ 25%]
+test_onehops.py::test_trapi_kps[https://raw.githubusercontent.com/TranslatorSRI/SRI_testing/main/tests/onehop/test_triples/KP/Unit_Test_KP/Test_KP.json_2-raise_predicate_by_subject] SKIPPED [ 27%]
+test_onehops.py::test_trapi_kps[https://raw.githubusercontent.com/TranslatorSRI/SRI_testing/main/tests/onehop/test_triples/KP/Unit_Test_KP/Test_KP.json_3-by_subject] SKIPPED [ 28%]
+test_onehops.py::test_trapi_kps[https://raw.githubusercontent.com/TranslatorSRI/SRI_testing/main/tests/onehop/test_triples/KP/Unit_Test_KP/Test_KP.json_3-inverse_by_new_subject] SKIPPED [ 30%]
+test_onehops.py::test_trapi_kps[https://raw.githubusercontent.com/TranslatorSRI/SRI_testing/main/tests/onehop/test_triples/KP/Unit_Test_KP/Test_KP.json_3-by_object] SKIPPED [ 31%]
+test_onehops.py::test_trapi_kps[https://raw.githubusercontent.com/TranslatorSRI/SRI_testing/main/tests/onehop/test_triples/KP/Unit_Test_KP/Test_KP.json_3-raise_subject_entity] SKIPPED [ 33%]
+test_onehops.py::test_trapi_kps[https://raw.githubusercontent.com/TranslatorSRI/SRI_testing/main/tests/onehop/test_triples/KP/Unit_Test_KP/Test_KP.json_3-raise_object_by_subject] SKIPPED [ 34%]
+test_onehops.py::test_trapi_kps[https://raw.githubusercontent.com/TranslatorSRI/SRI_testing/main/tests/onehop/test_triples/KP/Unit_Test_KP/Test_KP.json_3-raise_predicate_by_subject] SKIPPED [ 36%]
+test_onehops.py::test_trapi_kps[https://raw.githubusercontent.com/TranslatorSRI/SRI_testing/main/tests/onehop/test_triples/KP/Unit_Test_KP/Test_KP.json_4-by_subject] SKIPPED [ 37%]
+test_onehops.py::test_trapi_kps[https://raw.githubusercontent.com/TranslatorSRI/SRI_testing/main/tests/onehop/test_triples/KP/Unit_Test_KP/Test_KP.json_4-inverse_by_new_subject] SKIPPED [ 39%]
+test_onehops.py::test_trapi_kps[https://raw.githubusercontent.com/TranslatorSRI/SRI_testing/main/tests/onehop/test_triples/KP/Unit_Test_KP/Test_KP.json_4-by_object] SKIPPED [ 40%]
+test_onehops.py::test_trapi_kps[https://raw.githubusercontent.com/TranslatorSRI/SRI_testing/main/tests/onehop/test_triples/KP/Unit_Test_KP/Test_KP.json_4-raise_subject_entity] SKIPPED [ 42%]
+test_onehops.py::test_trapi_kps[https://raw.githubusercontent.com/TranslatorSRI/SRI_testing/main/tests/onehop/test_triples/KP/Unit_Test_KP/Test_KP.json_4-raise_object_by_subject] SKIPPED [ 43%]
+test_onehops.py::test_trapi_kps[https://raw.githubusercontent.com/TranslatorSRI/SRI_testing/main/tests/onehop/test_triples/KP/Unit_Test_KP/Test_KP.json_4-raise_predicate_by_subject] SKIPPED [ 45%]
+test_onehops.py::test_trapi_kps[https://raw.githubusercontent.com/TranslatorSRI/SRI_testing/main/tests/onehop/test_triples/KP/Unit_Test_KP/Test_KP.json_5-by_subject] SKIPPED [ 46%]
+test_onehops.py::test_trapi_kps[https://raw.githubusercontent.com/TranslatorSRI/SRI_testing/main/tests/onehop/test_triples/KP/Unit_Test_KP/Test_KP.json_5-inverse_by_new_subject] SKIPPED [ 48%]
+test_onehops.py::test_trapi_kps[https://raw.githubusercontent.com/TranslatorSRI/SRI_testing/main/tests/onehop/test_triples/KP/Unit_Test_KP/Test_KP.json_5-by_object] SKIPPED [ 50%]
+test_onehops.py::test_trapi_kps[https://raw.githubusercontent.com/TranslatorSRI/SRI_testing/main/tests/onehop/test_triples/KP/Unit_Test_KP/Test_KP.json_5-raise_subject_entity] SKIPPED [ 51%]
+test_onehops.py::test_trapi_kps[https://raw.githubusercontent.com/TranslatorSRI/SRI_testing/main/tests/onehop/test_triples/KP/Unit_Test_KP/Test_KP.json_5-raise_object_by_subject] SKIPPED [ 53%]
+test_onehops.py::test_trapi_kps[https://raw.githubusercontent.com/TranslatorSRI/SRI_testing/main/tests/onehop/test_triples/KP/Unit_Test_KP/Test_KP.json_5-raise_predicate_by_subject] SKIPPED [ 54%]
+test_onehops.py::test_trapi_aras[Test_ARA.json_Test KP_0-by_subject] PASSED [ 56%]
+test_onehops.py::test_trapi_aras[Test_ARA.json_Test KP_0-by_object] PASSED [ 57%]
+test_onehops.py::test_trapi_aras[Test_ARA.json_Test KP_0-raise_subject_entity] SKIPPED [ 59%]
+test_onehops.py::test_trapi_aras[Test_ARA.json_Test KP_0-raise_object_by_subject] PASSED [ 60%]
+test_onehops.py::test_trapi_aras[Test_ARA.json_Test KP_0-raise_predicate_by_subject] PASSED [ 62%]
+test_onehops.py::test_trapi_aras[Test_ARA.json_Test KP_1-by_subject] SKIPPED [ 63%]
+test_onehops.py::test_trapi_aras[Test_ARA.json_Test KP_1-by_object] SKIPPED [ 65%]
+test_onehops.py::test_trapi_aras[Test_ARA.json_Test KP_1-raise_subject_entity] SKIPPED [ 66%]
+test_onehops.py::test_trapi_aras[Test_ARA.json_Test KP_1-raise_object_by_subject] SKIPPED [ 68%]
+test_onehops.py::test_trapi_aras[Test_ARA.json_Test KP_1-raise_predicate_by_subject] SKIPPED [ 69%]
+test_onehops.py::test_trapi_aras[Test_ARA.json_Test KP_2-by_subject] SKIPPED [ 71%]
+test_onehops.py::test_trapi_aras[Test_ARA.json_Test KP_2-by_object] SKIPPED [ 72%]
+test_onehops.py::test_trapi_aras[Test_ARA.json_Test KP_2-raise_subject_entity] SKIPPED [ 74%]
+test_onehops.py::test_trapi_aras[Test_ARA.json_Test KP_2-raise_object_by_subject] SKIPPED [ 75%]
+test_onehops.py::test_trapi_aras[Test_ARA.json_Test KP_2-raise_predicate_by_subject] SKIPPED [ 77%]
+test_onehops.py::test_trapi_aras[Test_ARA.json_Test KP_3-by_subject] SKIPPED [ 78%]
+test_onehops.py::test_trapi_aras[Test_ARA.json_Test KP_3-by_object] SKIPPED [ 80%]
+test_onehops.py::test_trapi_aras[Test_ARA.json_Test KP_3-raise_subject_entity] SKIPPED [ 81%]
+test_onehops.py::test_trapi_aras[Test_ARA.json_Test KP_3-raise_object_by_subject] SKIPPED [ 83%]
+test_onehops.py::test_trapi_aras[Test_ARA.json_Test KP_3-raise_predicate_by_subject] SKIPPED [ 84%]
+test_onehops.py::test_trapi_aras[Test_ARA.json_Test KP_4-by_subject] SKIPPED [ 86%]
+test_onehops.py::test_trapi_aras[Test_ARA.json_Test KP_4-by_object] SKIPPED [ 87%]
+test_onehops.py::test_trapi_aras[Test_ARA.json_Test KP_4-raise_subject_entity] SKIPPED [ 89%]
+test_onehops.py::test_trapi_aras[Test_ARA.json_Test KP_4-raise_object_by_subject] SKIPPED [ 90%]
+test_onehops.py::test_trapi_aras[Test_ARA.json_Test KP_4-raise_predicate_by_subject] SKIPPED [ 92%]
+test_onehops.py::test_trapi_aras[Test_ARA.json_Test KP_5-by_subject] SKIPPED [ 93%]
+test_onehops.py::test_trapi_aras[Test_ARA.json_Test KP_5-by_object] SKIPPED [ 95%]
+test_onehops.py::test_trapi_aras[Test_ARA.json_Test KP_5-raise_subject_entity] SKIPPED [ 96%]
+test_onehops.py::test_trapi_aras[Test_ARA.json_Test KP_5-raise_object_by_subject] SKIPPED [ 98%]
+test_onehops.py::test_trapi_aras[Test_ARA.json_Test KP_5-raise_predicate_by_subject] SKIPPED [100%]
+
+============================== warnings summary ===============================
+..\..\py\lib\site-packages\pytest_asyncio\plugin.py:191
+  c:\users\richa\pycharmprojects\sri_testing\py\lib\site-packages\pytest_asyncio\plugin.py:191: DeprecationWarning: The 'asyncio_mode' default value will change to 'strict' in future, please explicitly use 'asyncio_mode=strict' or 'asyncio_mode=auto' in pytest configuration file.
+    config.issue_config_time_warning(LEGACY_MODE, stacklevel=2)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=================================== PASSES ====================================
+=========================== short test summary info ===========================
+PASSED test_onehops.py::test_trapi_kps[https://raw.githubusercontent.com/TranslatorSRI/SRI_testing/main/tests/onehop/test_triples/KP/Unit_Test_KP/Test_KP.json_0-by_subject]
+PASSED test_onehops.py::test_trapi_kps[https://raw.githubusercontent.com/TranslatorSRI/SRI_testing/main/tests/onehop/test_triples/KP/Unit_Test_KP/Test_KP.json_0-inverse_by_new_subject]
+PASSED test_onehops.py::test_trapi_kps[https://raw.githubusercontent.com/TranslatorSRI/SRI_testing/main/tests/onehop/test_triples/KP/Unit_Test_KP/Test_KP.json_0-by_object]
+PASSED test_onehops.py::test_trapi_kps[https://raw.githubusercontent.com/TranslatorSRI/SRI_testing/main/tests/onehop/test_triples/KP/Unit_Test_KP/Test_KP.json_0-raise_object_by_subject]
+PASSED test_onehops.py::test_trapi_kps[https://raw.githubusercontent.com/TranslatorSRI/SRI_testing/main/tests/onehop/test_triples/KP/Unit_Test_KP/Test_KP.json_0-raise_predicate_by_subject]
+PASSED test_onehops.py::test_trapi_aras[Test_ARA.json_Test KP_0-by_subject]
+PASSED test_onehops.py::test_trapi_aras[Test_ARA.json_Test KP_0-by_object]
+PASSED test_onehops.py::test_trapi_aras[Test_ARA.json_Test KP_0-raise_object_by_subject]
+PASSED test_onehops.py::test_trapi_aras[Test_ARA.json_Test KP_0-raise_predicate_by_subject]
+SKIPPED [1] test_onehops.py:36: [https://raw.githubusercontent.com/TranslatorSRI/SRI_testing/main/tests/onehop/test_triples/KP/Unit_Test_KP/Test_KP.json] KP test for all test case S-P-O triples from this location or just for the test case S-P-O triple '(PANTHER.FAMILY:PTHR34921:SF1:biolink:GeneFamily)--[biolink:part_of]->(PANTHER.FAMILY:PTHR34921:biolink:GeneFamily)'?
+SKIPPED [6] test_onehops.py:31: [https://raw.githubusercontent.com/TranslatorSRI/SRI_testing/main/tests/onehop/test_triples/KP/Unit_Test_KP/Test_KP.json] KP test case S-P-O triple '(PANTHER.FAMILY:PTHR34921:SF1:biolink:NotABiolinkCategory)--[biolink:part_of]->(PANTHER.FAMILY:PTHR34921:biolink:GeneFamily)', since it is not Biolink Model compliant with model version 2.2.16:
+BLM Version 2.2.16 Error in Input Edge: 'subject' category 'biolink:NotABiolinkCategory' is unknown?
+SKIPPED [6] test_onehops.py:31: [https://raw.githubusercontent.com/TranslatorSRI/SRI_testing/main/tests/onehop/test_triples/KP/Unit_Test_KP/Test_KP.json] KP test case S-P-O triple '(PANTHER.FAMILY:PTHR34921:SF1:biolink:GeneFamily)--[biolink:part_of]->(PANTHER.FAMILY:PTHR34921:biolink:NotABiolinkCategory)', since it is not Biolink Model compliant with model version 2.2.16:
+BLM Version 2.2.16 Error in Input Edge: 'object' category 'biolink:NotABiolinkCategory' is unknown?
+SKIPPED [6] test_onehops.py:31: [https://raw.githubusercontent.com/TranslatorSRI/SRI_testing/main/tests/onehop/test_triples/KP/Unit_Test_KP/Test_KP.json] KP test case S-P-O triple '(PANTHER.FAMILY:PTHR34921:SF1:biolink:GeneFamily)--[biolink:invalid_predicate]->(PANTHER.FAMILY:PTHR34921:biolink:GeneFamily)', since it is not Biolink Model compliant with model version 2.2.16:
+BLM Version 2.2.16 Error in Input Edge: predicate 'biolink:invalid_predicate' is unknown?
+SKIPPED [6] test_onehops.py:31: [https://raw.githubusercontent.com/TranslatorSRI/SRI_testing/main/tests/onehop/test_triples/KP/Unit_Test_KP/Test_KP.json] KP test case S-P-O triple '(FOO:1234:biolink:GeneFamily)--[biolink:part_of]->(PANTHER.FAMILY:PTHR34921:biolink:GeneFamily)', since it is not Biolink Model compliant with model version 2.2.16:
+BLM Version 2.2.16 Error in Input Edge: namespace prefix of 'subject' identifier 'FOO:1234' is unmapped to 'biolink:GeneFamily'?
+SKIPPED [6] test_onehops.py:31: [https://raw.githubusercontent.com/TranslatorSRI/SRI_testing/main/tests/onehop/test_triples/KP/Unit_Test_KP/Test_KP.json] KP test case S-P-O triple '(PANTHER.FAMILY:PTHR34921:SF1:biolink:GeneFamily)--[biolink:part_of]->(BAR:6789:biolink:GeneFamily)', since it is not Biolink Model compliant with model version 2.2.16:
+BLM Version 2.2.16 Error in Input Edge: namespace prefix of 'object' identifier 'BAR:6789' is unmapped to 'biolink:GeneFamily'?
+SKIPPED [1] test_onehops.py:36: [https://raw.githubusercontent.com/TranslatorSRI/SRI_testing/main/tests/onehop/test_triples/KP/Unit_Test_KP/Test_KP.json] ARA test for all test case S-P-O triples from this location or just for the test case S-P-O triple '(PANTHER.FAMILY:PTHR34921:SF1:biolink:GeneFamily)--[biolink:part_of]->(PANTHER.FAMILY:PTHR34921:biolink:GeneFamily)'?
+SKIPPED [5] test_onehops.py:31: [https://raw.githubusercontent.com/TranslatorSRI/SRI_testing/main/tests/onehop/test_triples/KP/Unit_Test_KP/Test_KP.json] ARA test case S-P-O triple '(PANTHER.FAMILY:PTHR34921:SF1:biolink:NotABiolinkCategory)--[biolink:part_of]->(PANTHER.FAMILY:PTHR34921:biolink:GeneFamily)', since it is not Biolink Model compliant with model version 2.2.16:
+BLM Version 2.2.16 Error in Input Edge: 'subject' category 'biolink:NotABiolinkCategory' is unknown?
+SKIPPED [5] test_onehops.py:31: [https://raw.githubusercontent.com/TranslatorSRI/SRI_testing/main/tests/onehop/test_triples/KP/Unit_Test_KP/Test_KP.json] ARA test case S-P-O triple '(PANTHER.FAMILY:PTHR34921:SF1:biolink:GeneFamily)--[biolink:part_of]->(PANTHER.FAMILY:PTHR34921:biolink:NotABiolinkCategory)', since it is not Biolink Model compliant with model version 2.2.16:
+BLM Version 2.2.16 Error in Input Edge: 'object' category 'biolink:NotABiolinkCategory' is unknown?
+SKIPPED [5] test_onehops.py:31: [https://raw.githubusercontent.com/TranslatorSRI/SRI_testing/main/tests/onehop/test_triples/KP/Unit_Test_KP/Test_KP.json] ARA test case S-P-O triple '(PANTHER.FAMILY:PTHR34921:SF1:biolink:GeneFamily)--[biolink:invalid_predicate]->(PANTHER.FAMILY:PTHR34921:biolink:GeneFamily)', since it is not Biolink Model compliant with model version 2.2.16:
+BLM Version 2.2.16 Error in Input Edge: predicate 'biolink:invalid_predicate' is unknown?
+SKIPPED [5] test_onehops.py:31: [https://raw.githubusercontent.com/TranslatorSRI/SRI_testing/main/tests/onehop/test_triples/KP/Unit_Test_KP/Test_KP.json] ARA test case S-P-O triple '(FOO:1234:biolink:GeneFamily)--[biolink:part_of]->(PANTHER.FAMILY:PTHR34921:biolink:GeneFamily)', since it is not Biolink Model compliant with model version 2.2.16:
+BLM Version 2.2.16 Error in Input Edge: namespace prefix of 'subject' identifier 'FOO:1234' is unmapped to 'biolink:GeneFamily'?
+SKIPPED [5] test_onehops.py:31: [https://raw.githubusercontent.com/TranslatorSRI/SRI_testing/main/tests/onehop/test_triples/KP/Unit_Test_KP/Test_KP.json] ARA test case S-P-O triple '(PANTHER.FAMILY:PTHR34921:SF1:biolink:GeneFamily)--[biolink:part_of]->(BAR:6789:biolink:GeneFamily)', since it is not Biolink Model compliant with model version 2.2.16:
+BLM Version 2.2.16 Error in Input Edge: namespace prefix of 'object' identifier 'BAR:6789' is unmapped to 'biolink:GeneFamily'?
+================== 9 passed, 57 skipped, 1 warning in 20.18s ==================

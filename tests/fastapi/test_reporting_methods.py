@@ -183,8 +183,23 @@ SAMPLE_CASE = "https://raw.githubusercontent.com/TranslatorSRI/SRI_testing/" + \
               "main/tests/onehop/test_triples/KP/Unit_Test_KP/Test_KP.json"
 
 
-def test_report():
-    sample_file_path = path.join(TEST_DATA_DIR, "sample_pytest_report_1.txt")
+@pytest.mark.parametrize(
+    "query",
+    [
+        (
+                "sample_pytest_report_1.txt",
+                "FAILED",
+                "0", "9", "57", "1"
+        ),
+        (
+                "sample_pytest_report_2.txt",
+                "PASSED",
+                "9", "0", "57", "1"
+        )
+    ]
+)
+def test_report(query):
+    sample_file_path = path.join(TEST_DATA_DIR, query[0])
     with open(sample_file_path, "r") as sf:
 
         raw_result = sf.read()
@@ -199,24 +214,25 @@ def test_report():
     assert "SKIPPED" in report["INPUT"]
     assert SAMPLE_CASE in report["INPUT"]["SKIPPED"]
     sample_tail = report["INPUT"]["SKIPPED"][SAMPLE_CASE]
-    assert any([tail.startswith(" KP test case S-P-O triple") for tail in sample_tail])
+    assert any([tail.startswith("KP test case S-P-O triple") for tail in sample_tail])
 
     assert "KP" in report
-    assert "PASSED" not in report["KP"]
-    assert "SKIPPED" not in report["KP"]
-    assert "FAILED" in report["KP"]
-
     assert "ARA" in report
-    assert "PASSED" not in report["ARA"]
-    assert "SKIPPED" not in report["ARA"]
-    assert "FAILED" in report["ARA"]
+
+    for outcome in ["PASSED", "FAILED"]:
+        if outcome == query[1]:
+            assert outcome in report["KP"]
+            assert outcome in report["ARA"]
+        else:
+            assert outcome not in report["KP"]
+            assert outcome not in report["ARA"]
 
     assert "SUMMARY" in report
     assert "PASSED" in report["SUMMARY"]
-    assert report["SUMMARY"]["PASSED"] == "0"
+    assert report["SUMMARY"]["PASSED"] == query[2]
     assert "FAILED" in report["SUMMARY"]
-    assert report["SUMMARY"]["FAILED"] == "9"
+    assert report["SUMMARY"]["FAILED"] == query[3]
     assert "SKIPPED" in report["SUMMARY"]
-    assert report["SUMMARY"]["SKIPPED"] == "57"
+    assert report["SUMMARY"]["SKIPPED"] == query[4]
     assert "WARNING" in report["SUMMARY"]
-    assert report["SUMMARY"]["WARNING"] == "1"
+    assert report["SUMMARY"]["WARNING"] == query[5]
