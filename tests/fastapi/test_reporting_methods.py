@@ -2,11 +2,16 @@
 Test SRI Testing reporting code snippets
 """
 import pytest
-from os import linesep
+from os import linesep, path
+
 from app.util import (
     SHORT_TEST_SUMMARY_INFO_HEADER_PATTERN,
-    PASSED_SKIPPED_FAILED_PATTERN
+    PASSED_SKIPPED_FAILED_PATTERN,
+    PYTEST_SUMMARY_PATTERN,
+    SRITestReport,
+    parse_result
 )
+from tests import TEST_DATA_DIR
 
 
 @pytest.mark.parametrize(
@@ -142,3 +147,76 @@ def test_stsi_header_pattern_match(query):
         assert m["tail"] == query[4]
     else:
         assert not m["tail"]
+
+
+TPS = "test_pytest_summary():"
+
+
+@pytest.mark.parametrize(
+    "query",
+    [
+        ("============= 40 passed, 9 failed, 2 skipped, 4 warning in 83.33s (0:01:23) ==============", 40, 9, 2, 4),
+        ("============= 9 failed, 2 skipped, 4 warning in 83.33s (0:01:23) ==============", None, 9, 2, 4),
+        ("============= 40 passed, 2 skipped, 4 warning in 83.33s (0:01:23) ==============", 40, None, 2, 4),
+        ("============= 40 passed, 9 failed, 4 warning in 83.33s (0:01:23) ==============", 40, 9, None, 4),
+        ("============= 40 passed, 9 failed, 2 skipped in 83.33s (0:01:23) ==============", 40, 9, 2, None)
+    ]
+)
+def test_pytest_summary(query):
+    match = PYTEST_SUMMARY_PATTERN.match(query[0])
+    assert match, f"{TPS} no match?"
+    if query[1]:
+        assert match["passed"], f"{TPS} 'passed' field not matched?"
+        assert match["passed"] == '40', f"{TPS} 'passed' value not matched?"
+    if query[2]:
+        assert match["failed"], f"{TPS} 'failed' field not matched?"
+        assert match["failed"] == '9', f"{TPS} 'failed' value not matched?"
+    if query[3]:
+        assert match["skipped"], f"{TPS} 'skipped' field not matched?"
+        assert match["skipped"] == '2', f"{TPS} 'skipped' field not matched?"
+    if query[4]:
+        assert match["warning"], f"{TPS} 'warning' field not matched?"
+        assert match["warning"] == '4', f"{TPS} 'warning' field not matched?"
+
+
+SAMPLE_CASE = "https://raw.githubusercontent.com/TranslatorSRI/SRI_testing/" + \
+              "main/tests/onehop/test_triples/KP/Unit_Test_KP/Test_KP.json"
+
+
+def test_report():
+    sample_file_path = path.join(TEST_DATA_DIR, "sample_pytest_report_1.txt")
+    with open(sample_file_path, "r") as sf:
+
+        raw_result = sf.read()
+
+        # The function assumes that you are
+        # processing the file as a monolithic text blob
+        report: SRITestReport = parse_result(raw_result)
+
+    assert report
+
+    assert "INPUT" in report
+    assert "SKIPPED" in report["INPUT"]
+    assert SAMPLE_CASE in report["INPUT"]["SKIPPED"]
+    sample_tail = report["INPUT"]["SKIPPED"][SAMPLE_CASE]
+    assert any([tail.startswith(" KP test case S-P-O triple") for tail in sample_tail])
+
+    assert "KP" in report
+    assert "PASSED" not in report["KP"]
+    assert "SKIPPED" not in report["KP"]
+    assert "FAILED" in report["KP"]
+
+    assert "ARA" in report
+    assert "PASSED" not in report["ARA"]
+    assert "SKIPPED" not in report["ARA"]
+    assert "FAILED" in report["ARA"]
+
+    assert "SUMMARY" in report
+    assert "PASSED" in report["SUMMARY"]
+    assert report["SUMMARY"]["PASSED"] == "0"
+    assert "FAILED" in report["SUMMARY"]
+    assert report["SUMMARY"]["FAILED"] == "9"
+    assert "SKIPPED" in report["SUMMARY"]
+    assert report["SUMMARY"]["SKIPPED"] == "57"
+    assert "WARNING" in report["SUMMARY"]
+    assert report["SUMMARY"]["WARNING"] == "1"

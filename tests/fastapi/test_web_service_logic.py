@@ -1,11 +1,12 @@
 """
 Unit tests for the backend logic of the web services application
 """
-from typing import List, Union
 from sys import stderr
-import logging
-from app.util import OneHopTestHarness
+from json import dumps
 
+from app.util import OneHopTestHarness, SRITestReport
+
+import logging
 logger = logging.getLogger()
 
 SPACER = '\n' + '#'*120 + '\n'
@@ -16,19 +17,13 @@ def _report_outcome(
         session_id: str,
         expecting_report: bool = True
 ):
-    report: List[Union[str, List[str]]] = OneHopTestHarness.get_report(session_id)
+    report: SRITestReport = OneHopTestHarness.get_report(session_id)
     if expecting_report:
         assert report, f"{test_name}() is missing an expected report?"
-        msg = ""
-        for item in report:
-            if isinstance(item, List):
-                for sub_item in item:
-                    msg += "\t" + sub_item + "\n"
-            else:
-                msg += item+"\n"
-        print(f"{test_name}() worker process 'report':{SPACER}{msg}{SPACER}", file=stderr)
+        report_text = dumps(report, sort_keys=False, indent=4)
+        print(f"{test_name}() worker process 'report':{SPACER}{report_text}{SPACER}", file=stderr)
     else:
-        assert not report, f"{test_name}() has unexpected non-empty report: {report}?"
+        assert not report, f"{test_name}() has unexpected non-empty report with contents: {report}?"
 
 
 def test_run_local_onehop_tests_one_only():

@@ -1,8 +1,6 @@
 from typing import Optional, Dict, List
-from json import dumps
 
-import logging
-from pprint import PrettyPrinter
+from json import dumps
 
 import requests
 from jsonschema import ValidationError
@@ -13,9 +11,8 @@ from reasoner_validator.util import latest
 from reasoner_validator.biolink import check_biolink_model_compliance_of_knowledge_graph
 from translator.sri import get_aliases
 
+import logging
 logger = logging.getLogger(__name__)
-
-pp = PrettyPrinter(indent=4)
 
 # For testing, set TRAPI API query POST timeouts to 10 minutes == 600 seconds
 DEFAULT_TRAPI_POST_TIMEOUT = 600.0
@@ -27,6 +24,10 @@ MAX_NO_OF_EDGES = 10
 # Default is actually specifically 1.2.0 as of March 2022,
 # but the reasoner_validator should discern this
 _current_trapi_version = None
+
+
+def _output(json):
+    return dumps(json, sort_keys=False, indent=4)
 
 
 def set_trapi_version(version: Optional[str] = None):
@@ -76,15 +77,15 @@ def check_provenance(ara_case, ara_response):
     number_of_edges_viewed = 0
     for edge in edges.values():
 
-        error_msg_prefix = f"Edge:\n{pp.pformat(edge)}\nfrom ARA 'infores:{ara_case['ara_infores']}', "
+        error_msg_prefix = f"Edge:\n{_output(edge)}\nfrom ARA 'infores:{ara_case['ara_infores']}', "
 
         # Every edge should always have at least *some* (provenance source) attributes
         if 'attributes' not in edge.keys():
-            assert False, f"Edge '{pp.pformat(edge)}' has no 'attributes' key?"
+            assert False, f"Edge '{_output(edge)}' has no 'attributes' key?"
 
         attributes = edge['attributes']
         if not attributes:
-            assert False, f"Edge '{pp.pformat(edge)}' has no attributes?"
+            assert False, f"Edge '{_output(edge)}' has no attributes?"
 
         # Expecting ARA and KP 'aggregator_knowledge_source' attributes?
         found_ara_knowledge_source = False
@@ -173,10 +174,6 @@ def check_provenance(ara_case, ara_response):
         number_of_edges_viewed += 1
         if number_of_edges_viewed >= MAX_NO_OF_EDGES:
             break
-
-
-def _output(json):
-    return dumps(json, sort_keys=False, indent=4)
 
 
 def call_trapi(url: str, opts, trapi_message):
@@ -299,6 +296,6 @@ def execute_trapi_lookup(case, creator, rbag):
         if not any([alias == object_id for alias in output_aliases for object_id in object_ids]):
             assert False, f"{err_msg_prefix} neither the input id '{case[output_element]}' " +\
                           f"nor resolved aliases [{','.join(output_aliases)}] were returned in the " +\
-                          f"Result object IDs {pp.pformat(object_ids)} for node '{output_node_binding}' binding?"
+                          f"Result object IDs {_output(object_ids)} for node '{output_node_binding}' binding?"
 
     return response_message

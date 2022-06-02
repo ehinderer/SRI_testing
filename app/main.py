@@ -2,14 +2,14 @@
 FastAPI web service wrapper for SRI Testing harness
 (i.e. for reports to a Translator Runtime Status Dashboard)
 """
-from typing import Optional, Dict, List
+from typing import Optional, Union, List, Dict
 from pydantic import BaseModel
 
 import uvicorn
 from fastapi import FastAPI
 
 from reasoner_validator.util import latest
-from app.util import OneHopTestHarness, DEFAULT_WORKER_TIMEOUT
+from app.util import OneHopTestHarness, DEFAULT_WORKER_TIMEOUT, SRITestReport
 
 app = FastAPI()
 
@@ -88,7 +88,7 @@ async def run_tests(test_parameters: TestRunParameters) -> Dict:
 
 @app.get("/report/{session_id}")
 async def get_report(session_id: str):
-    report: List[str] = OneHopTestHarness.get_report(session_id)
+    report: Optional[Union[str, SRITestReport]] = OneHopTestHarness.get_report(session_id)
     return {
         "session_id": session_id,
         "report": report

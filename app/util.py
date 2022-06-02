@@ -5,12 +5,13 @@ The module launches the SRT Testing test harness using the Python 'multiprocesso
 See https://docs.python.org/3/library/multiprocessing.html?highlight=multiprocessing for details.
 """
 from typing import Optional, Union, List, Dict
-from os import linesep
-
+from os import path
+import time
 from uuid import UUID
 
 import re
 
+from tests import TEST_DATA_DIR
 from translator.sri.testing.processor import CMD_DELIMITER, WorkerProcess
 from tests.onehop import ONEHOP_TEST_DIRECTORY
 
@@ -22,7 +23,7 @@ logger = logging.getLogger()
 #
 DEFAULT_WORKER_TIMEOUT = 120  # 2 minutes for small PyTests?
 
-SHORT_TEST_SUMMARY_INFO_HEADER_PATTERN = re.compile(rf"=+\sshort\stest\ssummary\sinfo\s=+{linesep}")
+SHORT_TEST_SUMMARY_INFO_HEADER_PATTERN = re.compile(rf"=+\sshort\stest\ssummary\sinfo\s=+(\r?\n)")
 
 #
 # Examples:
@@ -35,16 +36,42 @@ PASSED_SKIPPED_FAILED_PATTERN = re.compile(
     r"(test_trapi_(?P<component>kp|ara)s|\s)?(\[(?P<case>[^]]+)])?(?P<tail>.+)?$"
 )
 
+PYTEST_SUMMARY_PATTERN = re.compile(
+    r"^=+(\s(?P<passed>\d+)\spassed,?)?(\s(?P<failed>\d+)\sfailed,?)?"
+    r"(\s(?P<skipped>\d+)\sskipped,?)?(\s(?P<warning>\d+)\swarning)?.+$"
+)
 
-def _parse_result(raw_report: str) -> List[Union[str, List[str]]]:
+"""
+TestReport is a multi-level indexed
+dictionary of captured error messages,
+(including a summary count).
+"""
+SRITestReport = Dict[
+        str,
+        Dict[
+            str,
+            Union[
+                str,   # summary counts
+                Dict[  # test case error messages
+                    str,
+                    List[str]
+                ]
+            ]
+        ]
+    ]
+
+
+def parse_result(raw_report: str) -> SRITestReport:
     """
     Extract summary of Pytest output as SRI Testing report.
 
-    :param raw_report: str, raw Pytest output
-    :return: str, short summary of test outcome (mostly errors)
+    :param raw_report: str, raw Pytest stdout content from test run with the -r option.
+
+    :return: TestReport, a structured summary of OneHopTestHarness test outcomes
     """
     if not raw_report:
-        return ["Empty report?"]
+        return dict()
+
     part = SHORT_TEST_SUMMARY_INFO_HEADER_PATTERN.split(raw_report)
     if len(part) > 1:
         output = part[-1].strip()
@@ -53,51 +80,61 @@ def _parse_result(raw_report: str) -> List[Union[str, List[str]]]:
 
     # This splits the test section of interest
     # into lines, to facilitate further processing
-    top_level = output.split(linesep)
+    top_level = output.replace('\r', '')
+    top_level = top_level.split('\n')
 
-    report: Dict[
-        str,
-        List[
-            Union[
-                str,
-                List[str]
-            ]
-        ]
-    ] = {
-        "PASSED": list(),
-        "FAILED": list(),
-        "SKIPPED": list(),
-    }
-    previous: str = ""
+    report: SRITestReport = dict()
+    current_component = current_outcome = current_case = "UNKNOWN"
     for line in top_level:
         line = line.strip()  # spurious leading and trailing whitespace removed
-        # TODO: might later use these regex outputs
-        #       to introduce more structure into the report
-        psf = PASSED_SKIPPED_FAILED_PATTERN.match(line)
-        if psf:
-            outcome = psf["outcome"]
-            component = psf["component"]
-            if not (component and component in ["kp", "ara"]):
-                component = "input"
-            case = psf["case"]
-            if not case:
-                component = "input"
-            tail = psf["tail"]
-
-            previous = [line]
+        if not line:
+            continue  # ignore blank lines
+        psp = PYTEST_SUMMARY_PATTERN.match(line)
+        if psp:
+            # PyTest summary line encountered?
+            # Extract and send it back in the report.
+            p_num = psp["passed"]
+            f_num = psp["failed"]
+            s_num = psp["skipped"]
+            w_num = psp["warning"]
+            if "SUMMARY" not in report:
+                report["SUMMARY"] = {
+                    "PASSED":  p_num if p_num else "0",
+                    "FAILED":  f_num if f_num else "0",
+                    "SKIPPED": s_num if s_num else "0",
+                    "WARNING": w_num if w_num else "0"
+                }
         else:
-            if line.startswith("\t"):
-                line = line.strip()
-                if isinstance(previous, str):
-                    previous = [previous] if previous else []
-                previous.append(line)
+            # all other lines are assumed to be specific PyTest unit test outcomes
+            psf = PASSED_SKIPPED_FAILED_PATTERN.match(line)
+            if psf:
+                outcome: str = psf["outcome"]
+                if outcome != current_outcome:
+                    current_outcome = outcome
+
+                component: Optional[str] = psf["component"]
+                if not component:
+                    component = "INPUT"
+                if component != current_component:
+                    current_component = component.upper()
+
+                case: Optional[str] = psf["case"]
+                if case != current_case:
+                    current_case = case
+
+                if current_component not in report:
+                    report[current_component] = dict()
+                if current_outcome not in report[current_component]:
+                    report[current_component][current_outcome] = dict()
+                if current_case not in report[current_component][current_outcome]:
+                    report[current_component][current_outcome][current_case] = list()
+
+                tail: Optional[str] = psf["tail"]
+                if tail:
+                    report[current_component][current_outcome][current_case].append(tail)
             else:
-                if previous:
-                    report.append(previous)
-                previous = line
+                report[current_component][current_outcome][current_case].append(line)
 
-
-    report.append(previous)
     return report
 
 
@@ -111,7 +148,7 @@ class OneHopTestHarness:
         self._process: Optional[WorkerProcess] = None
         self._session_id: Optional[UUID] = None
         self._result: Optional[str] = None
-        self._report: List[Union[str, List[str]]] = list()
+        self._report: Optional[SRITestReport] = None
         self._timeout: Optional[int] = timeout
 
     def get_worker(self) -> Optional[WorkerProcess]:
@@ -182,33 +219,49 @@ class OneHopTestHarness:
 
         return session_id_string
     
-    def get_testrun_report(self) -> List[Union[str, List[str]]]:
-        # generate and cache the report the first time this method is called
+    def get_testrun_report(self) -> Optional[Union[str, SRITestReport]]:
+        """
+        Generates and caches a OneHopTestHarness test report the first time this method is called.
+
+        :return: Optional[Union[str, TestReport]], structured Pytest report from the OneHopTest of
+                 target KPs & ARAs, or a single string global error message, or None (if still unavailable)
+        """
         if not self._report:
             if self._session_id:
                 self._result = self._process.get_output(self._session_id)
                 if self._result:
-                    self._report = _parse_result(self._result)
+                    # ts stores the time in seconds
+                    ts = time.time()
+                    sample_file_path = path.join(TEST_DATA_DIR, f"sample_pytest_report_{ts}.txt")
+                    with open(sample_file_path, "w") as sf:
+                        sf.write(self._result)
+
+                    self._report = parse_result(self._result)
             else:
                 if self._result:
-                    self._report = [self._result]  # likely a simple raw error message
+                    self._report = [self._result]  # likely a simple raw error message from a global error
                 else:
+                    # totally opaque OneHopTestHarness test run failure?
                     self._report = [f"Worker process failed to execute command line '{self._command_line}'?"]
-            # TODO: at this point, we might wish to cache generated reports
-            #       to the local hard disk system, indexed by the session_id
+            # TODO: at this point, we might wish to persist the generated reports
+            #       onto the local hard disk system, indexed by the session_id
         return self._report
     
     @classmethod
-    def get_report(cls, session_id_str: str) -> List[Union[str, List[str]]]:
+    def get_report(cls, session_id_str: str) -> Optional[Union[str, SRITestReport]]:
         """
+        Looks up the OneHopTestHarness for the specified 'session_id_str'
+        then returns its (possibly just-in-time generated or cached) test report.
 
         :param session_id_str: str, UUID session_id of the OneHopTestHarness running the test
-        :return: List[str], line-by-line Pytest report from the OneHopTest of target KPs & ARAs
+
+        :return: Optional[Union[str, TestReport]], structured Pytest report from the OneHopTest of
+                 target KPs & ARAs, or a single string global error message, or None (if still unavailable)
         """
         assert session_id_str  # should not be empty
         
         if session_id_str not in cls._session_id_2_testrun:
-            return [f"Unknown Worker Process 'session_id': {session_id_str}"]
+            return f"Unknown Worker Process 'session_id': {session_id_str}"
         
         testrun = cls._session_id_2_testrun[session_id_str]
         
