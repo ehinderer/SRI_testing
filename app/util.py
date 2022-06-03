@@ -47,13 +47,13 @@ dictionary of captured error messages,
 (including a summary count).
 """
 SRITestReport = Dict[
-        str,
+        str,  # component in ["INPUT", "KP", "ARA", "SUMMARY"]
         Dict[
-            str,
+            str,  # outcome in ["PASSED", "FAILED", "SKIPPED", "WARNING"]
             Union[
                 str,   # summary counts
                 Dict[  # test case error messages
-                    str,
+                    str,  # case identifier
                     List[str]
                 ]
             ]
