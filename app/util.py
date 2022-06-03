@@ -61,6 +61,15 @@ SRITestReport = Dict[
     ]
 
 
+def add_report_slot(report: SRITestReport, component: str, outcome: str, case: str):
+    if component not in report:
+        report[component] = dict()
+    if outcome not in report[component]:
+        report[component][outcome] = dict()
+    if case not in report[component][outcome]:
+        report[component][outcome][case] = list()
+
+
 def parse_result(raw_report: str) -> SRITestReport:
     """
     Extract summary of Pytest output as SRI Testing report.
@@ -122,18 +131,14 @@ def parse_result(raw_report: str) -> SRITestReport:
                 if case != current_case:
                     current_case = case
 
-                if current_component not in report:
-                    report[current_component] = dict()
-                if current_outcome not in report[current_component]:
-                    report[current_component][current_outcome] = dict()
-                if current_case not in report[current_component][current_outcome]:
-                    report[current_component][current_outcome][current_case] = list()
+                add_report_slot(report, current_component, current_outcome, current_case)
 
                 tail: Optional[str] = psf["tail"]
                 if tail:
                     tail = tail.strip()  # strip off spurious blanks on the ends
                     report[current_component][current_outcome][current_case].append(tail)
             else:
+                add_report_slot(report, current_component, current_outcome, current_case)
                 report[current_component][current_outcome][current_case].append(line)
 
     return report
