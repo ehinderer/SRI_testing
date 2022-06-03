@@ -31,7 +31,7 @@ def test_run_local_onehop_tests_one_only():
     session_id: str = onehop_test.run(
         trapi_version="1.2",
         biolink_version="2.2.16",
-        triple_source="test_triples/KP/Unit_Test_KP/Test_KP.json",
+        triple_source="test_triples/KP/Unit_Test_KP/Test_KP_1.json",
         ara_source="test_triples/ARA/Unit_Test_ARA/Test_ARA.json",
         one=True
     )
@@ -44,7 +44,7 @@ def test_run_local_onehop_tests_all():
     session_id: str = onehop_test.run(
         trapi_version="1.2",
         biolink_version="2.2.16",
-        triple_source="test_triples/KP/Unit_Test_KP/Test_KP.json",
+        triple_source="test_triples/KP/Unit_Test_KP/Test_KP_1.json",
         ara_source="test_triples/ARA/Unit_Test_ARA/Test_ARA.json"
     )
     assert session_id
@@ -56,7 +56,7 @@ def test_run_local_onehop_tests_all_older_trapi_version():
     session_id: str = onehop_test.run(
         trapi_version="1.0.0",
         biolink_version="2.2.16",
-        triple_source="test_triples/KP/Unit_Test_KP/Test_KP.json",
+        triple_source="test_triples/KP/Unit_Test_KP/Test_KP_1.json",
         ara_source="test_triples/ARA/Unit_Test_ARA/Test_ARA.json"
     )
     assert session_id
@@ -68,7 +68,7 @@ def test_run_local_onehop_tests_all_older_blm_version():
     session_id: str = onehop_test.run(
         trapi_version="1.2.0",
         biolink_version="1.8.2",
-        triple_source="test_triples/KP/Unit_Test_KP/Test_KP.json",
+        triple_source="test_triples/KP/Unit_Test_KP/Test_KP_1.json",
         ara_source="test_triples/ARA/Unit_Test_ARA/Test_ARA.json"
     )
     assert session_id

@@ -204,7 +204,7 @@ class OneHopTestHarness:
                 logger.error(f"This OneHopTestHarness test run has an unmapped or expired UUID '{session_id_string}'")
         else:
             self._command_line = f"cd {ONEHOP_TEST_DIRECTORY} {CMD_DELIMITER} " + \
-                                 f"pytest -rA --tb=long --log-cli-level=ERROR test_onehops.py"
+                                 f"pytest -rA --tb=line -vv --log-cli-level=ERROR test_onehops.py"
             self._command_line += f" --TRAPI_Version={trapi_version}" if trapi_version else ""
             self._command_line += f" --Biolink_Version={biolink_version}" if biolink_version else ""
             self._command_line += f" --triple_source={triple_source}" if triple_source else ""

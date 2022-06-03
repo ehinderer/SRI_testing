@@ -82,7 +82,7 @@ _SAMPLE_BIOLINK_ERRORS = [
         ),
         (   # Query 4 - Really complex Pytest output line
             "SKIPPED [1] test_onehops.py:38: [https://raw.githubusercontent.com/TranslatorSRI/SRI_testing/main/tests/" +
-            "onehop/test_triples/KP/Unit_Test_KP/Test_KP.json] KP test for all test case S-P-O triples from this " +
+            "onehop/test_triples/KP/Unit_Test_KP/Test_KP_1.json] KP test for all test case S-P-O triples from this " +
             "location or just for the test case S-P-O triple '(PANTHER.FAMILY:PTHR34921:SF1:biolink:GeneFamily)--" +
             "[biolink:part_of]->(PANTHER.FAMILY:PTHR34921:biolink:GeneFamily)'?",
 
@@ -91,7 +91,7 @@ _SAMPLE_BIOLINK_ERRORS = [
             None,  # not a 'component' test
 
             "https://raw.githubusercontent.com/TranslatorSRI/SRI_testing/" +
-            "main/tests/onehop/test_triples/KP/Unit_Test_KP/Test_KP.json",
+            "main/tests/onehop/test_triples/KP/Unit_Test_KP/Test_KP_1.json",
 
             " KP test for all test case S-P-O triples from this location or just for the test case S-P-O triple " +
             "'(PANTHER.FAMILY:PTHR34921:SF1:biolink:GeneFamily)--[biolink:part_of]->" +
@@ -100,7 +100,7 @@ _SAMPLE_BIOLINK_ERRORS = [
         ),
         (   # Query 5 - Another really complex Pytest output line
             "SKIPPED [1] test_onehops.py:38: [https://raw.githubusercontent.com/TranslatorSRI/SRI_testing/main/tests/" +
-            "onehop/test_triples/KP/Unit_Test_KP/Test_KP.json] ARA test case S-P-O triple " +
+            "onehop/test_triples/KP/Unit_Test_KP/Test_KP_1.json] ARA test case S-P-O triple " +
             "'(PANTHER.FAMILY:PTHR34921:SF1:biolink:GeneFamily)--[biolink:part_of]->" +
             "(PANTHER.FAMILY:PTHR34921:biolink:GeneFamily)', since it is not Biolink Model compliant " +
             f"with model version 2.2.16:",
@@ -110,7 +110,7 @@ _SAMPLE_BIOLINK_ERRORS = [
             None,  # not a 'component' test
 
             "https://raw.githubusercontent.com/TranslatorSRI/SRI_testing/main/tests/" +
-            "onehop/test_triples/KP/Unit_Test_KP/Test_KP.json",
+            "onehop/test_triples/KP/Unit_Test_KP/Test_KP_1.json",
 
             " ARA test case S-P-O triple " +
             "'(PANTHER.FAMILY:PTHR34921:SF1:biolink:GeneFamily)--[biolink:part_of]->" +
@@ -180,7 +180,7 @@ def test_pytest_summary(query):
 
 
 SAMPLE_CASE = "https://raw.githubusercontent.com/TranslatorSRI/SRI_testing/" + \
-              "main/tests/onehop/test_triples/KP/Unit_Test_KP/Test_KP.json"
+              "main/tests/onehop/test_triples/KP/Unit_Test_KP/Test_KP_1.json"
 
 
 @pytest.mark.parametrize(

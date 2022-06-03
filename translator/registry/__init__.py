@@ -19,11 +19,11 @@ logger = logging.getLogger(__name__)
 # (and test data in the SRI Testing project repository)
 _MOCK_REGISTRY: bool = True
 _MOCK_TRANSLATOR_SMARTAPI_REGISTRY_METADATA = {
-    "total": 2,
+    "total": 3,
     "hits": [
         {
             "info": {
-                "title": "Unit Test Knowledge Provider",
+                "title": "Unit Test Knowledge Provider 1",
                 "version": "0.0.1",
                 "x-translator": {
                     "component": "KP",
@@ -34,7 +34,24 @@ _MOCK_TRANSLATOR_SMARTAPI_REGISTRY_METADATA = {
                 "x-trapi": {
                     "version": "1.2.0",
                     "test_data_location": "https://raw.githubusercontent.com/TranslatorSRI/SRI_testing/main/" +
-                                          "tests/onehop/test_triples/KP/Unit_Test_KP/Test_KP.json"
+                                          "tests/onehop/test_triples/KP/Unit_Test_KP/Test_KP_1.json"
+                }
+            }
+        },
+        {
+            "info": {
+                "title": "Unit Test Knowledge Provider 2",
+                "version": "0.0.1",
+                "x-translator": {
+                    "component": "KP",
+                    "infores": "infores:ontological-hierarchy",
+                    "team": "Ranking Agent",
+                    "biolink-version": "2.2.16"
+                },
+                "x-trapi": {
+                    "version": "1.2.0",
+                    "test_data_location": "https://raw.githubusercontent.com/TranslatorSRI/SRI_testing/main/" +
+                                          "tests/onehop/test_triples/KP/Unit_Test_KP/Test_KP_2.json"
                 }
             }
         },

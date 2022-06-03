@@ -2,6 +2,7 @@
     "url": "https://aragorn.renci.org/1.2",
     "infores": "aragorn",
     "KPs": [
-        "Test KP"
+        "Test KP 1",
+        "Test KP 2"
     ]
 }
