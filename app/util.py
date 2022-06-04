@@ -113,6 +113,9 @@ class ResourceEntry:
         
         self.resource_id = resource_id
 
+        # Ordered list of test data Edge entries with test reports,
+        # numerically indexed by their order of appearance
+        # in the input data file being tested
         self.edges: List[Optional[EdgeEntry]] = list()
 
     def get_edge_entry(
@@ -154,8 +157,9 @@ class SRITestReport:
     def __init__(self):
         self.report: Dict[
             # component in ["KP", "ARA", "SUMMARY"] 
-            # "INPUT" components should now be assigned
-            # as coming either from a KP or ARA (by ID)
+            # Components formerly tagged as "INPUT" should now be
+            # assigned as coming in either from a KP or ARA
+            # (as discerned by looking up the resource by identifier)
             str,  
             Dict[  # "component"
                 # if dictionary key == "SUMMARY", then
@@ -169,14 +173,15 @@ class SRITestReport:
                     # if SUMMARY, then
                     #   summary count values as strings
                     str,
-                    # else
-                    #    ordered list of test data Edge test reports,
-                    #    numerically indexed by their order of appearance
-                    #    in the input data file being tested
+                    # else the details about the KP or ARA
+                    # resource deferenced by the above identifier
                     ResourceEntry
                 ]
             ]
         ] = dict()
+
+        # Simple multi-level Python object representing the report
+        self._output: Optional[Dict] = None
 
     def get_resource_entry(
             self,
@@ -230,6 +235,36 @@ class SRITestReport:
                 "SKIPPED": s_num if s_num else "0",
                 "WARNING": w_num if w_num else "0"
             }
+
+    def output(self, refresh: bool = False) -> Optional[Dict]:
+        """
+        Dump a simple Python object representation of the SRITestingReport.
+
+        :param refresh: boolean flag, if True, then force a rebuilding of the
+                        output object from the internal SRITestingReport representation.
+        :type: bool
+        :return: multi-level Python object representing the report.
+        :rtype: Dict
+        """
+        if not self._output or refresh:
+            self._output = dict()
+
+            for component in ["KP", "ARA", "SUMMARY"]:
+                self._output[component] = dict()
+                if component == "SUMMARY":
+                    for outcome in ["PASSED", "FAILED", "SKIPPED", "WARNING"]:
+                        self._output["SUMMARY"][outcome] = self.report["SUMMARY"][outcome]
+                else:
+                    for resource_id, resource_entry in self.report[component].items():
+                        self._output[component][resource_id]: List[Dict] = dict()
+                        for edge in resource_entry.edges:
+                            # skip all empty EdgeEntry instances...
+                            if not edge:
+                                continue
+                            for tag in []:
+                                pass  # TODO: load the EdgeEntry contents including test messages
+
+        return self._output
 
 
 def get_component_by_resource(resource_id: str) -> Optional[str]:
@@ -391,7 +426,7 @@ class OneHopTestHarness:
 
         return session_id_string
     
-    def get_testrun_report(self) -> Optional[Union[str, SRITestReport]]:
+    def get_testrun_report(self) -> Optional[Union[str, Dict]]:
         """
         Generates and caches a OneHopTestHarness test report the first time this method is called.
 
@@ -417,7 +452,7 @@ class OneHopTestHarness:
                     self._report = [f"Worker process failed to execute command line '{self._command_line}'?"]
             # TODO: at this point, we might wish to persist the generated reports
             #       onto the local hard disk system, indexed by the session_id
-        return self._report
+        return self._report.output()
     
     @classmethod
     def get_report(cls, session_id_str: str) -> Optional[Union[str, SRITestReport]]:
