@@ -4,7 +4,7 @@ Utility module to support SRI Testing web service.
 The module launches the SRT Testing test harness using the Python 'multiprocessor' library.
 See https://docs.python.org/3/library/multiprocessing.html?highlight=multiprocessing for details.
 """
-from typing import Optional, Union, List, Dict
+from typing import Optional, Union, List, Dict, Tuple
 from os import path
 import time
 from uuid import UUID
@@ -23,7 +23,7 @@ logger = logging.getLogger()
 #
 DEFAULT_WORKER_TIMEOUT = 120  # 2 minutes for small PyTests?
 
-SHORT_TEST_SUMMARY_INFO_HEADER_PATTERN = re.compile(rf"=+\sshort\stest\ssummary\sinfo\s=+(\r?\n)")
+SHORT_TEST_SUMMARY_INFO_HEADER_PATTERN = re.compile(r"=+\sshort\stest\ssummary\sinfo\s=+")
 
 #
 # Examples:
@@ -42,35 +42,203 @@ PYTEST_SUMMARY_PATTERN = re.compile(
 )
 
 """
-TestReport is a multi-level indexed
-dictionary of captured error messages,
-(including a summary count).
+TestReport is a multi-level indexed EdgeTestReport
+dictionary of captured error messages, plus an error summary.
 """
-SRITestReport = Dict[
-        str,  # component in ["INPUT", "KP", "ARA", "SUMMARY"]
-        Dict[
-            str,  # outcome in ["PASSED", "FAILED", "SKIPPED", "WARNING"]
+
+
+# Edge entry from a resource's test data,
+# annotated with test outcomes
+class EdgeEntry:
+    def __init__(
+            self,
+            # The contents of the original Edge
+            # input data used to generate test cases.
+            subject_category: str,
+            object_category: str,
+            predicate: str,
+            subject_id: str,
+            object_id: str
+    ):
+        self.edge: Dict[
+            # Controlled vocabulary 'field name' for Edge metadata and
+            # error outcomes (the latter tagged with field name  'tests'?)
+            str,
             Union[
-                str,   # summary counts
-                Dict[  # test case error messages
-                    str,  # case identifier
-                    List[str]
+                # For simple text Edge metadata, the value here is a string from the
+                # original contents of the given Edge record from the input data file
+                str,
+                # if the above 'field name' is 'tests' then a 
+                # dictionary of test results (i.e. error messages)
+                # is provided here, indexed by unit test identifiers (e.g. by_subject)
+                # or by the generic 'input' designation of error source.
+                Dict[
+                    # unit test specific tag, i.e. by_subject, etc.
+                    # or the generic pretest 'input' validation tag
+                    str,
+                    Dict[
+                        # error dictionary keys are in 
+                        # ["PASSED", "FAILED", "SKIPPED", "WARNING"]
+                        str,
+                        # List of error messages (or empty list, if simply 'PASSED')
+                        List[str]
+                    ]
                 ]
             ]
-        ]
-    ]
+        ] = {
+            "subject_category": subject_category,
+            "object_category": object_category,
+            "predicate": predicate,
+            "subject": subject_id,
+            "object": object_id,
+            "tests": dict()
+        }
+
+    def add_test_result(self, test_label: str, outcome: str, message: str):
+        assert outcome in ["PASSED", "FAILED", "SKIPPED", "WARNING"]
+        if not test_label:
+            test_label = "input"
+        if test_label not in self.edge["tests"]:
+            self.edge["tests"][test_label] = dict()
+        if outcome not in self.edge["tests"][test_label]:
+            self.edge["tests"][test_label][outcome] = list()
+        self.edge["tests"][test_label][outcome].append(message)
 
 
-def add_report_slot(report: SRITestReport, component: str, outcome: str, case: str):
-    if component not in report:
-        report[component] = dict()
-    if outcome not in report[component]:
-        report[component][outcome] = dict()
-    if case not in report[component][outcome]:
-        report[component][outcome][case] = list()
+class ResourceEntry:
+    
+    def __init__(self, component: str, resource_id):
+        assert component in ["KP", "ARA"]
+        self.component = component
+        
+        self.resource_id = resource_id
+
+        self.edges: List[Optional[EdgeEntry]] = list()
+
+    def get_edge_entry(
+            self,
+            current_edge_number: int
+    ) -> EdgeEntry:
+
+        # TODO: Stub implementation... Not really sure yet how best
+        #       to set or access this Edge metadata, specified in
+        #       the conftest.py, before the Pytest. Probably simply
+        #       need to look persist it globally then look it up!
+        if len(self.edges) <= current_edge_number:
+            while len(self.edges) <= current_edge_number:
+                self.edges.append(None)   # probably won't normally stay None, but...
+            edge_entry: EdgeEntry = EdgeEntry(
+                subject_category="UNKNOWN",
+                object_category="UNKNOWN",
+                predicate="UNKNOWN",
+                subject_id="UNKNOWN",
+                object_id="UNKNOWN",
+            )
+            self.edges[current_edge_number] = edge_entry
+
+        return self.edges[current_edge_number]
+
+    def add_test_result(
+            self,
+            edge_number: int,
+            test_label: str,
+            outcome: str,
+            message: str
+    ):
+        edge_entry: EdgeEntry = self.get_edge_entry(edge_number)
+        edge_entry.add_test_result(test_label, outcome, message)
 
 
-def parse_result(raw_report: str) -> SRITestReport:
+class SRITestReport:
+
+    def __init__(self):
+        self.report: Dict[
+            # component in ["KP", "ARA", "SUMMARY"] 
+            # "INPUT" components should now be assigned
+            # as coming either from a KP or ARA (by ID)
+            str,  
+            Dict[  # "component"
+                # if dictionary key == "SUMMARY", then
+                #    dictionary keys are in ["PASSED", "FAILED", "SKIPPED", "WARNING"]
+                # else
+                #    dictionary keys are the identifier of the resource
+                #    being tested (of the KP or ARA), either the
+                #    test_data_location URL, or just a local test file name
+                str,
+                Union[
+                    # if SUMMARY, then
+                    #   summary count values as strings
+                    str,
+                    # else
+                    #    ordered list of test data Edge test reports,
+                    #    numerically indexed by their order of appearance
+                    #    in the input data file being tested
+                    ResourceEntry
+                ]
+            ]
+        ] = dict()
+
+    def get_resource_entry(
+            self,
+            component: str,
+            resource_id: str
+    ) -> ResourceEntry:
+        
+        assert component in ["KP", "ARA"]
+        if component not in self.report:
+            self.report[component] = dict()
+            
+        # Identifier of the Resource being tested (of the KP or ARA),
+        # either the test_data_location URL, or a local test file name
+        if resource_id not in self.report[component]:
+            # Ordered list of reports for test data Edges,
+            # numerically index by their order of appearance
+            # in the input data file being tested
+            self.report[component][resource_id] = ResourceEntry(component, resource_id)
+            
+        return self.report[component][resource_id]
+
+    @staticmethod
+    def parse_test_case(case: str) -> Tuple[str, int, str]:
+        """
+        Parse the test case identifier into its component parts:
+        (KP/ARA) resource_id, edge_num, unit_test_id.
+
+        :param case: composite identifier generated in conftest unit test setup
+        :type: str
+        :return: resource_id, edge_num, test_id
+        :rtype: Tuple[str, str, str]
+        """
+        return "", 0, ""
+
+    def add_summary(self, p_num: str, f_num: str, s_num: str, w_num: str):
+        """
+        Add a summary record to the report.
+        :param p_num: number of PASSED tests
+        :type: str
+        :param f_num:  number of FAILED tests
+        :type: str
+        :param s_num: number of SKIPPED tests
+        :type: str
+        :param w_num: number of test WARNING messages
+        :type: str
+        """
+        if "SUMMARY" not in self.report:
+            self.report["SUMMARY"] = {
+                "PASSED": p_num if p_num else "0",
+                "FAILED": f_num if f_num else "0",
+                "SKIPPED": s_num if s_num else "0",
+                "WARNING": w_num if w_num else "0"
+            }
+
+
+def get_component_by_resource(resource_id: str) -> Optional[str]:
+    # TODO: Fix this! The resource component type is actually known
+    #       during conftest.py Pytest pre-processing so look it up!
+    return "KP"   # mock implementation
+
+
+def parse_result(raw_report: str) -> Optional[SRITestReport]:
     """
     Extract summary of Pytest output as SRI Testing report.
 
@@ -79,7 +247,7 @@ def parse_result(raw_report: str) -> SRITestReport:
     :return: TestReport, a structured summary of OneHopTestHarness test outcomes
     """
     if not raw_report:
-        return dict()
+        return None
 
     part = SHORT_TEST_SUMMARY_INFO_HEADER_PATTERN.split(raw_report)
     if len(part) > 1:
@@ -92,54 +260,52 @@ def parse_result(raw_report: str) -> SRITestReport:
     top_level = output.replace('\r', '')
     top_level = top_level.split('\n')
 
-    report: SRITestReport = dict()
-    current_component = current_outcome = current_case = "UNKNOWN"
+    report: SRITestReport = SRITestReport()
+    current_component = current_outcome = current_case = current_resource_id = current_test_id = "UNKNOWN"
+    current_edge_number = -1
     for line in top_level:
         line = line.strip()  # spurious leading and trailing whitespace removed
         if not line:
             continue  # ignore blank lines
         psp = PYTEST_SUMMARY_PATTERN.match(line)
         if psp:
-            # PyTest summary line encountered?
-            # Extract and send it back in the report.
-            p_num = psp["passed"]
-            f_num = psp["failed"]
-            s_num = psp["skipped"]
-            w_num = psp["warning"]
-            if "SUMMARY" not in report:
-                report["SUMMARY"] = {
-                    "PASSED":  p_num if p_num else "0",
-                    "FAILED":  f_num if f_num else "0",
-                    "SKIPPED": s_num if s_num else "0",
-                    "WARNING": w_num if w_num else "0"
-                }
+            # PyTest summary line encountered.
+            report.add_summary(
+                psp["passed"],
+                psp["failed"],
+                psp["skipped"],
+                psp["warning"]
+            )
+
         else:
-            # all other lines are assumed to be specific PyTest unit test outcomes
+            # all other lines are assumed to be PyTest unit test outcomes
             psf = PASSED_SKIPPED_FAILED_PATTERN.match(line)
             if psf:
                 outcome: str = psf["outcome"]
                 if outcome != current_outcome:
                     current_outcome = outcome
 
-                component: Optional[str] = psf["component"]
-                if not component:
-                    component = "INPUT"
-                if component != current_component:
-                    current_component = component.upper()
-
                 case: Optional[str] = psf["case"]
                 if case != current_case:
                     current_case = case
+                    current_resource_id, current_edge_number, current_test_id = report.parse_test_case(current_case)
 
-                add_report_slot(report, current_component, current_outcome, current_case)
+                component: Optional[str] = psf["component"]
+                if not component:
+                    component = get_component_by_resource(current_resource_id)
+                if component != current_component:
+                    current_component = component.upper()
+
+                resource_entry: ResourceEntry = report.get_resource_entry(current_component, current_resource_id)
 
                 tail: Optional[str] = psf["tail"]
                 if tail:
-                    tail = tail.strip()  # strip off spurious blanks on the ends
-                    report[current_component][current_outcome][current_case].append(tail)
+                    # strip off spurious blanks in the tail message
+                    tail = tail.strip()
+                    resource_entry.add_test_result(current_edge_number, current_test_id, outcome, tail)
             else:
-                add_report_slot(report, current_component, current_outcome, current_case)
-                report[current_component][current_outcome][current_case].append(line)
+                resource_entry: ResourceEntry = report.get_resource_entry(current_component, current_resource_id)
+                resource_entry.add_test_result(current_edge_number, current_test_id, current_outcome, line)
 
     return report
 
