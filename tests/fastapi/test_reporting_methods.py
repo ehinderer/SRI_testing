@@ -4,7 +4,6 @@ Test SRI Testing reporting code snippets
 from typing import Optional, Union, Dict
 
 import pytest
-from sys import stderr
 from os import linesep, path
 
 from app.util import (
@@ -15,6 +14,7 @@ from app.util import (
     SRITestReport,
     parse_result
 )
+from tests.onehop.conftest import set_resource_component, add_kp_edge, generate_edge_id
 from tests import TEST_DATA_DIR
 
 
@@ -267,6 +267,25 @@ def test_pytest_summary(query):
         assert match["warning"] == '4', f"{TPS} 'warning' field not matched?"
 
 
+def mock_pytest_setup():
+    # need to fake a few Pytest preconditions
+    # (i.e. which would normally be set in the conftest.py)
+    resource_id = "Test_KP"
+    set_resource_component(resource_id, "KP")
+    mock_edge = {
+        "subject_category": "PANTHER.FAMILY:PTHR34921:SF1:biolink:GeneFamily",
+        "object_category": "PANTHER.FAMILY:PTHR34921:SF1:biolink:GeneFamily",
+        "predicate": "biolink:part_of",
+        "subject_id": "PANTHER.FAMILY:PTHR34921",
+        "object_id": "PANTHER.FAMILY:PTHR34921"
+    }
+    for edge_i in range(0, 5):
+        edge_id: str = generate_edge_id(resource_id, edge_i)
+        edge: Dict = mock_edge.copy()
+        edge["#"] = edge_i
+        add_kp_edge(edge_id, edge)
+
+
 @pytest.mark.parametrize(
     "query",
     [
@@ -283,6 +302,7 @@ def test_pytest_summary(query):
     ]
 )
 def test_parse_test_output(query):
+    mock_pytest_setup()
     sample_file_path = path.join(TEST_DATA_DIR, query[0])
     with open(sample_file_path, "r") as sf:
         raw_result = sf.read()

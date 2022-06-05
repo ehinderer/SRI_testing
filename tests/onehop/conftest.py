@@ -309,6 +309,10 @@ def generate_trapi_kp_tests(metafunc, biolink_version):
         if 'url' in kpjson:
             for edge_i, edge in enumerate(kpjson['edges']):
 
+                # We tag each edge internally with its
+                # sequence number, for later convenience
+                edge['#'] = edge_i
+
                 # We can already do some basic Biolink Model validation here of the
                 # S-P-O contents of the edge being input from the current triples file?
                 model_version, errors = \

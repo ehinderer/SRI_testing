@@ -126,7 +126,8 @@ class EdgeEntry:
                             object_id=edge["object_id"]
                         )
         else:
-            # TODO: this is a hack... probably shouldn't ever happen... except in unit testing, LOL
+            # TODO: this is a hack... probably shouldn't ever
+            #       happen... except during unit testing, LOL
             # edge_entry = None
             edge_entry: EdgeEntry = EdgeEntry(
                             subject_category="UNKNOWN",
@@ -154,7 +155,7 @@ class ResourceEntry:
     def get_edge_entry(
             self,
             current_edge_number: int
-    ) -> EdgeEntry:
+    ) -> Optional[EdgeEntry]:
         e_size = len(self.edges)
         if e_size <= current_edge_number:
             for i in range(0, current_edge_number + 1 - e_size):
@@ -175,7 +176,8 @@ class ResourceEntry:
         if edge_number < 0:
             edge_number = 0
         edge_entry: EdgeEntry = self.get_edge_entry(edge_number)
-        edge_entry.add_test_result(test_label, outcome, message)
+        if edge_entry:
+            edge_entry.add_test_result(test_label, outcome, message)
 
 
 class SRITestReport:
@@ -214,7 +216,7 @@ class SRITestReport:
             component: str,
             resource_id: str
     ) -> ResourceEntry:
-        assert component in ["KP", "ARA"]
+        assert component and component in ["KP", "ARA"]
         if component not in self.report:
             self.report[component] = dict()
             
@@ -364,8 +366,12 @@ def parse_result(raw_report: str) -> Optional[SRITestReport]:
                     current_resource_id, current_edge_number, current_test_id = \
                         report.parse_test_case_identifier(current_case)
 
+                # Note: 'component' inferred from PASSED|SKIPPED|FAILED pattern will be lower case?
                 component: Optional[str] = psf["component"]
-                if not component:
+                if component:
+                    component = component.upper()
+                else:
+                    # need to look up component type by resource ID
                     component = get_component_by_resource(current_resource_id)
                 if component != current_component:
                     current_component = component

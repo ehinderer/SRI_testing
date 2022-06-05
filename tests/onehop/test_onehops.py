@@ -18,23 +18,24 @@ _edge_error_seen_already: List = list()
 
 def _report_and_skip_edge(test: str, edge: Dict):
     assert test in ["KP", "ARA"]
-    resource = edge[f"{test.lower()}_api_name"]
+    resource_id = edge[f"{test.lower()}_api_name"]
+    edge_i = edge["#"]
     subject_category = edge['subject_category']
     subject_id = edge['subject']
     predicate = edge['predicate']
     object_category = edge['object_category']
     object_id = edge['object']
-    label = f"({subject_id}:{subject_category})--[{predicate}]->({object_id}:{object_category})"
+    label = f"({subject_id}|{subject_category})--[{predicate}]->({object_id}|{object_category})"
 
     if 'biolink_errors' in edge:
         model_version, errors = edge['biolink_errors']
         pytest.skip(
-            f"[{resource}] test case S-P-O triple '{label}', since it is not Biolink Model compliant " +
+            f"[{resource_id}#{edge_i}-input] test case S-P-O triple '{label}', since it is not Biolink Model compliant " +
             f"with model version {model_version}{linesep}{linesep.join(errors)}"
         )
     else:
         pytest.skip(
-            f"[{resource}] test for all test case S-P-O triples from this location or " +
+            f"[{resource_id}#{edge_i}] test for all test case S-P-O triples from this location or " +
             f"just for the test case S-P-O triple '{label}'?"
         )
 
