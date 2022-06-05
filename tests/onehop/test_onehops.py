@@ -6,7 +6,7 @@ from typing import List, Dict
 
 import pytest
 
-from tests.onehop.util import in_excluded_tests
+from tests.onehop.util import in_excluded_tests, get_unit_test_name
 from translator.trapi import check_provenance, execute_trapi_lookup
 from tests.onehop import util as oh_util
 
@@ -16,27 +16,30 @@ logger = logging.getLogger(__name__)
 _edge_error_seen_already: List = list()
 
 
-def _report_and_skip_edge(test: str, edge: Dict):
-    assert test in ["KP", "ARA"]
-    resource_id = edge[f"{test.lower()}_api_name"]
-    edge_i = edge["#"]
-    subject_category = edge['subject_category']
-    subject_id = edge['subject']
-    predicate = edge['predicate']
-    object_category = edge['object_category']
-    object_id = edge['object']
+def _report_and_skip_edge(scope: str, test, test_case: Dict):
+    resource_id = test_case[f"{scope.lower()}_api_name"]
+    try:
+        test_name = test.__name__
+    except AttributeError:
+        raise RuntimeError(f"_report_and_skip_edge(): invalid 'test' parameter: '{str(test)}'")
+    edge_i = test_case["#"]
+    subject_category = test_case['subject_category']
+    subject_id = test_case['subject']
+    predicate = test_case['predicate']
+    object_category = test_case['object_category']
+    object_id = test_case['object']
     label = f"({subject_id}|{subject_category})--[{predicate}]->({object_id}|{object_category})"
 
-    if 'biolink_errors' in edge:
-        model_version, errors = edge['biolink_errors']
+    if 'biolink_errors' in test_case:
+        model_version, errors = test_case['biolink_errors']
         pytest.skip(
-            f"[{resource_id}#{edge_i}-input] test case S-P-O triple '{label}', since it is not Biolink Model compliant " +
-            f"with model version {model_version}{linesep}{linesep.join(errors)}"
+            f"[{resource_id}#{edge_i}-{test_name}] test case S-P-O triple '{label}', since it is not " +
+            f"Biolink Model compliant with model version {model_version}{linesep}{linesep.join(errors)}"
         )
     else:
         pytest.skip(
-            f"[{resource_id}#{edge_i}] test for all test case S-P-O triples from this location or " +
-            f"just for the test case S-P-O triple '{label}'?"
+            f"[{resource_id}#{edge_i}-{test_name}] test case S-P-O triple '{label}' or "
+            f"all test case S-P-O triples from resource test location."
         )
 
 
@@ -51,7 +54,7 @@ def test_trapi_kps(kp_trapi_case, trapi_creator, results_bag):
     if not ('biolink_errors' in kp_trapi_case or in_excluded_tests(test=trapi_creator, test_case=kp_trapi_case)):
         execute_trapi_lookup(kp_trapi_case, trapi_creator, results_bag)
     else:
-        _report_and_skip_edge("KP", kp_trapi_case)
+        _report_and_skip_edge("KP", test=trapi_creator, test_case=kp_trapi_case)
 
 
 @pytest.mark.parametrize(
@@ -75,4 +78,4 @@ def test_trapi_aras(ara_trapi_case, trapi_creator, results_bag):
         if response_message is not None:
             check_provenance(ara_trapi_case, response_message)
     else:
-        _report_and_skip_edge("ARA", ara_trapi_case)
+        _report_and_skip_edge("ARA", test=trapi_creator, test_case=ara_trapi_case)

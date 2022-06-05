@@ -7,7 +7,7 @@ import json
 import logging
 from collections import defaultdict
 from json import JSONDecodeError
-from typing import Optional, List, Set, Dict
+from typing import Optional, Union, List, Set, Dict
 
 from pytest_harvest import get_session_results_dct
 
@@ -257,14 +257,14 @@ def generate_edge_id(resource_id: str, edge_i: int) -> str:
     return f"{resource_id}#{str(edge_i)}"
 
 
-kp_edges_catalog: Dict[str, Dict[str, str]] = dict()
+kp_edges_catalog: Dict[str, Dict[str,  Union[int, str]]] = dict()
 
 
-def add_kp_edge(edge_id: str, edge: Dict[str, str]):
+def add_kp_edge(edge_id: str, edge: Dict[str, Union[int, str]]):
     kp_edges_catalog[edge_id] = edge
 
 
-def get_kp_edge(resource_id: str, edge_i: int) -> Optional[Dict[str, str]]:
+def get_kp_edge(resource_id: str, edge_i: int) -> Optional[Dict[str,  Union[int, str]]]:
     edge_id = generate_edge_id(resource_id, edge_i)
     if edge_id in kp_edges_catalog:
         return kp_edges_catalog[edge_id]

@@ -60,6 +60,7 @@ class EdgeEntry:
             self,
             # The contents of the original Edge
             # input data used to generate test cases.
+            idx: int,  # the edge index number in the source test data file
             subject_category: str,
             object_category: str,
             predicate: str,
@@ -92,6 +93,7 @@ class EdgeEntry:
                 ]
             ]
         ] = {
+            "idx": idx,
             "subject_category": subject_category,
             "object_category": object_category,
             "predicate": predicate,
@@ -115,10 +117,11 @@ class EdgeEntry:
 
     @classmethod
     def get_edge_input_data(cls, resource_id: str, edge_i: int) -> Optional:
-        edge: Dict[str, str] = get_kp_edge(resource_id, edge_i)
+        edge: Dict[str,  Union[int, str]] = get_kp_edge(resource_id, edge_i)
         edge_entry: Optional[EdgeEntry]
         if edge:
             edge_entry = EdgeEntry(
+                            idx=edge["#"],  # actually, should be identical to edge_i
                             subject_category=edge["subject_category"],
                             object_category=edge["object_category"],
                             predicate=edge["predicate"],
@@ -130,12 +133,13 @@ class EdgeEntry:
             #       happen... except during unit testing, LOL
             # edge_entry = None
             edge_entry: EdgeEntry = EdgeEntry(
-                            subject_category="UNKNOWN",
-                            object_category="UNKNOWN",
-                            predicate="UNKNOWN",
-                            subject_id="UNKNOWN",
-                            object_id="UNKNOWN"
-                        )
+                idx=edge_i,
+                subject_category="UNKNOWN",
+                object_category="UNKNOWN",
+                predicate="UNKNOWN",
+                subject_id="UNKNOWN",
+                object_id="UNKNOWN"
+            )
         return edge_entry
 
 
@@ -184,25 +188,24 @@ class SRITestReport:
 
     def __init__(self):
         self.report: Dict[
-            # component in ["KP", "ARA", "SUMMARY"] 
-            # Components formerly tagged as "INPUT" should now be
-            # assigned as coming in either from a KP or ARA
-            # (as discerned by looking up the resource by identifier)
+            # 1st level dictionary key is in ["KP", "ARA", "SUMMARY"]
             str,  
-            Dict[  # "component"
+            Dict[  # Translator "component"  or report summary entry
                 # if dictionary key == "SUMMARY", then
-                #    dictionary keys are in ["PASSED", "FAILED", "SKIPPED", "WARNING"]
+                #    2nd level dictionary keys are in ["PASSED", "FAILED", "SKIPPED", "WARNING"]
                 # else
-                #    dictionary keys are the identifier of the resource
+                #    2nd level dictionary keys are the identifier of the resource
                 #    being tested (of the KP or ARA), either the
                 #    test_data_location URL, or just a local test file name
                 str,
                 Union[
                     # if SUMMARY, then
-                    #   summary count values as strings
+                    #   Summary count values are integers published as strings
                     str,
-                    # else the details about the KP or ARA
-                    # resource deferenced by the above identifier
+                    # else the details about the KP or ARA Resource,
+                    # as deferenced by the above resource identifier,
+                    # mainly, is an array of EdgeEntry instances with
+                    # Pytest outcomes in a "tests" dictionary
                     ResourceEntry
                 ]
             ]
@@ -302,6 +305,7 @@ class SRITestReport:
                     for outcome in ["PASSED", "FAILED", "SKIPPED", "WARNING"]:
                         self._output["SUMMARY"][outcome] = self.report["SUMMARY"][outcome]
                 else:
+                    # iterate through the ResourceEntry instances for each resource ID
                     for resource_id, resource_entry in self.report[component].items():
                         self._output[component][resource_id]: List[Dict] = list()
                         for edge in resource_entry.edges:

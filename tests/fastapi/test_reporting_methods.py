@@ -1,7 +1,7 @@
 """
 Test SRI Testing reporting code snippets
 """
-from typing import Optional, Union, Dict
+from typing import Optional, Union, Dict, List, Tuple
 
 import pytest
 from os import linesep, path
@@ -279,11 +279,28 @@ def mock_pytest_setup():
         "subject_id": "PANTHER.FAMILY:PTHR34921",
         "object_id": "PANTHER.FAMILY:PTHR34921"
     }
-    for edge_i in range(0, 5):
+    for edge_i in range(0, 6):
         edge_id: str = generate_edge_id(resource_id, edge_i)
         edge: Dict = mock_edge.copy()
         edge["#"] = edge_i
         add_kp_edge(edge_id, edge)
+
+
+TEST_COMPONENT: Dict = {
+    "KP": "Test_KP",
+    "ARA": "Test_ARA|Test_KP"
+}
+
+EDGE_ENTRY_TAGS: Tuple = (
+    "subject_category",
+    "object_category",
+    "predicate",
+    "subject",
+    "object",
+    "tests"
+)
+
+SUMMARY_ENTRY_TAGS: List = ["PASSED", "FAILED", "SKIPPED", "WARNING"]
 
 
 @pytest.mark.parametrize(
@@ -292,11 +309,13 @@ def mock_pytest_setup():
         (
                 "sample_pytest_report_1.txt",
                 "FAILED",
+                {"KP": True, "ARA": True},
                 "0", "9", "57", "1"
         ),
         (
                 "sample_pytest_report_2.txt",
                 "PASSED",
+                {"KP": True, "ARA": False},
                 "9", "0", "57", "1"
         )
     ]
@@ -316,23 +335,32 @@ def test_parse_test_output(query):
     output: Optional[Union[str, Dict]] = report.output()
     assert output
 
+    # Top level tags of report
     assert "KP" in output
     assert "ARA" in output
-
-    for outcome in ["PASSED", "FAILED"]:
-        if outcome == query[1]:
-            assert outcome in output["KP"]
-            assert outcome in output["ARA"]
-        else:
-            assert outcome not in output["KP"]
-            assert outcome not in output["ARA"]
-
     assert "SUMMARY" in output
-    assert "PASSED" in output["SUMMARY"]
-    assert output["SUMMARY"]["PASSED"] == query[2]
-    assert "FAILED" in output["SUMMARY"]
-    assert output["SUMMARY"]["FAILED"] == query[3]
-    assert "SKIPPED" in output["SUMMARY"]
-    assert output["SUMMARY"]["SKIPPED"] == query[4]
-    assert "WARNING" in output["SUMMARY"]
-    assert output["SUMMARY"]["WARNING"] == query[5]
+
+    # Core resources from report
+    for component in ["KP", "ARA"]:
+        assert TEST_COMPONENT[component] in output[component]
+        edges = output[component][TEST_COMPONENT[component]]
+
+        # edges are only reported if FAILED or SKIPPED?
+        report_edges: Dict = query[2]
+        assert (len(edges) > 0) is report_edges[component]
+
+        for edge in edges:
+            assert all([tag in edge for tag in EDGE_ENTRY_TAGS])
+            tests = edge["tests"]
+            # for outcome in ["PASSED", "FAILED"]:
+            #     if outcome == query[1]:
+            #         assert outcome in output["KP"]
+            #         assert outcome in output["ARA"]
+            #     else:
+            #         assert outcome not in output["KP"]
+            #         assert outcome not in output["ARA"]
+
+    assert all([tag in output["SUMMARY"] for tag in SUMMARY_ENTRY_TAGS])
+    for i, outcome in enumerate(SUMMARY_ENTRY_TAGS):
+        assert output["SUMMARY"][outcome] == query[i+3]
+
