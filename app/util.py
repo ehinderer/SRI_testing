@@ -12,6 +12,7 @@ from uuid import UUID
 import re
 
 from tests import TEST_DATA_DIR
+from tests.onehop.conftest import get_kp_edge, get_component_by_resource
 from translator.sri.testing.processor import CMD_DELIMITER, WorkerProcess
 from tests.onehop import ONEHOP_TEST_DIRECTORY
 
@@ -112,14 +113,38 @@ class EdgeEntry:
             self.data["tests"][test_label][outcome] = list()
         self.data["tests"][test_label][outcome].append(message)
 
+    @classmethod
+    def get_edge_input_data(cls, resource_id: str, edge_i: int) -> Optional:
+        edge: Dict[str, str] = get_kp_edge(resource_id, edge_i)
+        edge_entry: Optional[EdgeEntry]
+        if edge:
+            edge_entry = EdgeEntry(
+                            subject_category=edge["subject_category"],
+                            object_category=edge["object_category"],
+                            predicate=edge["predicate"],
+                            subject_id=edge["subject_id"],
+                            object_id=edge["object_id"]
+                        )
+        else:
+            # TODO: this is a hack... probably shouldn't ever happen... except in unit testing, LOL
+            # edge_entry = None
+            edge_entry: EdgeEntry = EdgeEntry(
+                            subject_category="UNKNOWN",
+                            object_category="UNKNOWN",
+                            predicate="UNKNOWN",
+                            subject_id="UNKNOWN",
+                            object_id="UNKNOWN"
+                        )
+        return edge_entry
+
 
 class ResourceEntry:
     
-    def __init__(self, component: str, resource_id):
+    def __init__(self, component: str, resource_id: str):
         assert component in ["KP", "ARA"]
-        self.component = component
+        self.component: str = component
         
-        self.resource_id = resource_id
+        self.resource_id: str = resource_id
 
         # Ordered list of test data Edge entries with test reports,
         # numerically indexed by their order of appearance
@@ -130,22 +155,12 @@ class ResourceEntry:
             self,
             current_edge_number: int
     ) -> EdgeEntry:
+        e_size = len(self.edges)
+        if e_size <= current_edge_number:
+            for i in range(0, current_edge_number + 1 - e_size):
+                self.edges.append(None)
 
-        # TODO: Stub implementation... Not really sure yet how best
-        #       to set or access this Edge metadata, specified in
-        #       the conftest.py, before the Pytest. Probably simply
-        #       need to look persist it globally then look it up!
-        if len(self.edges) <= current_edge_number:
-            while len(self.edges) <= current_edge_number:
-                self.edges.append(None)   # probably won't normally stay None, but...
-            edge_entry: EdgeEntry = EdgeEntry(
-                subject_category="UNKNOWN",
-                object_category="UNKNOWN",
-                predicate="UNKNOWN",
-                subject_id="UNKNOWN",
-                object_id="UNKNOWN",
-            )
-            self.edges[current_edge_number] = edge_entry
+            self.edges[current_edge_number] = EdgeEntry.get_edge_input_data(self.resource_id, current_edge_number)
 
         return self.edges[current_edge_number]
 
@@ -156,6 +171,9 @@ class ResourceEntry:
             outcome: str,
             message: str
     ):
+        # Sanity check coercion into valid list index range
+        if edge_number < 0:
+            edge_number = 0
         edge_entry: EdgeEntry = self.get_edge_entry(edge_number)
         edge_entry.add_test_result(test_label, outcome, message)
 
@@ -292,12 +310,6 @@ class SRITestReport:
                             self._output[component][resource_id].append(edge.get_data())
 
         return self._output
-
-
-def get_component_by_resource(resource_id: str) -> Optional[str]:
-    # TODO: Fix this! The resource component type is actually known
-    #       during conftest.py Pytest pre-processing so look it up!
-    return "KP"   # mock implementation
 
 
 def parse_result(raw_report: str) -> Optional[SRITestReport]:

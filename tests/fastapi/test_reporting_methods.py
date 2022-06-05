@@ -267,10 +267,6 @@ def test_pytest_summary(query):
         assert match["warning"] == '4', f"{TPS} 'warning' field not matched?"
 
 
-SAMPLE_CASE = "https://raw.githubusercontent.com/TranslatorSRI/SRI_testing/" + \
-              "main/tests/onehop/test_triples/KP/Unit_Test_KP/Test_KP_1.json"
-
-
 @pytest.mark.parametrize(
     "query",
     [

@@ -239,6 +239,39 @@ def load_test_data_source(
     return metadata
 
 
+component_catalog: Dict[str, str] = dict()
+
+
+def set_resource_component(resource_id: str, component: str):
+    component_catalog[resource_id] = component
+
+
+def get_component_by_resource(resource_id: str) -> Optional[str]:
+    if resource_id in component_catalog:
+        return component_catalog[resource_id]
+    else:
+        return None
+
+
+def generate_edge_id(resource_id: str, edge_i: int) -> str:
+    return f"{resource_id}#{str(edge_i)}"
+
+
+kp_edges_catalog: Dict[str, Dict[str, str]] = dict()
+
+
+def add_kp_edge(edge_id: str, edge: Dict[str, str]):
+    kp_edges_catalog[edge_id] = edge
+
+
+def get_kp_edge(resource_id: str, edge_i: int) -> Optional[Dict[str, str]]:
+    edge_id = generate_edge_id(resource_id, edge_i)
+    if edge_id in kp_edges_catalog:
+        return kp_edges_catalog[edge_id]
+    else:
+        return None
+
+
 def generate_trapi_kp_tests(metafunc, biolink_version):
     """
     Generate set of TRAPI Knowledge Provider unit tests with test data edges.
@@ -257,6 +290,8 @@ def generate_trapi_kp_tests(metafunc, biolink_version):
 
         # User CLI may override here the target Biolink Model version during KP test data preparation
         kpjson = load_test_data_source(source, metadata, biolink_version)
+
+        set_resource_component(kpjson['api_name'], "KP")
 
         dataset_level_test_exclusions: Set = set()
         if "exclude_tests" in kpjson:
@@ -287,6 +322,7 @@ def generate_trapi_kp_tests(metafunc, biolink_version):
 
                 edge['location'] = kpjson['location']
                 edge['kp_api_name'] = kpjson['api_name']
+
                 edge['url'] = kpjson['url']
                 edge['biolink_version'] = kpjson['biolink_version']
 
@@ -324,7 +360,9 @@ def generate_trapi_kp_tests(metafunc, biolink_version):
 
                 edges.append(edge)
 
-                idlist.append(f"{edge['kp_api_name']}#{edge_i}")
+                edge_id = generate_edge_id(edge['kp_api_name'], edge_i)
+                idlist.append(edge_id)
+                add_kp_edge(edge_id, edge)
 
                 if metafunc.config.getoption('one', default=False):
                     break
@@ -379,6 +417,8 @@ def generate_trapi_ara_tests(metafunc, kp_edges, biolink_version):
 
         # User CLI may override here the target Biolink Model version during KP test data preparation
         arajson = load_test_data_source(source, metadata, biolink_version)
+
+        set_resource_component(arajson['api_name'], "ARA")
 
         for kp in arajson['KPs']:
 
