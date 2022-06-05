@@ -12,7 +12,6 @@ from tests.onehop import util as oh_util
 
 import logging
 logger = logging.getLogger(__name__)
-logger.setLevel("DEBUG")
 
 _edge_error_seen_already: List = list()
 

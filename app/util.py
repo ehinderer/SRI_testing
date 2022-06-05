@@ -214,7 +214,6 @@ class SRITestReport:
             component: str,
             resource_id: str
     ) -> ResourceEntry:
-        
         assert component in ["KP", "ARA"]
         if component not in self.report:
             self.report[component] = dict()
@@ -369,7 +368,7 @@ def parse_result(raw_report: str) -> Optional[SRITestReport]:
                 if not component:
                     component = get_component_by_resource(current_resource_id)
                 if component != current_component:
-                    current_component = component.upper()
+                    current_component = component
 
                 resource_entry: ResourceEntry = report.get_resource_entry(current_component, current_resource_id)
 
