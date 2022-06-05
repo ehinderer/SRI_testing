@@ -226,7 +226,10 @@ def load_test_data_source(
         metadata.update(test_data)
 
         metadata['location'] = source
-        metadata['api_name'] = source.split('/')[-1]
+
+        api_name: str = source.split('/')[-1]
+        # remove the trailing file extension
+        metadata['api_name'] = api_name.replace(".json", "")
 
         # Possible CLI override of the metadata value of
         # Biolink Model release used for data validation
@@ -283,23 +286,24 @@ def generate_trapi_kp_tests(metafunc, biolink_version):
                     edge['biolink_errors'] = model_version, errors
 
                 edge['location'] = kpjson['location']
-                edge['api_name'] = kpjson['api_name']
+                edge['kp_api_name'] = kpjson['api_name']
                 edge['url'] = kpjson['url']
                 edge['biolink_version'] = kpjson['biolink_version']
+
+                if 'infores' in kpjson:
+                    edge['source'] = f"infores:{kpjson['infores']}"
+                else:
+                    logger.warning(
+                        f"generate_trapi_kp_tests(): input file '{source}' "
+                        "is missing its 'infores' field value? Inferred from its API name?"
+                    )
+                    edge['source'] = f"infores:{edge['kp_api_name']}"
 
                 if 'source_type' in kpjson:
                     edge['source_type'] = kpjson['source_type']
                 else:
                     # If not specified, we assume that the KP is an "aggregator_knowledge_source"
                     edge['source_type'] = "aggregator"
-
-                if 'infores' in kpjson:
-                    edge['infores'] = kpjson['infores']
-                else:
-                    logger.warning(
-                        f"generate_trapi_kp_tests(): input file '{source}' is missing its 'infores' field value?"
-                    )
-                    edge['infores'] = None
 
                 if 'query_opts' in kpjson:
                     edge['query_opts'] = kpjson['query_opts']
@@ -320,7 +324,7 @@ def generate_trapi_kp_tests(metafunc, biolink_version):
 
                 edges.append(edge)
 
-                idlist.append(f'{source}_{edge_i}')
+                idlist.append(f"{edge['kp_api_name']}#{edge_i}")
 
                 if metafunc.config.getoption('one', default=False):
                     break
@@ -328,6 +332,7 @@ def generate_trapi_kp_tests(metafunc, biolink_version):
     if "kp_trapi_case" in metafunc.fixturenames:
 
         metafunc.parametrize('kp_trapi_case', edges, ids=idlist)
+
         teststyle = metafunc.config.getoption('teststyle')
 
         # Runtime specified (CLI) constraints on test scope,
@@ -361,8 +366,7 @@ def generate_trapi_ara_tests(metafunc, kp_edges, biolink_version):
     """
     kp_dict = defaultdict(list)
     for e in kp_edges:
-        # eh, not handling api name very well
-        kp_dict[e['api_name'][:-5]].append(e)
+        kp_dict[e['kp_api_name']].append(e)
 
     ara_edges = []
     idlist = []
@@ -377,39 +381,44 @@ def generate_trapi_ara_tests(metafunc, kp_edges, biolink_version):
         arajson = load_test_data_source(source, metadata, biolink_version)
 
         for kp in arajson['KPs']:
-            for edge_i, kp_edge in enumerate(kp_dict['_'.join(kp.split())]):
-                edge = kp_edge.copy()
-                edge['api_name'] = arajson['api_name']
+
+            # By replacing spaces in name with underscores,
+            # should give get the KP "api_name" indexing the edges.
+            kp = '_'.join(kp.split())
+
+            for edge_i, kp_edge in enumerate(kp_dict[kp]):
+                edge: dict = kp_edge.copy()
+
                 edge['url'] = arajson['url']
+                edge['ara_api_name'] = arajson['api_name']
 
                 if 'infores' in arajson:
-                    edge['ara_infores'] = arajson['infores']
+                    edge['ara_source'] = f"infores:{arajson['infores']}"
                 else:
                     logger.warning(
                         f"generate_trapi_ara_tests(): input file '{source}' " +
-                        "is missing its ARA 'infores' field...ARA provenance will not be properly tested?"
+                        "is missing its ARA 'infores' field.  We infer one from "
+                        "the ARA 'api_name', but edge provenance may not be properly tested?"
                     )
-                    edge['ara_infores'] = None
+                    edge['ara_source'] = f"infores:{edge['ara_api_name']}"
 
-                edge['kp_source'] = kp
-
-                edge['kp_source_type'] = kp_edge['source_type']
-
-                if 'infores' in kp_edge:
-                    edge['kp_infores'] = kp_edge['infores']
+                if 'source' in kp_edge:
+                    edge['kp_source'] = kp_edge['source']
                 else:
                     logger.warning(
-                        f"generate_trapi_ara_tests(): KP source '{kp}' " +
-                        "is missing its KP 'infores' field...KP provenance will not be properly tested?"
+                        f"generate_trapi_ara_tests(): KP '{kp}' edge is missing its 'source' infores." +
+                        "Inferred from KP name, but KP provenance may not be properly tested?"
                     )
-                    edge['kp_infores'] = None
+                    edge['kp_source'] = f"infores:{kp}"
+                edge['kp_source_type'] = kp_edge['source_type']
 
                 if 'query_opts' in arajson:
                     edge['query_opts'] = arajson['query_opts']
                 else:
                     edge['query_opts'] = {}
 
-                idlist.append(f"{arajson['api_name']}_{kp}_{edge_i}")
+                idlist.append(f"{edge['ara_api_name']}|{edge['kp_api_name']}#{edge_i}")
+
                 ara_edges.append(edge)
 
     metafunc.parametrize('ara_trapi_case', ara_edges, ids=idlist)

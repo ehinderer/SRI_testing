@@ -72,12 +72,12 @@ def check_provenance(ara_case, ara_response):
         assert False, f"Knowledge graph has no edges?"
 
     kp_source_type = f"biolink:{ara_case['kp_source_type']}_knowledge_source"
-    kp_infores = f"infores:{ara_case['kp_infores']}" if ara_case['kp_infores'] else ""
+    kp_source = ara_case['kp_source'] if ara_case['kp_source'] else ""
 
     number_of_edges_viewed = 0
     for edge in edges.values():
 
-        error_msg_prefix = f"Edge:\n{_output(edge)}\nfrom ARA 'infores:{ara_case['ara_infores']}', "
+        error_msg_prefix = f"Edge:\n{_output(edge)}\nfrom ARA '{ara_case['ara_source']}', "
 
         # Every edge should always have at least *some* (provenance source) attributes
         if 'attributes' not in edge.keys():
@@ -133,13 +133,13 @@ def check_provenance(ara_case, ara_response):
 
                     # Checking specifically here whether both KP and ARA infores
                     # attribute values are published as aggregator_knowledge_sources
-                    if ara_case['ara_infores'] and infores == f"infores:{ara_case['ara_infores']}":
+                    if ara_case['ara_source'] and infores == ara_case['ara_source']:
                         found_ara_knowledge_source = True
 
                     # check for special case of a KP provenance
-                    if ara_case['kp_infores'] and \
+                    if ara_case['kp_source'] and \
                             attribute_type_id == kp_source_type and \
-                            infores == kp_infores:
+                            infores == kp_source:
                         found_kp_knowledge_source = True
                 else:
                     # attribute_type_id is either a
@@ -151,17 +151,17 @@ def check_provenance(ara_case, ara_response):
                     found_primary_or_original_knowledge_source = True
 
                     # check for special case of a KP provenance tagged this way
-                    if ara_case['kp_infores'] and \
+                    if ara_case['kp_source'] and \
                             attribute_type_id == kp_source_type and \
-                            infores == kp_infores:
+                            infores == kp_source:
                         found_kp_knowledge_source = True
 
-        if ara_case['ara_infores'] and not found_ara_knowledge_source:
+        if ara_case['ara_source'] and not found_ara_knowledge_source:
             assert False,  f"{error_msg_prefix} missing ARA knowledge source provenance?"
 
-        if ara_case['kp_infores'] and not found_kp_knowledge_source:
+        if ara_case['kp_source'] and not found_kp_knowledge_source:
             assert False, \
-                f"{error_msg_prefix} Knowledge Provider 'infores:{ara_case['kp_infores']}' attribute value as " +\
+                f"{error_msg_prefix} Knowledge Provider '{ara_case['kp_source']}' attribute value as " +\
                 f"'{kp_source_type}' is missing as expected knowledge source provenance?"
 
         if not found_primary_or_original_knowledge_source:

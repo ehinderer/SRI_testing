@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 # have any test_data_locations for KPs and ARAs, so we'll start by
 # simulating this for now, with mock registry metadata
 # (and test data in the SRI Testing project repository)
-_MOCK_REGISTRY: bool = False
+_MOCK_REGISTRY: bool = True
 _MOCK_TRANSLATOR_SMARTAPI_REGISTRY_METADATA = {
     "total": 3,
     "hits": [

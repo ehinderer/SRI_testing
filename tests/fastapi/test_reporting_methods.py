@@ -1,6 +1,8 @@
 """
 Test SRI Testing reporting code snippets
 """
+from typing import Optional, Union, Dict
+
 import pytest
 from sys import stderr
 from os import linesep, path
@@ -9,6 +11,7 @@ from app.util import (
     SHORT_TEST_SUMMARY_INFO_HEADER_PATTERN,
     PASSED_SKIPPED_FAILED_PATTERN,
     PYTEST_SUMMARY_PATTERN,
+    TEST_CASE_IDENTIFIER_PATTERN,
     SRITestReport,
     parse_result
 )
@@ -35,6 +38,90 @@ def test_stsi_header_pattern_splitting():
     assert len(part) == 2
     assert part[0] == f"Pytest report prefix{linesep}"
     assert part[1] == f"{linesep}Pytest Report Suffix"
+
+
+@pytest.mark.parametrize(
+    "query",
+    [
+        (
+            "Some_KP#0-by_subject",
+            "Some_KP",
+            "0",
+            "by_subject"
+        ),
+        (
+            "Some_KP#0",
+            "Some_KP",
+            "0",
+            None
+        ),
+        (
+            "Some_KP",
+            "Some_KP",
+            None,
+            None
+        ),
+        (
+            "Some-KP#0-by_subject",
+            "Some-KP",
+            "0",
+            "by_subject"
+        ),
+        (
+            "Test_ARA|Test_KP#1-raise_subject_entity",
+            "Test_ARA|Test_KP",
+            "1",
+            "raise_subject_entity"
+        ),
+        (
+            "Test_ARA|Test_KP#1",
+            "Test_ARA|Test_KP",
+            "1",
+            None
+        ),
+        (
+            "Test_ARA|Test_KP",
+            "Test_ARA|Test_KP",
+            None,
+            None
+        ),
+        (
+            "Test_ARA",
+            "Test_ARA",
+            None,
+            None
+        )
+    ]
+)
+def test_case_identifier_pattern(query):
+    m = TEST_CASE_IDENTIFIER_PATTERN.search(query[0])
+    assert m
+    assert m["resource_id"] == query[1]
+    assert m["edge_num"] == query[2]
+    assert m["test_id"] == query[3]
+
+@pytest.mark.parametrize(
+    "query",
+    [
+        (
+                "Test_ARA|Test_KP#2-raise_subject_entity",
+                "Test_ARA|Test_KP",
+                2,
+                "raise_subject_entity"
+        ),
+        (
+                "Test_KP#3-raise_subject_entity",
+                "Test_KP",
+                3,
+                "raise_subject_entity"
+        )
+    ]
+)
+def test_parse_case_pattern(query):
+    resource_id, edge_num, test_id = SRITestReport.parse_test_case_identifier(query[0])
+    assert resource_id == query[1]
+    assert edge_num == query[2]
+    assert test_id == query[3]
 
 
 _SAMPLE_BIOLINK_ERRORS = [
@@ -199,10 +286,9 @@ SAMPLE_CASE = "https://raw.githubusercontent.com/TranslatorSRI/SRI_testing/" + \
         )
     ]
 )
-def test_report(query):
+def test_parse_test_output(query):
     sample_file_path = path.join(TEST_DATA_DIR, query[0])
     with open(sample_file_path, "r") as sf:
-
         raw_result = sf.read()
 
         # The function assumes that you are
@@ -211,31 +297,26 @@ def test_report(query):
 
     assert report
 
-    print(report, flush=True, file=stderr)
+    output: Optional[Union[str, Dict]] = report.output()
+    assert output
 
-    # assert "INPUT" in report
-    # assert "SKIPPED" in report["INPUT"]
-    # assert SAMPLE_CASE in report["INPUT"]["SKIPPED"]
-    # sample_tail = report["INPUT"]["SKIPPED"][SAMPLE_CASE]
-    # assert any([tail.startswith("KP test case S-P-O triple") for tail in sample_tail])
-    #
-    # assert "KP" in report
-    # assert "ARA" in report
-    #
-    # for outcome in ["PASSED", "FAILED"]:
-    #     if outcome == query[1]:
-    #         assert outcome in report["KP"]
-    #         assert outcome in report["ARA"]
-    #     else:
-    #         assert outcome not in report["KP"]
-    #         assert outcome not in report["ARA"]
-    #
-    # assert "SUMMARY" in report
-    # assert "PASSED" in report["SUMMARY"]
-    # assert report["SUMMARY"]["PASSED"] == query[2]
-    # assert "FAILED" in report["SUMMARY"]
-    # assert report["SUMMARY"]["FAILED"] == query[3]
-    # assert "SKIPPED" in report["SUMMARY"]
-    # assert report["SUMMARY"]["SKIPPED"] == query[4]
-    # assert "WARNING" in report["SUMMARY"]
-    # assert report["SUMMARY"]["WARNING"] == query[5]
+    assert "KP" in output
+    assert "ARA" in output
+
+    for outcome in ["PASSED", "FAILED"]:
+        if outcome == query[1]:
+            assert outcome in output["KP"]
+            assert outcome in output["ARA"]
+        else:
+            assert outcome not in output["KP"]
+            assert outcome not in output["ARA"]
+
+    assert "SUMMARY" in output
+    assert "PASSED" in output["SUMMARY"]
+    assert output["SUMMARY"]["PASSED"] == query[2]
+    assert "FAILED" in output["SUMMARY"]
+    assert output["SUMMARY"]["FAILED"] == query[3]
+    assert "SKIPPED" in output["SUMMARY"]
+    assert output["SUMMARY"]["SKIPPED"] == query[4]
+    assert "WARNING" in output["SUMMARY"]
+    assert output["SUMMARY"]["WARNING"] == query[5]

@@ -41,6 +41,11 @@ PYTEST_SUMMARY_PATTERN = re.compile(
     r"(\s(?P<skipped>\d+)\sskipped,?)?(\s(?P<warning>\d+)\swarning)?.+$"
 )
 
+TEST_CASE_IDENTIFIER_PATTERN = re.compile(
+    r"^(?P<resource_id>[^#]+)(#(?P<edge_num>\d+))?(-(?P<test_id>.+))?$"
+)
+
+
 """
 TestReport is a multi-level indexed EdgeTestReport
 dictionary of captured error messages, plus an error summary.
@@ -60,7 +65,7 @@ class EdgeEntry:
             subject_id: str,
             object_id: str
     ):
-        self.edge: Dict[
+        self.data: Dict[
             # Controlled vocabulary 'field name' for Edge metadata and
             # error outcomes (the latter tagged with field name  'tests'?)
             str,
@@ -94,15 +99,18 @@ class EdgeEntry:
             "tests": dict()
         }
 
+    def get_data(self) -> Dict[str, Union[str, Dict[str, Dict[str, List[str]]]]]:
+        return self.data
+
     def add_test_result(self, test_label: str, outcome: str, message: str):
         assert outcome in ["PASSED", "FAILED", "SKIPPED", "WARNING"]
         if not test_label:
             test_label = "input"
-        if test_label not in self.edge["tests"]:
-            self.edge["tests"][test_label] = dict()
-        if outcome not in self.edge["tests"][test_label]:
-            self.edge["tests"][test_label][outcome] = list()
-        self.edge["tests"][test_label][outcome].append(message)
+        if test_label not in self.data["tests"]:
+            self.data["tests"][test_label] = dict()
+        if outcome not in self.data["tests"][test_label]:
+            self.data["tests"][test_label][outcome] = list()
+        self.data["tests"][test_label][outcome].append(message)
 
 
 class ResourceEntry:
@@ -204,17 +212,37 @@ class SRITestReport:
         return self.report[component][resource_id]
 
     @staticmethod
-    def parse_test_case(case: str) -> Tuple[str, int, str]:
+    def parse_test_case_identifier(case: str) -> Tuple[str, int, str]:
         """
         Parse the test case identifier into its component parts:
         (KP/ARA) resource_id, edge_num, unit_test_id.
 
-        :param case: composite identifier generated in conftest unit test setup
+        A typical identifier may look something like this:
+
+        Some_ARA|Some_KP#0-by_subject
+
+        which consists of the following parts:
+
+        resource_id:  Some_ARA|Some_KP
+        edge_num:     0
+        test_id:      by_subject
+
+        :param case: composite identifier. as generated in conftest unit test setup
         :type: str
         :return: resource_id, edge_num, test_id
         :rtype: Tuple[str, str, str]
         """
-        return "", 0, ""
+        m = TEST_CASE_IDENTIFIER_PATTERN.match(case)
+        if m:
+            resource_id = m["resource_id"] if m["resource_id"] else case
+            edge_num = int(m["edge_num"]) if m["edge_num"] else -1
+            test_id = m["test_id"] if m["test_id"] else "input"
+        else:
+            resource_id = case
+            edge_num = -1
+            test_id = "input"
+
+        return resource_id, edge_num, test_id
 
     def add_summary(self, p_num: str, f_num: str, s_num: str, w_num: str):
         """
@@ -256,13 +284,12 @@ class SRITestReport:
                         self._output["SUMMARY"][outcome] = self.report["SUMMARY"][outcome]
                 else:
                     for resource_id, resource_entry in self.report[component].items():
-                        self._output[component][resource_id]: List[Dict] = dict()
+                        self._output[component][resource_id]: List[Dict] = list()
                         for edge in resource_entry.edges:
                             # skip all empty EdgeEntry instances...
                             if not edge:
                                 continue
-                            for tag in []:
-                                pass  # TODO: load the EdgeEntry contents including test messages
+                            self._output[component][resource_id].append(edge.get_data())
 
         return self._output
 
@@ -323,7 +350,8 @@ def parse_result(raw_report: str) -> Optional[SRITestReport]:
                 case: Optional[str] = psf["case"]
                 if case != current_case:
                     current_case = case
-                    current_resource_id, current_edge_number, current_test_id = report.parse_test_case(current_case)
+                    current_resource_id, current_edge_number, current_test_id = \
+                        report.parse_test_case_identifier(current_case)
 
                 component: Optional[str] = psf["component"]
                 if not component:
