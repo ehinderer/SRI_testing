@@ -24,7 +24,15 @@ logger = logging.getLogger()
 #
 DEFAULT_WORKER_TIMEOUT = 120  # 2 minutes for small PyTests?
 
+
+PYTEST_HEADER_START_PATTERN = re.compile(r"^=+\stest\ssession\sstarts\s=+$")
+PYTEST_HEADER_END_PATTERN = re.compile(r"\s*collected\s\d+\sitems\s*$")
+
 SHORT_TEST_SUMMARY_INFO_HEADER_PATTERN = re.compile(r"=+\sshort\stest\ssummary\sinfo\s=+")
+
+
+LOGGER_PATTERN = re.compile(r"^(CRITICAL|ERROR|WARNING|INFO|DEBUG)")
+
 
 #
 # Examples:
@@ -33,8 +41,8 @@ SHORT_TEST_SUMMARY_INFO_HEADER_PATTERN = re.compile(r"=+\sshort\stest\ssummary\s
 # "FAILED test_onehops.py::tes
 # t_trapi_aras[Test_ARA.json_Test KP_0-by_subject]"
 PASSED_SKIPPED_FAILED_PATTERN = re.compile(
-    r"^(?P<outcome>PASSED|SKIPPED|FAILED)\s(\[\d+]\s)?test_onehops.py:(\d+)?:" +
-    r"(test_trapi_(?P<component>kp|ara)s|\s)?(\[(?P<case>[^]]+)])?(?P<tail>.+)?$"
+    r"^test_onehops.py:(\d+)?:(test_trapi_(?P<component>kp|ara)s|\s)(\[(?P<case>[^]]+)])\s" +
+    r"(?P<outcome>PASSED|SKIPPED|FAILED)\s+((?P<tail>.+)\s)?(\[\s*\d+%])$"
 )
 
 PYTEST_SUMMARY_PATTERN = re.compile(
@@ -317,6 +325,34 @@ class SRITestReport:
         return self._output
 
 
+# flag true while in header
+_header_consumed: bool = False
+_skip_header: bool = False
+
+
+def skip_header(line) -> bool:
+    global _header_consumed, _skip_header
+
+    if _header_consumed:
+        # short-circuit regex search
+        # for the header, if already seen.
+        return False
+
+    if PYTEST_HEADER_START_PATTERN.match(line):
+        _skip_header = True
+
+    # Use 'search' here since the line may sometimes start with "collecting ... "
+    if PYTEST_HEADER_END_PATTERN.search(line):
+        _skip_header = False
+        _header_consumed = True
+
+        # skip this last line, even if _skip_header == False now...
+        return True
+
+    # _skip_header will be True here while in the header block
+    return _skip_header
+
+
 def parse_result(raw_report: str) -> Optional[SRITestReport]:
     """
     Extract summary of Pytest output as SRI Testing report.
@@ -341,11 +377,20 @@ def parse_result(raw_report: str) -> Optional[SRITestReport]:
 
     report: SRITestReport = SRITestReport()
     current_component = current_outcome = current_case = current_resource_id = current_test_id = "UNKNOWN"
-    current_edge_number = -1
+    current_edge_number: int = -1
+
     for line in top_level:
+
         line = line.strip()  # spurious leading and trailing whitespace removed
         if not line:
             continue  # ignore blank lines
+
+        if LOGGER_PATTERN.match(line):
+            continue  # ignore Python Logger output lines
+
+        if skip_header(line):
+            continue
+
         psp = PYTEST_SUMMARY_PATTERN.match(line)
         if psp:
             # PyTest summary line encountered.
@@ -465,7 +510,7 @@ class OneHopTestHarness:
                 logger.error(f"This OneHopTestHarness test run has an unmapped or expired UUID '{session_id_string}'")
         else:
             self._command_line = f"cd {ONEHOP_TEST_DIRECTORY} {CMD_DELIMITER} " + \
-                                 f"pytest -rA --tb=line -vv --log-cli-level=DEBUG test_onehops.py"
+                                 f"pytest --tb=line -vv test_onehops.py"
             self._command_line += f" --TRAPI_Version={trapi_version}" if trapi_version else ""
             self._command_line += f" --Biolink_Version={biolink_version}" if biolink_version else ""
             self._command_line += f" --triple_source={triple_source}" if triple_source else ""

@@ -33,13 +33,11 @@ def _report_and_skip_edge(scope: str, test, test_case: Dict):
     if 'biolink_errors' in test_case:
         model_version, errors = test_case['biolink_errors']
         pytest.skip(
-            f"[{resource_id}#{edge_i}-{test_name}] test case S-P-O triple '{label}', since it is not " +
-            f"Biolink Model compliant with model version {model_version}{linesep}{linesep.join(errors)}"
+            f"test case S-P-O triple '{label}', since it is not Biolink Model compliant: {'|'.join(errors)}."
         )
     else:
         pytest.skip(
-            f"[{resource_id}#{edge_i}-{test_name}] test case S-P-O triple '{label}' or "
-            f"all test case S-P-O triples from resource test location."
+            f"test case S-P-O triple '{label}' or all test case S-P-O triples from resource test location."
         )
 
 

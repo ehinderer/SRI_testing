@@ -3,6 +3,7 @@ Configure one hop tests
 """
 import os
 from sys import stderr
+from re import sub
 import json
 import logging
 from collections import defaultdict
@@ -24,11 +25,11 @@ from translator.trapi import set_trapi_version
 logger = logging.getLogger(__name__)
 
 
-def _clean_up_filename(source: str):
+def clean_up_filename(source: str):
     name = source.split('/')[-1][:-1]
+    name = name.strip("[]")
     name = name.replace(".py::", "-")
-    name = name.replace("[", "-")
-    name = name.replace("]", "")
+    name = sub(r"[:\[\]\|#/]+", "-", name)
     name = f"{name}.results"
     logger.debug(f"_clean_up_filename: '{source}' to '{name}'")
     return name
@@ -42,7 +43,7 @@ def pytest_sessionfinish(session):
     for t, v in session_results.items():
         if v['status'] == 'failed':
             # clean up the name for safe file system usage
-            rfname = _clean_up_filename(t)
+            rfname = clean_up_filename(t)
             rb = v['fixtures']['results_bag']
             # rb['location'] looks like "test_triples/KP/Exposures_Provider/CAM-KP_API.json"
             if 'location' in rb:
