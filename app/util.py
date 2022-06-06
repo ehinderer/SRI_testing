@@ -388,8 +388,14 @@ def parse_result(raw_report: str) -> Optional[SRITestReport]:
                     tail = tail.strip()
                     resource_entry.add_test_result(current_edge_number, current_test_id, outcome, tail)
             else:
-                resource_entry: ResourceEntry = report.get_resource_entry(current_component, current_resource_id)
-                resource_entry.add_test_result(current_edge_number, current_test_id, current_outcome, line)
+                if current_component == "UNKNOWN" or current_resource_id == "UNKNOWN":
+                    logger.warning(
+                        f"parse_result(): current_component is '{current_component}' and "
+                        f"current_resource_id is '{current_resource_id}' for line '{str(line)}'?"
+                    )
+                else:
+                    resource_entry: ResourceEntry = report.get_resource_entry(current_component, current_resource_id)
+                    resource_entry.add_test_result(current_edge_number, current_test_id, current_outcome, line)
 
     return report
 
@@ -459,7 +465,7 @@ class OneHopTestHarness:
                 logger.error(f"This OneHopTestHarness test run has an unmapped or expired UUID '{session_id_string}'")
         else:
             self._command_line = f"cd {ONEHOP_TEST_DIRECTORY} {CMD_DELIMITER} " + \
-                                 f"pytest -rA --tb=line -vv --log-cli-level=ERROR test_onehops.py"
+                                 f"pytest -rA --tb=line -vv --log-cli-level=DEBUG test_onehops.py"
             self._command_line += f" --TRAPI_Version={trapi_version}" if trapi_version else ""
             self._command_line += f" --Biolink_Version={biolink_version}" if biolink_version else ""
             self._command_line += f" --triple_source={triple_source}" if triple_source else ""
@@ -501,7 +507,10 @@ class OneHopTestHarness:
                     self._report = [f"Worker process failed to execute command line '{self._command_line}'?"]
             # TODO: at this point, we might wish to persist the generated reports
             #       onto the local hard disk system, indexed by the session_id
-        return self._report.output()
+        if self._report:
+            return self._report.output()
+        else:
+            return None  # Report simply not yet available, but Pytest may still be running?
     
     @classmethod
     def get_report(cls, session_id_str: str) -> Optional[Union[str, SRITestReport]]:

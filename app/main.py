@@ -89,6 +89,8 @@ async def run_tests(test_parameters: TestRunParameters) -> Dict:
 @app.get("/report/{session_id}")
 async def get_report(session_id: str):
     report: Optional[Union[str, SRITestReport]] = OneHopTestHarness.get_report(session_id)
+    if report is None:
+        report = f"Report not yet available?"
     return {
         "session_id": session_id,
         "report": report
