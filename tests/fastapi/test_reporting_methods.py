@@ -401,7 +401,7 @@ EDGE_ENTRY_TAGS: Tuple = (
                 "PASSED",
                 True,
                 False,
-                "0", "9", "57"
+                "25", "0", "63"
         )
     ]
 )
