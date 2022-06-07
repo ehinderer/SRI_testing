@@ -313,14 +313,17 @@ class SRITestReport:
                     for outcome in ["PASSED", "FAILED", "SKIPPED", "WARNING"]:
                         self._output["SUMMARY"][outcome] = self.report["SUMMARY"][outcome]
                 else:
-                    # iterate through the ResourceEntry instances for each resource ID
-                    for resource_id, resource_entry in self.report[component].items():
-                        self._output[component][resource_id]: List[Dict] = list()
-                        for edge in resource_entry.edges:
-                            # skip all empty EdgeEntry instances...
-                            if not edge:
-                                continue
-                            self._output[component][resource_id].append(edge.get_data())
+                    # iterate through the ResourceEntry instances for each KP or ARA resource ID
+                    if component in self.report:
+                        for resource_id, resource_entry in self.report[component].items():
+                            self._output[component][resource_id]: List[Dict] = list()
+                            for edge in resource_entry.edges:
+                                # skip all empty EdgeEntry instances...
+                                if not edge:
+                                    continue
+                                self._output[component][resource_id].append(edge.get_data())
+                    else:
+                        pass  # probably UNKNOWN parse of original output
 
         return self._output
 

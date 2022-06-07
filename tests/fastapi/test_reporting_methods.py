@@ -345,13 +345,15 @@ SUMMARY_ENTRY_TAGS: List = ["PASSED", "FAILED", "SKIPPED", "WARNING"]
         (
                 "sample_pytest_report_1.txt",
                 "FAILED",
-                {"KP": True, "ARA": True},
+                True,
+                True,
                 "0", "9", "57", "1"
         ),
         (
                 "sample_pytest_report_2.txt",
                 "PASSED",
-                {"KP": True, "ARA": False},
+                True,
+                False,
                 "9", "0", "57", "1"
         )
     ]
@@ -382,8 +384,7 @@ def test_parse_test_output(query):
         edges = output[component][TEST_COMPONENT[component]]
 
         # edges are only reported if FAILED or SKIPPED?
-        report_edges: Dict = query[2]
-        assert (len(edges) > 0) is report_edges[component]
+        assert (len(edges) > 0) is query[2 if component == "KP" else 3]
 
         for edge in edges:
             assert all([tag in edge for tag in EDGE_ENTRY_TAGS])
@@ -398,5 +399,5 @@ def test_parse_test_output(query):
 
     assert all([tag in output["SUMMARY"] for tag in SUMMARY_ENTRY_TAGS])
     for i, outcome in enumerate(SUMMARY_ENTRY_TAGS):
-        assert output["SUMMARY"][outcome] == query[i+3]
+        assert output["SUMMARY"][outcome] == query[i+4]
 
