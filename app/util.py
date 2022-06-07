@@ -24,6 +24,7 @@ logger = logging.getLogger()
 #
 DEFAULT_WORKER_TIMEOUT = 120  # 2 minutes for small PyTests?
 
+SUMMARY_ENTRY_TAGS: List = ["FAILED", "PASSED", "SKIPPED"]
 
 PYTEST_HEADER_START_PATTERN = re.compile(r"^=+\stest\ssession\sstarts\s=+$")
 PYTEST_HEADER_END_PATTERN = re.compile(r"\s*collected\s\d+\sitems\s*$")
@@ -112,7 +113,7 @@ class EdgeEntry:
         return self.data
 
     def add_test_result(self, test_label: str, outcome: str, message: str):
-        assert outcome in ["PASSED", "FAILED", "SKIPPED", "WARNING"]
+        assert outcome in SUMMARY_ENTRY_TAGS
         if not test_label:
             test_label = "input"
         if test_label not in self.data["tests"]:
@@ -272,7 +273,7 @@ class SRITestReport:
 
         return resource_id, edge_num, test_id
 
-    def add_summary(self, p_num: str, f_num: str, s_num: str, w_num: str):
+    def add_summary(self, p_num: str, f_num: str, s_num: str):
         """
         Add a summary record to the report.
         :param p_num: number of PASSED tests
@@ -281,15 +282,12 @@ class SRITestReport:
         :type: str
         :param s_num: number of SKIPPED tests
         :type: str
-        :param w_num: number of test WARNING messages
-        :type: str
         """
         if "SUMMARY" not in self.report:
             self.report["SUMMARY"] = {
                 "PASSED": p_num if p_num else "0",
                 "FAILED": f_num if f_num else "0",
-                "SKIPPED": s_num if s_num else "0",
-                "WARNING": w_num if w_num else "0"
+                "SKIPPED": s_num if s_num else "0"
             }
 
     def output(self, refresh: bool = False) -> Optional[Dict]:
@@ -308,7 +306,7 @@ class SRITestReport:
             for component in ["KP", "ARA", "SUMMARY"]:
                 self._output[component] = dict()
                 if component == "SUMMARY":
-                    for outcome in ["PASSED", "FAILED", "SKIPPED", "WARNING"]:
+                    for outcome in ["PASSED", "FAILED", "SKIPPED"]:
                         self._output["SUMMARY"][outcome] = self.report["SUMMARY"][outcome]
                 else:
                     # iterate through the ResourceEntry instances for each KP or ARA resource ID
@@ -378,12 +376,6 @@ def parse_result(raw_output: str) -> Optional[SRITestReport]:
     if not raw_output:
         return None
 
-    # part = SHORT_TEST_SUMMARY_INFO_HEADER_PATTERN.split(raw_report)
-    # if len(part) > 1:
-    #     output = part[-1].strip()
-    # else:
-    #     output = part[0].strip()
-
     # This splits the test section of interest
     # into lines, to facilitate further processing
     top_level = raw_output.replace('\r', '')
@@ -408,11 +400,12 @@ def parse_result(raw_output: str) -> Optional[SRITestReport]:
         psp = PYTEST_SUMMARY_PATTERN.match(line)
         if psp:
             # PyTest summary line encountered.
+            # We ignore the "warning" count as
+            # unrelated to core SRI Testing
             report.add_summary(
                 psp["passed"],
                 psp["failed"],
-                psp["skipped"],
-                psp["warning"]
+                psp["skipped"]
             )
         elif skip_footer(line):
             continue

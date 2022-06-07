@@ -1,13 +1,14 @@
 """
 Test SRI Testing reporting code snippets
 """
-from typing import Optional, Union, Dict, List, Tuple, Set
+from typing import Optional, Union, Dict, Tuple, Set
 from sys import stderr
 from os import linesep, path
 
 import pytest
 
 from app.util import (
+    SUMMARY_ENTRY_TAGS,
     SHORT_TEST_SUMMARY_INFO_HEADER_PATTERN,
     PASSED_SKIPPED_FAILED_PATTERN,
     PYTEST_SUMMARY_PATTERN,
@@ -354,8 +355,6 @@ def test_pytest_summary(query):
 def mock_pytest_setup():
     # need to fake a few Pytest preconditions
     # (i.e. which would normally be set in the conftest.py)
-    resource_id = "Test_KP"
-    set_resource_component(resource_id, "KP")
     mock_edge = {
         "subject_category": "PANTHER.FAMILY:PTHR34921:SF1:biolink:GeneFamily",
         "object_category": "PANTHER.FAMILY:PTHR34921:SF1:biolink:GeneFamily",
@@ -363,11 +362,13 @@ def mock_pytest_setup():
         "subject_id": "PANTHER.FAMILY:PTHR34921",
         "object_id": "PANTHER.FAMILY:PTHR34921"
     }
-    for edge_i in range(0, 6):
-        edge_id: str = generate_edge_id(resource_id, edge_i)
-        edge: Dict = mock_edge.copy()
-        edge["#"] = edge_i
-        add_kp_edge(edge_id, edge)
+    for resource_id in ["Test_KP_1","Test_KP_2"]:
+        set_resource_component(resource_id, "KP")
+        for edge_i in range(0, 6):
+            edge_id: str = generate_edge_id(resource_id, edge_i)
+            edge: Dict = mock_edge.copy()
+            edge["#"] = edge_i
+            add_kp_edge(edge_id, edge)
 
 
 TEST_COMPONENT: Dict[str, Set] = {
@@ -384,8 +385,6 @@ EDGE_ENTRY_TAGS: Tuple = (
     "tests"
 )
 
-SUMMARY_ENTRY_TAGS: List = ["FAILED", "PASSED", "SKIPPED", "WARNING"]
-
 
 @pytest.mark.parametrize(
     "query",
@@ -395,14 +394,14 @@ SUMMARY_ENTRY_TAGS: List = ["FAILED", "PASSED", "SKIPPED", "WARNING"]
                 "FAILED",
                 True,
                 True,
-                "6", "19", "63", "1"
+                "6", "19", "63"
         ),
         (
                 "sample_pytest_report_2.txt",
                 "PASSED",
                 True,
                 False,
-                "9", "0", "57", "1"
+                "0", "9", "57"
         )
     ]
 )
@@ -439,19 +438,17 @@ def test_parse_test_output(query):
             # edges are only reported if FAILED or SKIPPED, not PASSED?
             assert (len(edges) > 0) is query[2 if component == "KP" else 3]
 
+            edge: Dict
             for edge in edges:
                 assert all([tag in edge for tag in EDGE_ENTRY_TAGS])
                 tests = edge["tests"]
-                # for outcome in ["PASSED", "FAILED"]:
-                #     if outcome == query[1]:
-                #         assert outcome in output["KP"]
-                #         assert outcome in output["ARA"]
-                #     else:
-                #         assert outcome not in output["KP"]
-                #         assert outcome not in output["ARA"]
+                for test in tests:
+                    result: Dict = tests[test]
+                    for outcome in result.keys():
+                        assert outcome in SUMMARY_ENTRY_TAGS
+                        # TODO: can I test the individual errors here?
 
         assert all([tag in output["SUMMARY"] for tag in SUMMARY_ENTRY_TAGS])
         for i, outcome in enumerate(SUMMARY_ENTRY_TAGS):
-            print(f"Outcome: {outcome}", flush=True, file=stderr)
             assert output["SUMMARY"][outcome] == query[i+4]
 
