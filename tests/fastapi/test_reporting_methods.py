@@ -1,10 +1,11 @@
 """
 Test SRI Testing reporting code snippets
 """
-from typing import Optional, Union, Dict, List, Tuple
+from typing import Optional, Union, Dict, List, Tuple, Set
+from sys import stderr
+from os import linesep, path
 
 import pytest
-from os import linesep, path
 
 from app.util import (
     SHORT_TEST_SUMMARY_INFO_HEADER_PATTERN,
@@ -12,14 +13,22 @@ from app.util import (
     PYTEST_SUMMARY_PATTERN,
     TEST_CASE_IDENTIFIER_PATTERN,
     SRITestReport,
-    parse_result, PYTEST_HEADER_START_PATTERN, PYTEST_HEADER_END_PATTERN, LOGGER_PATTERN, skip_header
+    parse_result,
+    PYTEST_HEADER_START_PATTERN,
+    PYTEST_HEADER_END_PATTERN,
+    PYTEST_FOOTER_START_PATTERN,
+    LOGGER_PATTERN,
+    skip_header,
+    skip_footer
 )
 from tests.onehop.conftest import set_resource_component, add_kp_edge, generate_edge_id
 from tests import TEST_DATA_DIR
 
 
 def test_pytest_header_start_pattern():
-    assert PYTEST_HEADER_START_PATTERN.search("============================= test session starts =============================")
+    assert PYTEST_HEADER_START_PATTERN.search(
+        "============================= test session starts ============================="
+    )
 
 
 @pytest.mark.parametrize(
@@ -54,7 +63,7 @@ def test_pytest_logger_pattern(query):
 TEST_HEADER = """
 ============================= test session starts =============================
 
-platform win32 -- Python 3.9.7, pytest-7.1.1, pluggy-1.0.0 -- c:\\users\richa\pycharmprojects\sri_testing\py\scripts\python.exe
+platform win32 -- Python 3.9.7, pytest-7.1.1, pluggy-1.0.0 -- c:\\users\\sri_testing\py\scripts\python.exe
 
 cachedir: .pytest_cache
 
@@ -86,6 +95,44 @@ def test_skip_header():
 
         # if it makes it this far, then this line will be seen?
         assert line == "test_onehops.py::test_trapi_kps[Test_KP_1#0-by_subject] PASSED           [  1%]"
+
+
+def test_pytest_footer_start_pattern():
+    assert PYTEST_FOOTER_START_PATTERN.search(
+        "=================================== FAILURES ==================================="
+    )
+
+
+TEST_FOOTER = """================================== FAILURES ===================================
+C:\\Users\richa\PycharmProjects\SRI_testing\translator\trapi\__init__.py:163: AssertionError: Edge:
+============================== warnings summary ===============================
+..\..\py\lib\site-packages\pytest_asyncio\plugin.py:191
+  c:\\users\\richa\pycharmprojects\sri_testing\py\lib\site-packages\pytest_asyncio\plugin.py:191: ...
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+FAILED test_onehops.py::test_trapi_aras[Test_ARA|Test_KP_2#0-by_object] - AssertionError: Edge:
+======= 6 failed, 19 passed, 63 skipped, 1 warning in 738.86s (0:12:18) =======
+"""
+
+
+def test_skip_footer():
+    lines = TEST_FOOTER.split('\n')
+    line: str
+    for line in lines:
+
+        line = line.strip()  # spurious leading and trailing whitespace removed
+        if not line:
+            continue  # ignore blank lines
+
+        psp = PYTEST_SUMMARY_PATTERN.match(line)
+        if psp:
+            assert line == "======= 6 failed, 19 passed, 63 skipped, 1 warning in 738.86s (0:12:18) ======="
+
+        if skip_footer(line):
+            continue
+
+        assert False, "test_skip_footer() unit should not generally get here!"
 
 
 @pytest.mark.parametrize(
@@ -279,22 +326,23 @@ TPS = "test_pytest_summary():"
 @pytest.mark.parametrize(
     "query",
     [
-        ("============= 40 passed, 9 failed, 2 skipped, 4 warning in 83.33s (0:01:23) ==============", 40, 9, 2, 4),
-        ("============= 9 failed, 2 skipped, 4 warning in 83.33s (0:01:23) ==============", None, 9, 2, 4),
-        ("============= 40 passed, 2 skipped, 4 warning in 83.33s (0:01:23) ==============", 40, None, 2, 4),
-        ("============= 40 passed, 9 failed, 4 warning in 83.33s (0:01:23) ==============", 40, 9, None, 4),
-        ("============= 40 passed, 9 failed, 2 skipped in 83.33s (0:01:23) ==============", 40, 9, 2, None)
+        ("============= 9 failed, 40 passed, 2 skipped, 4 warning in 83.33s (0:01:23) ==============", 9, 40, 2, 4),
+        ("============= 9 failed, 2 skipped, 4 warning in 83.33s (0:01:23) ==============", 9, None, 2, 4),
+        ("============= 40 passed, 2 skipped, 4 warning in 83.33s (0:01:23) ==============", None, 40, 2, 4),
+        ("============= 9 failed, 40 passed, 4 warning in 83.33s (0:01:23) ==============", 9, 40, None, 4),
+        ("============= 9 failed, 40 passed, 2 skipped in 83.33s (0:01:23) ==============", 9, 40, 2, None)
     ]
 )
 def test_pytest_summary(query):
     match = PYTEST_SUMMARY_PATTERN.match(query[0])
     assert match, f"{TPS} no match?"
+
     if query[1]:
-        assert match["passed"], f"{TPS} 'passed' field not matched?"
-        assert match["passed"] == '40', f"{TPS} 'passed' value not matched?"
-    if query[2]:
         assert match["failed"], f"{TPS} 'failed' field not matched?"
         assert match["failed"] == '9', f"{TPS} 'failed' value not matched?"
+    if query[2]:
+        assert match["passed"], f"{TPS} 'passed' field not matched?"
+        assert match["passed"] == '40', f"{TPS} 'passed' value not matched?"
     if query[3]:
         assert match["skipped"], f"{TPS} 'skipped' field not matched?"
         assert match["skipped"] == '2', f"{TPS} 'skipped' field not matched?"
@@ -322,9 +370,9 @@ def mock_pytest_setup():
         add_kp_edge(edge_id, edge)
 
 
-TEST_COMPONENT: Dict = {
-    "KP": "Test_KP",
-    "ARA": "Test_ARA|Test_KP"
+TEST_COMPONENT: Dict[str, Set] = {
+    "KP": {"Test_KP_1", "Test_KP_2"},
+    "ARA": {"Test_ARA|Test_KP_1", "Test_ARA|Test_KP_2"}
 }
 
 EDGE_ENTRY_TAGS: Tuple = (
@@ -336,7 +384,7 @@ EDGE_ENTRY_TAGS: Tuple = (
     "tests"
 )
 
-SUMMARY_ENTRY_TAGS: List = ["PASSED", "FAILED", "SKIPPED", "WARNING"]
+SUMMARY_ENTRY_TAGS: List = ["FAILED", "PASSED", "SKIPPED", "WARNING"]
 
 
 @pytest.mark.parametrize(
@@ -347,7 +395,7 @@ SUMMARY_ENTRY_TAGS: List = ["PASSED", "FAILED", "SKIPPED", "WARNING"]
                 "FAILED",
                 True,
                 True,
-                "0", "9", "57", "1"
+                "6", "19", "63", "1"
         ),
         (
                 "sample_pytest_report_2.txt",
@@ -380,24 +428,30 @@ def test_parse_test_output(query):
 
     # Core resources from report
     for component in ["KP", "ARA"]:
-        assert TEST_COMPONENT[component] in output[component]
-        edges = output[component][TEST_COMPONENT[component]]
+        for resource_id in TEST_COMPONENT[component]:
 
-        # edges are only reported if FAILED or SKIPPED?
-        assert (len(edges) > 0) is query[2 if component == "KP" else 3]
+            if resource_id not in output[component]:
+                print(f"Resource {resource_id} not seen in {component} output? Ignoring...")
+                continue
 
-        for edge in edges:
-            assert all([tag in edge for tag in EDGE_ENTRY_TAGS])
-            tests = edge["tests"]
-            # for outcome in ["PASSED", "FAILED"]:
-            #     if outcome == query[1]:
-            #         assert outcome in output["KP"]
-            #         assert outcome in output["ARA"]
-            #     else:
-            #         assert outcome not in output["KP"]
-            #         assert outcome not in output["ARA"]
+            edges = output[component][resource_id]
 
-    assert all([tag in output["SUMMARY"] for tag in SUMMARY_ENTRY_TAGS])
-    for i, outcome in enumerate(SUMMARY_ENTRY_TAGS):
-        assert output["SUMMARY"][outcome] == query[i+4]
+            # edges are only reported if FAILED or SKIPPED, not PASSED?
+            assert (len(edges) > 0) is query[2 if component == "KP" else 3]
+
+            for edge in edges:
+                assert all([tag in edge for tag in EDGE_ENTRY_TAGS])
+                tests = edge["tests"]
+                # for outcome in ["PASSED", "FAILED"]:
+                #     if outcome == query[1]:
+                #         assert outcome in output["KP"]
+                #         assert outcome in output["ARA"]
+                #     else:
+                #         assert outcome not in output["KP"]
+                #         assert outcome not in output["ARA"]
+
+        assert all([tag in output["SUMMARY"] for tag in SUMMARY_ENTRY_TAGS])
+        for i, outcome in enumerate(SUMMARY_ENTRY_TAGS):
+            print(f"Outcome: {outcome}", flush=True, file=stderr)
+            assert output["SUMMARY"][outcome] == query[i+4]
 

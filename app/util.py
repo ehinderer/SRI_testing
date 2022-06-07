@@ -27,10 +27,8 @@ DEFAULT_WORKER_TIMEOUT = 120  # 2 minutes for small PyTests?
 
 PYTEST_HEADER_START_PATTERN = re.compile(r"^=+\stest\ssession\sstarts\s=+$")
 PYTEST_HEADER_END_PATTERN = re.compile(r"\s*collected\s\d+\sitems\s*$")
-
+PYTEST_FOOTER_START_PATTERN = re.compile(r"^=+\sFAILURES\s=+$")
 SHORT_TEST_SUMMARY_INFO_HEADER_PATTERN = re.compile(r"=+\sshort\stest\ssummary\sinfo\s=+")
-
-
 LOGGER_PATTERN = re.compile(r"^(CRITICAL|ERROR|WARNING|INFO|DEBUG)")
 
 
@@ -46,8 +44,8 @@ PASSED_SKIPPED_FAILED_PATTERN = re.compile(
 )
 
 PYTEST_SUMMARY_PATTERN = re.compile(
-    r"^=+(\s(?P<passed>\d+)\spassed,?)?(\s(?P<failed>\d+)\sfailed,?)?"
-    r"(\s(?P<skipped>\d+)\sskipped,?)?(\s(?P<warning>\d+)\swarning)?.+$"
+    r"^=+(\s(?P<failed>\d+)\sfailed,?)?(\s(?P<passed>\d+)\spassed,?)?"
+    r"(\s(?P<skipped>\d+)\sskipped,?)?(\s(?P<warning>\d+)\swarning)?\sin\s[0-9.]+.+$"
 )
 
 TEST_CASE_IDENTIFIER_PATTERN = re.compile(
@@ -356,26 +354,39 @@ def skip_header(line) -> bool:
     return _skip_header
 
 
-def parse_result(raw_report: str) -> Optional[SRITestReport]:
+_skip_footer: bool = False
+
+
+def skip_footer(line) -> bool:
+    global _skip_footer
+
+    if PYTEST_FOOTER_START_PATTERN.match(line):
+        _skip_footer = True
+
+    # _skip_header will be True here while in the header block
+    return _skip_footer
+
+
+def parse_result(raw_output: str) -> Optional[SRITestReport]:
     """
     Extract summary of Pytest output as SRI Testing report.
 
-    :param raw_report: str, raw Pytest stdout content from test run with the -r option.
+    :param raw_output: str, raw Pytest stdout content from test run with the -r option.
 
     :return: TestReport, a structured summary of OneHopTestHarness test outcomes
     """
-    if not raw_report:
+    if not raw_output:
         return None
 
-    part = SHORT_TEST_SUMMARY_INFO_HEADER_PATTERN.split(raw_report)
-    if len(part) > 1:
-        output = part[-1].strip()
-    else:
-        output = part[0].strip()
+    # part = SHORT_TEST_SUMMARY_INFO_HEADER_PATTERN.split(raw_report)
+    # if len(part) > 1:
+    #     output = part[-1].strip()
+    # else:
+    #     output = part[0].strip()
 
     # This splits the test section of interest
     # into lines, to facilitate further processing
-    top_level = output.replace('\r', '')
+    top_level = raw_output.replace('\r', '')
     top_level = top_level.split('\n')
 
     report: SRITestReport = SRITestReport()
@@ -403,7 +414,8 @@ def parse_result(raw_report: str) -> Optional[SRITestReport]:
                 psp["skipped"],
                 psp["warning"]
             )
-
+        elif skip_footer(line):
+            continue
         else:
             # all other lines are assumed to be PyTest unit test outcomes
             psf = PASSED_SKIPPED_FAILED_PATTERN.match(line)
@@ -432,8 +444,7 @@ def parse_result(raw_report: str) -> Optional[SRITestReport]:
 
                 tail: Optional[str] = psf["tail"]
                 if tail:
-                    # strip off spurious blanks in the tail message
-                    tail = tail.strip()
+                    tail = tail.strip("()")
                     resource_entry.add_test_result(current_edge_number, current_test_id, outcome, tail)
             else:
                 if current_component == "UNKNOWN" or current_resource_id == "UNKNOWN":

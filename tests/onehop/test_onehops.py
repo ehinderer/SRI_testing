@@ -28,12 +28,13 @@ def _report_and_skip_edge(scope: str, test, test_case: Dict):
     predicate = test_case['predicate']
     object_category = test_case['object_category']
     object_id = test_case['object']
-    label = f"({subject_id}|{subject_category})--[{predicate}]->({object_id}|{object_category})"
+    label = f"({subject_id}${subject_category})--[{predicate}]->({object_id}${object_category})"
 
     if 'biolink_errors' in test_case:
         model_version, errors = test_case['biolink_errors']
         pytest.skip(
-            f"test case S-P-O triple '{label}', since it is not Biolink Model compliant: {'|'.join(errors)}."
+            f"test case S-P-O triple '{label}', since it is not "
+            f"Biolink Model compliant: {' and '.join(errors)}"
         )
     else:
         pytest.skip(
