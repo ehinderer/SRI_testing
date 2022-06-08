@@ -1,8 +1,7 @@
 """
 Test SRI Testing reporting code snippets
 """
-from typing import Optional, Union, Dict, Tuple, Set
-from sys import stderr
+from typing import Optional, Union, Dict, Tuple, Set, List, Any
 from os import linesep, path
 
 import pytest
@@ -22,8 +21,47 @@ from app.util import (
     skip_header,
     skip_footer
 )
-from tests.onehop.conftest import set_resource_component, add_kp_edge, generate_edge_id
 from tests import TEST_DATA_DIR
+from tests.onehop.conftest import cache_resource_metadata, add_kp_edge
+from tests.translator.registry import MOCK_TRANSLATOR_SMARTAPI_REGISTRY_METADATA
+
+
+def mock_pytest_setup():
+    # need to fake a few Pytest preconditions
+    # (i.e. which would normally be set in the conftest.py)
+    mock_resources: List[Dict[str, Any]] = list()
+    mock_hits: List[Dict] = MOCK_TRANSLATOR_SMARTAPI_REGISTRY_METADATA["hits"]
+    for hit in mock_hits:
+        hit_info = hit['info']
+        x_translator = hit_info['x-translator']
+        x_trapi = hit_info['x-trapi']
+        mock_resources.append(
+            {
+                "title": hit_info['title'],
+                "api_version": hit_info['version'],
+                "component": x_translator['component'],
+                "infores": x_translator['infores'],
+                "team": x_translator['team'],
+                "biolink_version": x_translator['biolink-version'],
+                "trapi_version": x_trapi['version'],
+                "test_data_location": x_trapi['test_data_location']
+            }
+        )
+
+    mock_edge = {
+        "subject_category": "PANTHER.FAMILY:PTHR34921:SF1:biolink:GeneFamily",
+        "object_category": "PANTHER.FAMILY:PTHR34921:SF1:biolink:GeneFamily",
+        "predicate": "biolink:part_of",
+        "subject_id": "PANTHER.FAMILY:PTHR34921",
+        "object_id": "PANTHER.FAMILY:PTHR34921"
+    }
+    for metadata in mock_resources:
+        cache_resource_metadata(metadata=metadata)
+        resource_id = metadata['api_name']
+        for edge_idx in range(0, 6):
+            edge: Dict = mock_edge.copy()
+            edge["idx"] = edge_idx
+            add_kp_edge(resource_id, edge_idx, edge)
 
 
 def test_pytest_header_start_pattern():
@@ -352,25 +390,6 @@ def test_pytest_summary(query):
         assert match["warning"] == '4', f"{TPS} 'warning' field not matched?"
 
 
-def mock_pytest_setup():
-    # need to fake a few Pytest preconditions
-    # (i.e. which would normally be set in the conftest.py)
-    mock_edge = {
-        "subject_category": "PANTHER.FAMILY:PTHR34921:SF1:biolink:GeneFamily",
-        "object_category": "PANTHER.FAMILY:PTHR34921:SF1:biolink:GeneFamily",
-        "predicate": "biolink:part_of",
-        "subject_id": "PANTHER.FAMILY:PTHR34921",
-        "object_id": "PANTHER.FAMILY:PTHR34921"
-    }
-    for resource_id in ["Test_KP_1", "Test_KP_2"]:
-        set_resource_component(resource_id, "KP")
-        for edge_i in range(0, 6):
-            edge_id: str = generate_edge_id(resource_id, edge_i)
-            edge: Dict = mock_edge.copy()
-            edge["#"] = edge_i
-            add_kp_edge(edge_id, edge)
-
-
 TEST_COMPONENT: Dict[str, Set] = {
     "KP": {"Test_KP_1", "Test_KP_2"},
     "ARA": {"Test_ARA|Test_KP_1", "Test_ARA|Test_KP_2"}
@@ -446,7 +465,7 @@ def test_parse_test_output(query):
                     result: Dict = tests[test]
                     for outcome in result.keys():
                         assert outcome in SUMMARY_ENTRY_TAGS
-                        # TODO: can I test the individual errors here?
+                        # TODO: can we validate anything further here?
 
         assert all([tag in output["SUMMARY"] for tag in SUMMARY_ENTRY_TAGS])
         for i, outcome in enumerate(SUMMARY_ENTRY_TAGS):

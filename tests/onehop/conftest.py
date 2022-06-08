@@ -8,7 +8,7 @@ import json
 import logging
 from collections import defaultdict
 from json import JSONDecodeError
-from typing import Optional, Union, List, Set, Dict
+from typing import Optional, Union, List, Set, Dict, Any
 
 from pytest_harvest import get_session_results_dct
 
@@ -29,7 +29,7 @@ def clean_up_filename(source: str):
     name = source.split('/')[-1][:-1]
     name = name.strip("[]")
     name = name.replace(".py::", "-")
-    name = sub(r"[:\[\]\|#/]+", "-", name)
+    name = sub(r"[:\[\]|#/]+", "-", name)
     name = f"{name}.results"
     logger.debug(f"_clean_up_filename: '{source}' to '{name}'")
     return name
@@ -240,16 +240,30 @@ def load_test_data_source(
     return metadata
 
 
-component_catalog: Dict[str, str] = dict()
+# Key is a resource identifier a.k.a. 'api_name'
+# Value is associated Translator SmartAPI Registry metadata dictionary
+component_catalog: Dict[str, Dict[str, Any]] = dict()
 
 
-def set_resource_component(resource_id: str, component: str):
-    component_catalog[resource_id] = component
+def cache_resource_metadata(metadata: Dict[str, Any]):
+    component = metadata['component']
+    assert component in ["KP", "ARA"]
+    resource_id: str = metadata['api_name']
+    component_catalog[resource_id] = metadata
+
+
+def get_metadata_by_resource(resource_id: str) -> Optional[Dict[str, Any]]:
+    if resource_id in component_catalog:
+        metadata: Dict = component_catalog[resource_id]
+        return metadata
+    else:
+        return None
 
 
 def get_component_by_resource(resource_id: str) -> Optional[str]:
-    if resource_id in component_catalog:
-        return component_catalog[resource_id]
+    metadata: Dict = get_metadata_by_resource(resource_id)
+    if metadata and "component" in metadata:
+        return metadata['component']
     else:
         return None
 
@@ -261,16 +275,22 @@ def generate_edge_id(resource_id: str, edge_i: int) -> str:
 kp_edges_catalog: Dict[str, Dict[str,  Union[int, str]]] = dict()
 
 
-def add_kp_edge(edge_id: str, edge: Dict[str, Union[int, str]]):
-    kp_edges_catalog[edge_id] = edge
+def add_kp_edge(resource_id: str, edge_idx: int, edge: Dict[str, Any]):
+    metadata: Dict = get_metadata_by_resource(resource_id)
+    assert metadata
+    if "edges" not in metadata:
+        metadata['edges'] = list()
+    while len(metadata['edges']) <= edge_idx:
+        metadata['edges'].append(None)
+    metadata['edges'][edge_idx] = edge
 
 
-def get_kp_edge(resource_id: str, edge_i: int) -> Optional[Dict[str,  Union[int, str]]]:
-    edge_id = generate_edge_id(resource_id, edge_i)
-    if edge_id in kp_edges_catalog:
-        return kp_edges_catalog[edge_id]
-    else:
-        return None
+def get_kp_edge(resource_id: str, edge_idx: int) -> Dict[str, Any]:
+    metadata: Dict = get_metadata_by_resource(resource_id)
+    assert metadata
+    edges = metadata['edges']
+    assert 0 <= edge_idx < len(edges)
+    return edges[edge_idx]
 
 
 def generate_trapi_kp_tests(metafunc, biolink_version):
@@ -292,8 +312,7 @@ def generate_trapi_kp_tests(metafunc, biolink_version):
         # User CLI may override here the target Biolink Model version during KP test data preparation
         kpjson = load_test_data_source(source, metadata, biolink_version)
 
-        # TODO: cache a bit of KP resource metadata for later SRI Testing report purposes
-        set_resource_component(kpjson['api_name'], "KP")
+        cache_resource_metadata(kpjson)
 
         dataset_level_test_exclusions: Set = set()
         if "exclude_tests" in kpjson:
@@ -366,9 +385,11 @@ def generate_trapi_kp_tests(metafunc, biolink_version):
 
                 edges.append(edge)
 
-                edge_id = generate_edge_id(edge['kp_api_name'], edge_i)
+                resource_id = edge['kp_api_name']
+                add_kp_edge(resource_id, edge_i, edge)
+
+                edge_id = generate_edge_id(resource_id, edge_i)
                 idlist.append(edge_id)
-                add_kp_edge(edge_id, edge)
 
                 if metafunc.config.getoption('one', default=False):
                     break
@@ -424,7 +445,7 @@ def generate_trapi_ara_tests(metafunc, kp_edges, biolink_version):
         # User CLI may override here the target Biolink Model version during KP test data preparation
         arajson = load_test_data_source(source, metadata, biolink_version)
 
-        set_resource_component(arajson['api_name'], "ARA")
+        cache_resource_metadata(arajson)
 
         for kp in arajson['KPs']:
 
