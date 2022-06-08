@@ -8,7 +8,7 @@ from typing import Optional, Union, List, Dict, Tuple
 from os import path
 import time
 from uuid import UUID
-
+from json import dump
 import re
 
 from tests import TEST_DATA_DIR
@@ -92,7 +92,7 @@ class EdgeEntry:
                     str,
                     Dict[
                         # error dictionary keys are in 
-                        # ["PASSED", "FAILED", "SKIPPED", "WARNING"]
+                        # ["PASSED", "FAILED", "SKIPPED"]
                         str,
                         # List of error messages (or empty list, if simply 'PASSED')
                         List[str]
@@ -116,11 +116,11 @@ class EdgeEntry:
         assert outcome in SUMMARY_ENTRY_TAGS
         if not test_label:
             test_label = "input"
-        if test_label not in self.data["tests"]:
+        if test_label not in self.data['tests']:
             self.data["tests"][test_label] = dict()
-        if outcome not in self.data["tests"][test_label]:
-            self.data["tests"][test_label][outcome] = list()
-        self.data["tests"][test_label][outcome].append(message)
+        if outcome not in self.data['tests'][test_label]:
+            self.data['tests'][test_label][outcome] = list()
+        self.data['tests'][test_label][outcome].append(message)
 
     @classmethod
     def get_edge_input_data(cls, resource_id: str, edge_i: int) -> Optional:
@@ -128,12 +128,12 @@ class EdgeEntry:
         edge_entry: Optional[EdgeEntry]
         if edge:
             edge_entry = EdgeEntry(
-                            idx=edge["#"],  # actually, should be identical to edge_i
-                            subject_category=edge["subject_category"],
-                            object_category=edge["object_category"],
-                            predicate=edge["predicate"],
-                            subject_id=edge["subject_id"],
-                            object_id=edge["object_id"]
+                            idx=edge['idx'],  # actually, should be identical to edge_i
+                            subject_category=edge['subject_category'],
+                            object_category=edge['object_category'],
+                            predicate=edge['predicate'],
+                            subject_id=edge['subject_id'],
+                            object_id=edge['object_id']
                         )
         else:
             # TODO: this is a hack... probably shouldn't ever
@@ -199,7 +199,7 @@ class SRITestReport:
             str,  
             Dict[  # Translator "component"  or report summary entry
                 # if dictionary key == "SUMMARY", then
-                #    2nd level dictionary keys are in ["PASSED", "FAILED", "SKIPPED", "WARNING"]
+                #    2nd level dictionary keys are in ["PASSED", "FAILED", "SKIPPED"]
                 # else
                 #    2nd level dictionary keys are the identifier of the resource
                 #    being tested (of the KP or ARA), either the
@@ -306,7 +306,7 @@ class SRITestReport:
             for component in ["KP", "ARA", "SUMMARY"]:
                 self._output[component] = dict()
                 if component == "SUMMARY":
-                    for outcome in ["PASSED", "FAILED", "SKIPPED"]:
+                    for outcome in SUMMARY_ENTRY_TAGS:
                         self._output["SUMMARY"][outcome] = self.report["SUMMARY"][outcome]
                 else:
                     # iterate through the ResourceEntry instances for each KP or ARA resource ID
@@ -540,13 +540,16 @@ class OneHopTestHarness:
         :return: Optional[Union[str, TestReport]], structured Pytest report from the OneHopTest of
                  target KPs & ARAs, or a single string global error message, or None (if still unavailable)
         """
+        # Raw Pytest data and report output is
+        # cached locally with a timestamp
+        ts = time.time()
         if not self._report:
             if self._session_id:
                 self._result = self._process.get_output(self._session_id)
                 if self._result:
                     # ts stores the time in seconds
-                    ts = time.time()
-                    sample_file_path = path.join(TEST_DATA_DIR, f"sample_pytest_report_{ts}.txt")
+
+                    sample_file_path = path.join(TEST_DATA_DIR, f"raw_pytest_output{ts}.txt")
                     with open(sample_file_path, "w") as sf:
                         sf.write(self._result)
 
@@ -557,10 +560,12 @@ class OneHopTestHarness:
                 else:
                     # totally opaque OneHopTestHarness test run failure?
                     self._report = [f"Worker process failed to execute command line '{self._command_line}'?"]
-            # TODO: at this point, we might wish to persist the generated reports
-            #       onto the local hard disk system, indexed by the session_id
         if self._report:
-            return self._report.output()
+            report = self._report.output()
+            sri_report_file_path = path.join(TEST_DATA_DIR, f"sri_report_{ts}.json")
+            with open(sri_report_file_path, "w") as sr:
+                dump(report, sr, indent=4)
+            return report
         else:
             return None  # Report simply not yet available, but Pytest may still be running?
     
@@ -576,7 +581,7 @@ class OneHopTestHarness:
                  target KPs & ARAs, or a single string global error message, or None (if still unavailable)
         """
         assert session_id_str  # should not be empty
-        
+
         if session_id_str not in cls._session_id_2_testrun:
             return f"Unknown Worker Process 'session_id': {session_id_str}"
         

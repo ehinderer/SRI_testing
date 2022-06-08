@@ -292,6 +292,7 @@ def generate_trapi_kp_tests(metafunc, biolink_version):
         # User CLI may override here the target Biolink Model version during KP test data preparation
         kpjson = load_test_data_source(source, metadata, biolink_version)
 
+        # TODO: cache a bit of KP resource metadata for later SRI Testing report purposes
         set_resource_component(kpjson['api_name'], "KP")
 
         dataset_level_test_exclusions: Set = set()
@@ -312,7 +313,7 @@ def generate_trapi_kp_tests(metafunc, biolink_version):
 
                 # We tag each edge internally with its
                 # sequence number, for later convenience
-                edge['#'] = edge_i
+                edge['idx'] = edge_i
 
                 # We can already do some basic Biolink Model validation here of the
                 # S-P-O contents of the edge being input from the current triples file?

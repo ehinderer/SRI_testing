@@ -362,7 +362,7 @@ def mock_pytest_setup():
         "subject_id": "PANTHER.FAMILY:PTHR34921",
         "object_id": "PANTHER.FAMILY:PTHR34921"
     }
-    for resource_id in ["Test_KP_1","Test_KP_2"]:
+    for resource_id in ["Test_KP_1", "Test_KP_2"]:
         set_resource_component(resource_id, "KP")
         for edge_i in range(0, 6):
             edge_id: str = generate_edge_id(resource_id, edge_i)
