@@ -35,9 +35,14 @@ def mock_pytest_setup():
         hit_info = hit['info']
         x_translator = hit_info['x-translator']
         x_trapi = hit_info['x-trapi']
+        source = x_trapi['test_data_location']
+        api_name: str = source.split('/')[-1]
+        # remove the trailing file extension
+        api_name = api_name.replace(".json", "")
         mock_resources.append(
             {
                 "title": hit_info['title'],
+                "api_name": api_name,
                 "api_version": hit_info['version'],
                 "component": x_translator['component'],
                 "infores": x_translator['infores'],

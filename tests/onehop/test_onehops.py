@@ -1,7 +1,6 @@
 """
 One Hops Testing Suite
 """
-from os import linesep
 from typing import List, Dict
 
 import pytest

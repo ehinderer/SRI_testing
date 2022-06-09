@@ -176,6 +176,7 @@ def get_test_data_sources(source: str, component_type: str) -> Dict[str, Dict[st
         metadata_template = {
             "service_title": None,
             "service_version": None,
+            "component": component_type,
             "infores": None,
             "biolink_version": None,
             "trapi_version": None

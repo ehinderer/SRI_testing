@@ -230,6 +230,7 @@ def extract_component_test_metadata_from_registry(
 
         capture_tag_value(service_metadata, test_data_location, "service_title", service_title)
         capture_tag_value(service_metadata, test_data_location, "service_version", service_version)
+        capture_tag_value(service_metadata, test_data_location, "component", component_type)
         capture_tag_value(service_metadata, test_data_location, "infores", infores)
         capture_tag_value(service_metadata, test_data_location, "biolink_version", biolink_version)
         capture_tag_value(service_metadata, test_data_location, "trapi_version", trapi_version)

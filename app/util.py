@@ -483,7 +483,8 @@ class OneHopTestHarness:
             biolink_version: Optional[str] = None,
             triple_source: Optional[str] = None,
             ara_source:  Optional[str] = None,
-            one: bool = False
+            one: bool = False,
+            log: Optional[str] = None
     ) -> Optional[str]:
         """
         Run the SRT Testing test harness as a worker process.
@@ -502,6 +503,8 @@ class OneHopTestHarness:
 
         :param one: bool, Only use first edge from each KP file (default: False if omitted).
 
+        :param log: Optional[str], desired Python logger level label (default: None, implying default logger)
+
         :return: str, UUID session identifier for this testing run
         """
         session_id_string: Optional[str]
@@ -517,7 +520,9 @@ class OneHopTestHarness:
                 logger.error(f"This OneHopTestHarness test run has an unmapped or expired UUID '{session_id_string}'")
         else:
             self._command_line = f"cd {ONEHOP_TEST_DIRECTORY} {CMD_DELIMITER} " + \
-                                 f"pytest --tb=line -vv test_onehops.py"
+                                 f"pytest -rA --tb=line -vv"
+            self._command_line += f" --log-cli-level={log}" if log else ""
+            self._command_line += f" test_onehops.py"
             self._command_line += f" --TRAPI_Version={trapi_version}" if trapi_version else ""
             self._command_line += f" --Biolink_Version={biolink_version}" if biolink_version else ""
             self._command_line += f" --triple_source={triple_source}" if triple_source else ""
