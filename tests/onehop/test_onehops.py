@@ -21,7 +21,7 @@ def _report_and_skip_edge(scope: str, test, test_case: Dict):
         test_name = test.__name__
     except AttributeError:
         raise RuntimeError(f"_report_and_skip_edge(): invalid 'test' parameter: '{str(test)}'")
-    edge_i = test_case["#"]
+    edge_i = test_case["idx"]
     subject_category = test_case['subject_category']
     subject_id = test_case['subject']
     predicate = test_case['predicate']
