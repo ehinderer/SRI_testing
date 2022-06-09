@@ -8,7 +8,7 @@ Registry package
 # (dereferencing test data in the SRI Testing project repository)
 #
 #
-# Setting the followin flag triggers use of this local 'mock' data
+# Setting the following flag triggers use of this local 'mock' data
 MOCK_REGISTRY: bool = True
 MOCK_TRANSLATOR_SMARTAPI_REGISTRY_METADATA = {
     "total": 3,

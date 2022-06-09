@@ -545,15 +545,13 @@ class OneHopTestHarness:
         :return: Optional[Union[str, TestReport]], structured Pytest report from the OneHopTest of
                  target KPs & ARAs, or a single string global error message, or None (if still unavailable)
         """
-        # Raw Pytest data and report output is
-        # cached locally with a timestamp
+        # ts stores the time in seconds
         ts = time.time()
         if not self._report:
             if self._session_id:
                 self._result = self._process.get_output(self._session_id)
                 if self._result:
-                    # ts stores the time in seconds
-
+                    # Raw Pytest data and report output is cached locally with a timestamp
                     sample_file_path = path.join(TEST_DATA_DIR, f"raw_pytest_output{ts}.txt")
                     with open(sample_file_path, "w") as sf:
                         sf.write(self._result)
