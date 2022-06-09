@@ -44,7 +44,8 @@ def pytest_sessionfinish(session):
         if v['status'] == 'failed':
             # clean up the name for safe file system usage
             rfname = clean_up_filename(t)
-            rb = v['fixtures']['results_bag']
+            rb: Dict = v['fixtures']['results_bag']
+            rb = {key.strip("\r\n"): value for key, value in rb.items()}
             # rb['location'] looks like "test_triples/KP/Exposures_Provider/CAM-KP_API.json"
             if 'location' in rb:
                 lparts = rb['location'].split('/')
@@ -69,7 +70,8 @@ def pytest_sessionfinish(session):
                 # But we don't need to make a big deal about it.
                 with open(outname+"NOTEST", 'w') as outf:
                     outf.write('Error generating results: No request generated?')
-                    json.dump(rb['case'], outf, indent=4)
+                    if 'case' in rb:
+                        json.dump(rb['case'], outf, indent=4)
 
 
 def pytest_addoption(parser):
