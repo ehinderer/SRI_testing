@@ -44,8 +44,9 @@ LOGGER_PATTERN = re.compile(r"^((CRITICAL|ERROR|WARNING|INFO|DEBUG)|\-+\slive\sl
 # "FAILED test_onehops.py::test_trapi_aras[Test_ARA.json_Test KP_0-by_subject]"
 PASSED_SKIPPED_FAILED_PATTERN = re.compile(
     r"^test_onehops.py:(\d+)?:(test_trapi_(?P<component>kp|ara)s|\s)(\[(?P<case>[^]]+)])\s" +
-    r"(?P<outcome>PASSED|SKIPPED|FAILED)\s+((?P<tail>.+)\s)?(\[\s*\d+%])$"
+    r"(?P<outcome>PASSED|SKIPPED|FAILED)\s*((?P<tail>.+))?$"
 )
+PERCENTAGE_COMPLETION_SUFFIX_PATTERN = re.compile(r"(\[\s*(?P<percent_complete>\d+)%])?$")
 
 PYTEST_SUMMARY_PATTERN = re.compile(
     r"^=+(\s(?P<failed>\d+)\sfailed,?)?(\s(?P<passed>\d+)\spassed,?)?"
@@ -434,7 +435,7 @@ def parse_result(raw_output: str) -> Optional[SRITestReport]:
             continue
 
         if failures_were_consumed():
-            # only expecting the summary line now...
+            # only looking for the summary line now...
             psp = PYTEST_SUMMARY_PATTERN.match(line)
             if psp:
                 # PyTest summary line encountered.
@@ -446,6 +447,7 @@ def parse_result(raw_output: str) -> Optional[SRITestReport]:
                     psp["skipped"]
                 )
             else:
+                # ... skipping everything else...
                 continue
         else:
             line = annotate_failures(line)
@@ -468,9 +470,10 @@ def parse_result(raw_output: str) -> Optional[SRITestReport]:
                     current_resource_id, current_edge_number, current_test_id = \
                         report.parse_test_case_identifier(current_case)
 
-                # Note: 'component' inferred from PASSED|SKIPPED|FAILED pattern will be lower case?
                 component: Optional[str] = psf["component"]
                 if component:
+                    # Convert the lower cased 'component' inferred from
+                    # the PASSED|SKIPPED|FAILED pattern into upper case
                     component = component.upper()
                 else:
                     # need to look up component type by resource ID
@@ -482,7 +485,20 @@ def parse_result(raw_output: str) -> Optional[SRITestReport]:
 
                 tail: Optional[str] = psf["tail"]
                 if tail:
-                    tail = tail.strip("()")
+                    # deferred capture of percentage
+                    # completion annotation in a line
+                    pc = PERCENTAGE_COMPLETION_SUFFIX_PATTERN.search(line)
+                    if pc:
+                        # TODO: want to return this back to test run
+                        #       owner for progress monitoring
+                        percentage_completion = pc["percent_complete"]
+
+                        # Trim the percentage completion annotation from the message
+                        tail = tail.replace(pc.group(), "")
+
+                    tail = tail.strip()  # flanking whitespace
+                    tail = tail.strip("()")  # flanking parentheses
+
                     resource_entry.add_test_result(current_edge_number, current_test_id, outcome, tail)
             else:
                 if current_component == "UNKNOWN" or current_resource_id == "UNKNOWN":
@@ -491,6 +507,7 @@ def parse_result(raw_output: str) -> Optional[SRITestReport]:
                         f"current_resource_id is '{current_resource_id}' for line '{str(line)}'?"
                     )
                 else:
+                    # probably a second level error message without percentage completion annotation?
                     resource_entry: ResourceEntry = report.get_resource_entry(current_component, current_resource_id)
                     resource_entry.add_test_result(current_edge_number, current_test_id, current_outcome, line)
 

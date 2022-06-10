@@ -25,23 +25,6 @@ def test_set_specific_global_environment():
     assert trapi_version.startswith("1.1")
 
 
-# def generate_test_error_msg_prefix(case: Dict, test_name: str) -> str:
-#     assert case
-#     test_msg_prefix: str = "test_onehops.py::test_trapi_"
-#     resource_id: str = ""
-#     component: str = "kp"
-#     if 'ara_api_name' in case and case['ara_api_name']:
-#         component = "ara"
-#         resource_id += case['ara_api_name'] + "|"
-#     test_msg_prefix += f"{component}s["
-#     resource_id += case['kp_api_name']
-#     edge_idx = case['idx']
-#     edge_id = generate_edge_id(resource_id, edge_idx)
-#     if not test_name:
-#         test_name = "input"
-#     test_msg_prefix += f"{edge_id}-{test_name}] FAILED "
-#     return test_msg_prefix
-
 @pytest.mark.parametrize(
     "query",
     [
@@ -51,7 +34,7 @@ def test_set_specific_global_environment():
                     "idx": "2",
                 },
                 "test_name",
-                "test_onehops.py::test_trapi_kps[Test_KP_1#2-test_name] FAILED "
+                "test_onehops.py::test_trapi_kps[Test_KP_1#2-test_name] FAILED"
         ),
         (
                 {
@@ -59,7 +42,7 @@ def test_set_specific_global_environment():
                     "idx": "2",
                 },
                 None,
-                "test_onehops.py::test_trapi_kps[Test_KP_1#2-input] FAILED "
+                "test_onehops.py::test_trapi_kps[Test_KP_1#2-input] FAILED"
         ),
         (
                 {
@@ -68,7 +51,7 @@ def test_set_specific_global_environment():
                     "idx": "2",
                 },
                 "test_name",
-                "test_onehops.py::test_trapi_aras[Test_ARA|Test_KP_1#2-test_name] FAILED "
+                "test_onehops.py::test_trapi_aras[Test_ARA|Test_KP_1#2-test_name] FAILED"
         ),
         (
                 {
@@ -77,7 +60,7 @@ def test_set_specific_global_environment():
                     "idx": "2",
                 },
                 None,
-                "test_onehops.py::test_trapi_aras[Test_ARA|Test_KP_1#2-input] FAILED "
+                "test_onehops.py::test_trapi_aras[Test_ARA|Test_KP_1#2-input] FAILED"
         )
     ]
 )
