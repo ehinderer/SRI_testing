@@ -97,7 +97,8 @@ def test_pytest_header_end_pattern(query):
         "ERROR    sometest.py:123 blah, blah, blah",
         "WARNING    sometest.py:123 blah, blah, blah",
         "INFO    sometest.py:123 blah, blah, blah",
-        "DEBUG    sometest.py:123 blah, blah, blah"
+        "DEBUG    sometest.py:123 blah, blah, blah",
+        "-------------------------------- live log call --------------------------------"
     ]
 )
 def test_pytest_logger_pattern(query):
@@ -111,7 +112,7 @@ platform win32 -- Python 3.9.7, pytest-7.1.1, pluggy-1.0.0 -- c:\\users\\sri_tes
 
 cachedir: .pytest_cache
 
-rootdir: C:\\Users\richa\PycharmProjects\SRI_testing\tests\onehop
+rootdir: C:\\SRI_testing\tests\onehop
 
 plugins: anyio-3.5.0, asyncio-0.18.2, harvest-1.10.3
 
@@ -147,37 +148,30 @@ def test_pytest_failures_start_pattern():
     )
 
 
-# TEST_FOOTER = """================================== FAILURES ===================================
-# C:\Users\richa\PycharmProjects\SRI_testing\translator\trapi\__init__.py:285: AssertionError: \
-# execute_trapi_lookup(test 'by_subject' to endpoint https://aragorn.renci.org/1.2): TRAPI 1.2.0 query request
-# ============================== warnings summary ===============================
-# ..\..\py\lib\site-packages\pytest_asyncio\plugin.py:191
-#   c:\\users\\richa\pycharmprojects\sri_testing\py\lib\site-packages\pytest_asyncio\plugin.py:191: ...
-#
-# -- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
-# =========================== short test summary info ===========================
-# FAILED test_onehops.py::test_trapi_aras[Test_ARA|Test_KP_2#0-by_object] - AssertionError: Edge:
-# ======= 6 failed, 19 passed, 63 skipped, 1 warning in 738.86s (0:12:18) =======
-# """
-#
-#
-# def test_skip_footer():
-#     lines = TEST_FOOTER.split('\n')
-#     line: str
-#     for line in lines:
-#
-#         line = line.strip()  # spurious leading and trailing whitespace removed
-#         if not line:
-#             continue  # ignore blank lines
-#
-#         psp = PYTEST_SUMMARY_PATTERN.match(line)
-#         if psp:
-#             assert line == "======= 6 failed, 19 passed, 63 skipped, 1 warning in 738.86s (0:12:18) ======="
-#
-#         if annotate_failures(line):
-#             continue
-#
-#         assert False, "test_skip_footer() unit should not generally get here!"
+TEST_FAILURES = """================================== FAILURES ===================================
+C:\\SRI_testing\translator\trapi\__init__.py:282: AssertionError: test_onehops.py::test_trapi_kps[Test_KP_1#0-by_subject] FAILED  for expected TRAPI version '1.0.0'
+C:\\SRI_testing\translator\trapi\__init__.py:282: AssertionError: test_onehops.py::test_trapi_kps[Test_KP_1#0-inverse_by_new_subject] FAILED  for expected TRAPI version '1.0.0'
+============================== warnings summary ===============================
+Beyond FAILURES"""
+
+
+def test_annotate_failures():
+    lines = TEST_FAILURES.split("\n")
+    line: str
+    failures_parsed: bool = False
+    for line in lines:
+        rewritten_line = annotate_failures(line)
+        if not rewritten_line:
+            # We toggle the parse state based on the realization
+            # that the rewritten line ought to be blank twice:
+            # once at the start and once at the end of the section
+            failures_parsed = not failures_parsed
+            continue
+
+        if failures_parsed:
+            assert rewritten_line.startswith("test_onehops.py::test_trapi_kps")
+        else:
+            assert rewritten_line == "Beyond FAILURES"
 
 
 @pytest.mark.parametrize(

@@ -126,6 +126,10 @@ def _worker_process(lock: mp.Lock, queue: mp.Queue, command_line: str):
     queue.put(result)
 
 
+class WorkerProcessException(Exception):
+    pass
+
+
 class WorkerProcess:
     
     # Bidirectional(?) WorkerProcess class map
@@ -226,6 +230,10 @@ class WorkerProcess:
         # Sanity check
         assert session_id
 
+        if not self._process.is_alive():
+            logger.debug("Worker Process is no longer alive?")
+            raise WorkerProcessException("Worker Process is no longer alive?!")
+
         # this method is idempotent: once a non-empty output is
         # retrieved the first time, it is deemed ached for future access
         if not self._output:
@@ -257,7 +265,7 @@ class WorkerProcess:
                         self._process.kill()
                         self._process = None
                 else:
-                    raise RuntimeError(
+                    raise WorkerProcessException(
                         f"ERROR: Unexpected result type encountered from worker process: {type(self._result)}"
                     )
             

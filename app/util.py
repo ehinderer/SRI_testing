@@ -5,8 +5,8 @@ The module launches the SRT Testing test harness using the Python 'multiprocesso
 See https://docs.python.org/3/library/multiprocessing.html?highlight=multiprocessing for details.
 """
 from typing import Optional, Union, List, Dict, Tuple
-from sys import stderr
-from os import path, sep as path_sep
+# from sys import stderr
+from os import path
 import time
 from uuid import UUID
 from json import dump
@@ -14,7 +14,7 @@ import re
 
 from tests import TEST_DATA_DIR
 from tests.onehop.conftest import get_kp_edge, get_component_by_resource
-from translator.sri.testing.processor import CMD_DELIMITER, WorkerProcess
+from translator.sri.testing.processor import CMD_DELIMITER, WorkerProcess, WorkerProcessException
 from tests.onehop import ONEHOP_TEST_DIRECTORY
 
 import logging
@@ -34,14 +34,14 @@ PYTEST_FAILURES_START_PATTERN = re.compile(r"^=+\sFAILURES\s=+$")
 PYTEST_FAILURES_END_PATTERN = re.compile(r"^=+\swarnings summary\s=+$")
 
 SHORT_TEST_SUMMARY_INFO_HEADER_PATTERN = re.compile(r"=+\sshort\stest\ssummary\sinfo\s=+")
-LOGGER_PATTERN = re.compile(r"^(CRITICAL|ERROR|WARNING|INFO|DEBUG)")
+
+LOGGER_PATTERN = re.compile(r"^((CRITICAL|ERROR|WARNING|INFO|DEBUG)|\-+\slive\slog\scall\s\-+$)")
 
 #
 # Examples:
 # "PASSED test_onehops.py::test_trapi_aras[Test_ARA.json_Test KP_0-by_subject]"
 # "SKIPPED [11] test_onehops.py:32: "
-# "FAILED test_onehops.py::tes
-# t_trapi_aras[Test_ARA.json_Test KP_0-by_subject]"
+# "FAILED test_onehops.py::test_trapi_aras[Test_ARA.json_Test KP_0-by_subject]"
 PASSED_SKIPPED_FAILED_PATTERN = re.compile(
     r"^test_onehops.py:(\d+)?:(test_trapi_(?P<component>kp|ara)s|\s)(\[(?P<case>[^]]+)])\s" +
     r"(?P<outcome>PASSED|SKIPPED|FAILED)\s+((?P<tail>.+)\s)?(\[\s*\d+%])$"
@@ -363,46 +363,43 @@ _parsing_failures: bool = False
 _failures_consumed: bool = False
 
 
-def annotate_failures(line) -> Tuple[bool, str]:
+def annotate_failures(line) -> str:
 
     global _parsing_failures, _failures_consumed
 
-    rewritten_line = ""
-    if _failures_consumed:
-        # short-circuit regex search
-        # for FAILURES, if already seen.
-        return False, ""
+    rewritten_line: str = line
+    if not _failures_consumed:
 
-    if not _parsing_failures:
+        if not _parsing_failures:
 
-        if PYTEST_FAILURES_START_PATTERN.match(line):
-            _parsing_failures = True
+            if PYTEST_FAILURES_START_PATTERN.match(line):
+                _parsing_failures = True
+                rewritten_line = ""
 
-    else:
-        #
-        # TODO: capture the FAILURES annotation here, of format something like:
-        # C:\Users\richa\PycharmProjects\SRI_testing\translator\trapi\__init__.py:285: AssertionError:
-        #    test_onehops.py::test_trapi_aras[Test_ARA|Test_KP_2#0-by_subject] FAILED: TRAPI 1.2.0 query request
-        #
-        # converted to a parseable line, something like:
-        #
-        # test_onehops.py::test_trapi_aras[Test_ARA|Test_KP_2#0-by_subject] FAILED (TRAPI 1.2.0 query request)
-        #
+        elif PYTEST_FAILURES_END_PATTERN.match(line):
+            _parsing_failures = False
+            _failures_consumed = True
+            rewritten_line = ""
 
-        # the line contains a pseudo UNICODE directive which causes problems during regex?
-        rewritten_line = line.replace("\\U", "")
+        else:
+            #
+            # TODO: capture the FAILURES annotation here, of format something like:
+            # C:\Users\richa\PycharmProjects\SRI_testing\translator\trapi\__init__.py:285: AssertionError:
+            #    test_onehops.py::test_trapi_aras[Test_ARA|Test_KP_2#0-by_subject] FAILED: TRAPI 1.2.0 query request
+            #
+            # converted to a parseable line, something like:
+            #
+            # test_onehops.py::test_trapi_aras[Test_ARA|Test_KP_2#0-by_subject] FAILED (TRAPI 1.2.0 query request)
+            #
 
-        # The 'AssertionError:' text seems to demarcate the boundary between the prefix and any error message
-        part = rewritten_line.split("AssertionError: ")
-        rewritten_line = part[1] if len(part) >= 2 else ""
+            # the line contains a pseudo UNICODE directive which causes problems during regex?
+            rewritten_line = line.replace("\\U", "")
 
-    if PYTEST_FAILURES_END_PATTERN.match(line):
-        _parsing_failures = False
-        _failures_consumed = True
+            # The 'AssertionError:' text seems to demarcate the boundary between the prefix and any error message
+            part = rewritten_line.split("AssertionError: ")
+            rewritten_line = part[1] if len(part) >= 2 else ""
 
-    # annotate_failures will be True here
-    # while parsing the FAILURES block
-    return _parsing_failures, rewritten_line
+    return rewritten_line
 
 
 def parse_result(raw_output: str) -> Optional[SRITestReport]:
@@ -448,12 +445,9 @@ def parse_result(raw_output: str) -> Optional[SRITestReport]:
                 psp["skipped"]
             )
         else:
-            parsing_failures, rewritten_line = annotate_failures(line)
-            if parsing_failures:
-                if not rewritten_line:
-                    continue
-
-                line = rewritten_line
+            line = annotate_failures(line)
+            if not line:
+                continue
 
             # all other lines are assumed to be PyTest unit test outcomes
             psf = PASSED_SKIPPED_FAILED_PATTERN.match(line)
@@ -555,7 +549,8 @@ class OneHopTestHarness:
         session_id_string: Optional[str]
 
         if self._session_id:
-            # Enforcing idempotency: this OneHopTestHarness run is already initialized
+            # Enforcing idempotency:
+            # this OneHopTestHarness run is already initialized
             session_id_string = self.get_session_id()
             if session_id_string in self._session_id_2_testrun:
                 logger.warning(
@@ -583,7 +578,7 @@ class OneHopTestHarness:
 
         return session_id_string
     
-    def get_testrun_report(self) -> Optional[Union[str, Dict]]:
+    def get_testrun_report(self) -> Optional[Union[List[str], Dict]]:
         """
         Generates and caches a OneHopTestHarness test report the first time this method is called.
 
@@ -594,20 +589,24 @@ class OneHopTestHarness:
         ts = time.time()
         if not self._report:
             if self._session_id:
-                self._result = self._process.get_output(self._session_id)
-                if self._result:
-                    # Raw Pytest data and report output is cached locally with a timestamp
-                    sample_file_path = path.join(TEST_DATA_DIR, f"raw_pytest_output{ts}.txt")
-                    with open(sample_file_path, "w") as sf:
-                        sf.write(self._result)
+                try:
+                    self._result = self._process.get_output(self._session_id)
+                    if self._result:
+                        # Raw Pytest data and report output is cached locally with a timestamp
+                        sample_file_path = path.join(TEST_DATA_DIR, f"raw_pytest_output{ts}.txt")
+                        with open(sample_file_path, "w") as sf:
+                            sf.write(self._result)
 
-                    self._report = parse_result(self._result)
+                        self._report = parse_result(self._result)
+
+                except WorkerProcessException as wpe:
+                    return [str(wpe)]
             else:
                 if self._result:
-                    self._report = [self._result]  # likely a simple raw error message from a global error
+                    return [self._result]  # likely a simple raw error message from a global error
                 else:
                     # totally opaque OneHopTestHarness test run failure?
-                    self._report = [f"Worker process failed to execute command line '{self._command_line}'?"]
+                    return [f"Worker process failed to execute command line '{self._command_line}'?"]
         if self._report:
             report = self._report.output()
             sri_report_file_path = path.join(TEST_DATA_DIR, f"sri_report_{ts}.json")
