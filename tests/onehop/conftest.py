@@ -1,8 +1,8 @@
 """
 Configure one hop tests
 """
-import os
 from sys import stderr
+from os import path, makedirs, walk
 from re import sub
 import json
 import logging
@@ -12,6 +12,7 @@ from typing import Optional, Union, List, Set, Dict, Any
 
 from pytest_harvest import get_session_results_dct
 
+from tests import TEST_RESULT_DIR
 from tests.onehop.util import get_unit_test_codes
 from reasoner_validator.biolink import check_biolink_model_compliance_of_input_edge
 from tests.onehop import util as oh_util
@@ -52,12 +53,13 @@ def pytest_sessionfinish(session):
                 lparts[0] = 'results'
                 lparts[-1] = rfname
                 try:
-                    os.makedirs('/'.join(lparts[:-1]))
+                    makedirs('/'.join(lparts[:-1]))
                 except OSError:
                     pass
                 outname = '/'.join(lparts)
             else:
                 outname = rfname
+
             if 'request' in rb:
                 with open(outname, 'w') as outf:
                     outf.write(rb['location'])
@@ -68,7 +70,7 @@ def pytest_sessionfinish(session):
             else:
                 # This means that there was no generated request.
                 # But we don't need to make a big deal about it.
-                with open(outname+"NOTEST", 'w') as outf:
+                with open(outname+"_NOTEST", 'w') as outf:
                     outf.write('Error generating results: No request generated?')
                     if 'case' in rb:
                         json.dump(rb['case'], outf, indent=4)
@@ -118,10 +120,10 @@ def _fix_path(file_path: str) -> str:
 
 def _build_filelist(entry):
     filelist = []
-    if os.path.isfile(entry):
+    if path.isfile(entry):
         filelist.append(entry)
     else:
-        dtrips = os.walk(entry)
+        dtrips = walk(entry)
         for dirpath, dirnames, filenames in dtrips:
             # SKIP specific test folders, if so tagged
             if dirpath and dirpath.endswith("SKIP"):
@@ -165,7 +167,7 @@ def get_test_data_sources(source: str, component_type: str) -> Dict[str, Dict[st
         service_metadata = extract_component_test_metadata_from_registry(registry_data, component_type)
     else:
         # Access local set of test data triples
-        if not os.path.exists(source):
+        if not path.exists(source):
             print("No such location:", source, flush=True, file=stderr)
             return dict()
 

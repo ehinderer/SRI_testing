@@ -12,7 +12,7 @@ from uuid import UUID
 from json import dump
 import re
 
-from tests import TEST_DATA_DIR
+from tests import TEST_RESULT_DIR
 from tests.onehop.conftest import get_kp_edge, get_component_by_resource
 from translator.sri.testing.processor import CMD_DELIMITER, WorkerProcess, WorkerProcessException
 from tests.onehop import ONEHOP_TEST_DIRECTORY
@@ -615,7 +615,7 @@ class OneHopTestHarness:
                     self._result = self._process.get_output(self._session_id)
                     if self._result:
                         # Raw Pytest data and report output is cached locally with a timestamp
-                        sample_file_path = path.join(TEST_DATA_DIR, f"raw_pytest_output{ts}.txt")
+                        sample_file_path = path.join(TEST_RESULT_DIR, f"raw_pytest_output{ts}.txt")
                         with open(sample_file_path, "w") as sf:
                             sf.write(self._result)
 
@@ -632,7 +632,7 @@ class OneHopTestHarness:
                     return [f"Worker process failed to execute command line '{self._command_line}'?"]
         if self._report:
             report = self._report.output()
-            sri_report_file_path = path.join(TEST_DATA_DIR, f"sri_report_{ts}.json")
+            sri_report_file_path = path.join(TEST_RESULT_DIR, f"sri_report_{ts}.json")
             with open(sri_report_file_path, "w") as sr:
                 dump(report, sr, indent=4)
             return report
