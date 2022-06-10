@@ -67,7 +67,8 @@ class TestRunParameters(BaseModel):
     # which implies caller blocking until the data is available
     timeout: Optional[int] = DEFAULT_WORKER_TIMEOUT
 
-    # Python Logger activation (for DEBUGGING)
+    # Python Logger activation handed to Pytest
+    # CLI argument '--log-cli-level', for debugging
     log: Optional[str] = None
 
 

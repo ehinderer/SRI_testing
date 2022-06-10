@@ -16,10 +16,10 @@ from app.util import (
     parse_result,
     PYTEST_HEADER_START_PATTERN,
     PYTEST_HEADER_END_PATTERN,
-    PYTEST_FOOTER_START_PATTERN,
+    PYTEST_FAILURES_START_PATTERN,
     LOGGER_PATTERN,
     skip_header,
-    skip_footer
+    annotate_failures
 )
 from tests import TEST_DATA_DIR
 from tests.onehop.conftest import cache_resource_metadata, add_kp_edge
@@ -141,42 +141,43 @@ def test_skip_header():
         assert line == "test_onehops.py::test_trapi_kps[Test_KP_1#0-by_subject] PASSED           [  1%]"
 
 
-def test_pytest_footer_start_pattern():
-    assert PYTEST_FOOTER_START_PATTERN.search(
+def test_pytest_failures_start_pattern():
+    assert PYTEST_FAILURES_START_PATTERN.search(
         "=================================== FAILURES ==================================="
     )
 
 
-TEST_FOOTER = """================================== FAILURES ===================================
-C:\\Users\richa\PycharmProjects\SRI_testing\translator\trapi\__init__.py:163: AssertionError: Edge:
-============================== warnings summary ===============================
-..\..\py\lib\site-packages\pytest_asyncio\plugin.py:191
-  c:\\users\\richa\pycharmprojects\sri_testing\py\lib\site-packages\pytest_asyncio\plugin.py:191: ...
-
--- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
-=========================== short test summary info ===========================
-FAILED test_onehops.py::test_trapi_aras[Test_ARA|Test_KP_2#0-by_object] - AssertionError: Edge:
-======= 6 failed, 19 passed, 63 skipped, 1 warning in 738.86s (0:12:18) =======
-"""
-
-
-def test_skip_footer():
-    lines = TEST_FOOTER.split('\n')
-    line: str
-    for line in lines:
-
-        line = line.strip()  # spurious leading and trailing whitespace removed
-        if not line:
-            continue  # ignore blank lines
-
-        psp = PYTEST_SUMMARY_PATTERN.match(line)
-        if psp:
-            assert line == "======= 6 failed, 19 passed, 63 skipped, 1 warning in 738.86s (0:12:18) ======="
-
-        if skip_footer(line):
-            continue
-
-        assert False, "test_skip_footer() unit should not generally get here!"
+# TEST_FOOTER = """================================== FAILURES ===================================
+# C:\Users\richa\PycharmProjects\SRI_testing\translator\trapi\__init__.py:285: AssertionError: \
+# execute_trapi_lookup(test 'by_subject' to endpoint https://aragorn.renci.org/1.2): TRAPI 1.2.0 query request
+# ============================== warnings summary ===============================
+# ..\..\py\lib\site-packages\pytest_asyncio\plugin.py:191
+#   c:\\users\\richa\pycharmprojects\sri_testing\py\lib\site-packages\pytest_asyncio\plugin.py:191: ...
+#
+# -- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+# =========================== short test summary info ===========================
+# FAILED test_onehops.py::test_trapi_aras[Test_ARA|Test_KP_2#0-by_object] - AssertionError: Edge:
+# ======= 6 failed, 19 passed, 63 skipped, 1 warning in 738.86s (0:12:18) =======
+# """
+#
+#
+# def test_skip_footer():
+#     lines = TEST_FOOTER.split('\n')
+#     line: str
+#     for line in lines:
+#
+#         line = line.strip()  # spurious leading and trailing whitespace removed
+#         if not line:
+#             continue  # ignore blank lines
+#
+#         psp = PYTEST_SUMMARY_PATTERN.match(line)
+#         if psp:
+#             assert line == "======= 6 failed, 19 passed, 63 skipped, 1 warning in 738.86s (0:12:18) ======="
+#
+#         if annotate_failures(line):
+#             continue
+#
+#         assert False, "test_skip_footer() unit should not generally get here!"
 
 
 @pytest.mark.parametrize(

@@ -20,7 +20,7 @@ from translator.registry import (
     get_the_registry_data,
     extract_component_test_metadata_from_registry
 )
-from translator.trapi import set_trapi_version
+from translator.trapi import set_trapi_version, generate_edge_id
 
 logger = logging.getLogger(__name__)
 
@@ -271,10 +271,6 @@ def get_component_by_resource(resource_id: str) -> Optional[str]:
         return None
 
 
-def generate_edge_id(resource_id: str, edge_i: int) -> str:
-    return f"{resource_id}#{str(edge_i)}"
-
-
 kp_edges_catalog: Dict[str, Dict[str,  Union[int, str]]] = dict()
 
 
@@ -288,12 +284,16 @@ def add_kp_edge(resource_id: str, edge_idx: int, edge: Dict[str, Any]):
     metadata['edges'][edge_idx] = edge
 
 
-def get_kp_edge(resource_id: str, edge_idx: int) -> Dict[str, Any]:
+def get_kp_edge(resource_id: str, edge_idx: int) -> Optional[Dict[str, Any]]:
     metadata: Dict = get_metadata_by_resource(resource_id)
-    assert metadata
-    edges = metadata['edges']
-    assert 0 <= edge_idx < len(edges)
-    return edges[edge_idx]
+    if metadata:
+        edges = metadata['edges']
+        if 0 <= edge_idx < len(edges):
+            return edges[edge_idx]
+        logger.warning(f"get_kp_edge(resource_id: {resource_id}, edge_idx: {edge_idx}) out-of-bounds 'edge_idx'?")
+    else:
+        logger.warning(f"get_kp_edge(resource_id: {resource_id}, edge_idx: {edge_idx}) 'metadata' unavailable?")
+    return None
 
 
 def generate_trapi_kp_tests(metafunc, biolink_version):
@@ -355,19 +355,20 @@ def generate_trapi_kp_tests(metafunc, biolink_version):
                 edge['biolink_version'] = kpjson['biolink_version']
 
                 if 'infores' in kpjson:
-                    edge['source'] = f"infores:{kpjson['infores']}"
+                    edge['kp_source'] = f"infores:{kpjson['infores']}"
                 else:
                     logger.warning(
                         f"generate_trapi_kp_tests(): input file '{source}' "
                         "is missing its 'infores' field value? Inferred from its API name?"
                     )
-                    edge['source'] = f"infores:{edge['kp_api_name']}"
+                    kp_api_name: str = edge['kp_api_name']
+                    edge['kp_source'] = f"infores:{kp_api_name.lower()}"
 
-                if 'source_type' in kpjson:
-                    edge['source_type'] = kpjson['source_type']
+                if 'kp_source_type' in kpjson:
+                    edge['kp_source_type'] = kpjson['source_type']
                 else:
                     # If not specified, we assume that the KP is an "aggregator_knowledge_source"
-                    edge['source_type'] = "aggregator"
+                    edge['kp_source_type'] = "aggregator"
 
                 if 'query_opts' in kpjson:
                     edge['query_opts'] = kpjson['query_opts']
@@ -470,17 +471,18 @@ def generate_trapi_ara_tests(metafunc, kp_edges, biolink_version):
                         "is missing its ARA 'infores' field.  We infer one from "
                         "the ARA 'api_name', but edge provenance may not be properly tested?"
                     )
-                    edge['ara_source'] = f"infores:{edge['ara_api_name']}"
+                    ara_api_name: str = edge['ara_api_name']
+                    edge['ara_source'] = f"infores:{ara_api_name.lower()}"
 
-                if 'source' in kp_edge:
-                    edge['kp_source'] = kp_edge['source']
+                if 'kp_source' in kp_edge:
+                    edge['kp_source'] = kp_edge['kp_source']
                 else:
                     logger.warning(
-                        f"generate_trapi_ara_tests(): KP '{kp}' edge is missing its 'source' infores." +
+                        f"generate_trapi_ara_tests(): KP '{kp}' edge is missing its 'kp_source' infores." +
                         "Inferred from KP name, but KP provenance may not be properly tested?"
                     )
                     edge['kp_source'] = f"infores:{kp}"
-                edge['kp_source_type'] = kp_edge['source_type']
+                edge['kp_source_type'] = kp_edge['kp_source_type']
 
                 if 'query_opts' in arajson:
                     edge['query_opts'] = arajson['query_opts']

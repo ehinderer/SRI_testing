@@ -77,7 +77,7 @@ def check_provenance(ara_case, ara_response):
     number_of_edges_viewed = 0
     for edge in edges.values():
 
-        error_msg_prefix = f"Edge:\n{_output(edge)}\nfrom ARA '{ara_case['ara_source']}', "
+        error_msg_prefix = f"Edge:\n{_output(edge)}\nfrom ARA '{ara_case['ara_api_name']}', "
 
         # Every edge should always have at least *some* (provenance source) attributes
         if 'attributes' not in edge.keys():
@@ -216,6 +216,28 @@ def call_trapi(url: str, opts, trapi_message):
     return {'status_code': response.status_code, 'response_json': response_json}
 
 
+def generate_edge_id(resource_id: str, edge_i: int) -> str:
+    return f"{resource_id}#{str(edge_i)}"
+
+
+def generate_test_error_msg_prefix(case: Dict, test_name: str) -> str:
+    assert case
+    test_msg_prefix: str = "test_onehops.py::test_trapi_"
+    resource_id: str = ""
+    component: str = "kp"
+    if 'ara_api_name' in case and case['ara_api_name']:
+        component = "ara"
+        resource_id += case['ara_api_name'] + "|"
+    test_msg_prefix += f"{component}s["
+    resource_id += case['kp_api_name']
+    edge_idx = case['idx']
+    edge_id = generate_edge_id(resource_id, edge_idx)
+    if not test_name:
+        test_name = "input"
+    test_msg_prefix += f"{edge_id}-{test_name}] FAILED "
+    return test_msg_prefix
+
+
 def execute_trapi_lookup(case, creator, rbag):
     """
     Method to execute a TRAPI lookup, using the 'creator' test template.
@@ -224,6 +246,8 @@ def execute_trapi_lookup(case, creator, rbag):
     :param creator:
     :param rbag:
     """
+    test_msg_prefix = generate_test_error_msg_prefix(case, test_name=creator.__name__)
+
     # Create TRAPI query/response
     rbag.location = case['location']
     rbag.case = case
@@ -232,18 +256,14 @@ def execute_trapi_lookup(case, creator, rbag):
 
     if trapi_request is None:
         # The particular creator cannot make a valid message from this triple
-        assert False, f"\nexecute_trapi_lookup(): creator method '{creator.__name__}' " +\
-                      f"for test case \n\t{_output(case)}\ncould not generate a valid TRAPI query request object?"
+        assert False, f"{test_msg_prefix} message creator could not generate a valid TRAPI query request object?"
 
     # query use cases pertain to a particular TRAPI version
     trapi_version = get_trapi_version()
 
-    err_msg_prefix = f"execute_trapi_lookup(test '{creator.__name__}' to endpoint {case['url']}): " +\
-                     f"TRAPI {trapi_version} query request\n{_output(trapi_request)}\n error: "
-
     if not is_valid_trapi(trapi_request, trapi_version=trapi_version):
         # This is a problem with the testing framework.
-        assert False, f"{err_msg_prefix}: for expected TRAPI version '{trapi_version}', " +\
+        assert False, f"{test_msg_prefix} for expected TRAPI version '{trapi_version}', " +\
                       "the query request is not TRAPI compliant?"
 
     trapi_response = call_trapi(case['url'], case['query_opts'], trapi_request)
@@ -253,15 +273,14 @@ def execute_trapi_lookup(case, creator, rbag):
     rbag.response = trapi_response
 
     if trapi_response['status_code'] != 200:
-        err_msg = f"{err_msg_prefix} response:\n\t '{_output(trapi_response['response_json'])}'\n" +\
-                  f"has '{str(trapi_response['status_code'])}' " +\
-                  "as an unexpected HTTP status code?"
+        err_msg = f"{test_msg_prefix} TRAPI response has an " \
+                  f"unexpected HTTP status code: '{str(trapi_response['status_code'])}'?"
         logger.warning(err_msg)
         assert False, err_msg
 
     # Validate that we got back valid TRAPI Response
     assert is_valid_trapi(trapi_response['response_json'], trapi_version=trapi_version), \
-           f"{err_msg_prefix} for expected TRAPI version '{trapi_version}', " +\
+           f"{test_msg_prefix} for expected TRAPI version '{trapi_version}', " +\
            f"TRAPI response:\n{_output(trapi_response['response_json'])}\n" +\
            "is not TRAPI compliant?"
 
@@ -269,11 +288,11 @@ def execute_trapi_lookup(case, creator, rbag):
 
     # Verify that the response had some results
     assert len(response_message['results']) > 0, \
-        f"{err_msg_prefix} TRAPI response:\n{_output(response_message)}\nreturned an empty TRAPI Message Result?"
+        f"{test_msg_prefix} TRAPI response:\n{_output(response_message)}\nreturned an empty TRAPI Message Result?"
 
     # Then, validate the associated Knowledge Graph
     assert len(response_message['knowledge_graph']) > 0, \
-        f"{err_msg_prefix} returned an empty TRAPI Message Knowledge Graph?"
+        f"{test_msg_prefix} returned an empty TRAPI Message Knowledge Graph?"
 
     # Verify that the TRAPI message output knowledge graph
     # is compliant to the applicable Biolink Model release
@@ -283,7 +302,7 @@ def execute_trapi_lookup(case, creator, rbag):
             biolink_version=case['biolink_version']
         )
     assert not errors, \
-        f"{err_msg_prefix} TRAPI response:\n{_output(response_message)}\n" +\
+        f"{test_msg_prefix} TRAPI response:\n{_output(response_message)}\n" +\
         f"has errors \n{_output(errors)}\n" +\
         f"indicating it is not compliant to Biolink Model release '{model_version}'?"
 
@@ -294,7 +313,7 @@ def execute_trapi_lookup(case, creator, rbag):
         # the aliases of the case[output_element] identifier are in the object_ids list
         output_aliases = get_aliases(case[output_element])
         if not any([alias == object_id for alias in output_aliases for object_id in object_ids]):
-            assert False, f"{err_msg_prefix} neither the input id '{case[output_element]}' " +\
+            assert False, f"{test_msg_prefix}: neither the input id '{case[output_element]}' " +\
                           f"nor resolved aliases [{','.join(output_aliases)}] were returned in the " +\
                           f"Result object IDs {_output(object_ids)} for node '{output_node_binding}' binding?"
 

@@ -5,7 +5,8 @@ The module launches the SRT Testing test harness using the Python 'multiprocesso
 See https://docs.python.org/3/library/multiprocessing.html?highlight=multiprocessing for details.
 """
 from typing import Optional, Union, List, Dict, Tuple
-from os import path
+from sys import stderr
+from os import path, sep as path_sep
 import time
 from uuid import UUID
 from json import dump
@@ -28,7 +29,13 @@ SUMMARY_ENTRY_TAGS: List = ["FAILED", "PASSED", "SKIPPED"]
 
 PYTEST_HEADER_START_PATTERN = re.compile(r"^=+\stest\ssession\sstarts\s=+$")
 PYTEST_HEADER_END_PATTERN = re.compile(r"\s*collected\s\d+\sitems\s*$")
-PYTEST_FOOTER_START_PATTERN = re.compile(r"^=+\sFAILURES\s=+$")
+
+PYTEST_FAILURES_START_PATTERN = re.compile(r"^=+\sFAILURES\s=+$")
+PYTEST_FAILURES_MESSAGE_PREFIX_PATTERN = re.compile(
+    rf".+translator{path_sep}trapi{path_sep}__init__.py:\d+: AssertionError: "
+)
+PYTEST_FAILURES_END_PATTERN = re.compile(r"^=+\swarnings summary\s=+$")
+
 SHORT_TEST_SUMMARY_INFO_HEADER_PATTERN = re.compile(r"=+\sshort\stest\ssummary\sinfo\s=+")
 LOGGER_PATTERN = re.compile(r"^(CRITICAL|ERROR|WARNING|INFO|DEBUG)")
 
@@ -124,7 +131,7 @@ class EdgeEntry:
 
     @classmethod
     def get_edge_input_data(cls, resource_id: str, edge_i: int) -> Optional:
-        edge: Dict[str,  Union[int, str]] = get_kp_edge(resource_id, edge_i)
+        edge: Optional[Dict[str,  Union[int, str]]] = get_kp_edge(resource_id, edge_i)
         edge_entry: Optional[EdgeEntry]
         if edge:
             edge_entry = EdgeEntry(
@@ -337,32 +344,67 @@ def skip_header(line) -> bool:
         # for the header, if already seen.
         return False
 
-    if PYTEST_HEADER_START_PATTERN.match(line):
+    if not _skip_header and \
+            PYTEST_HEADER_START_PATTERN.match(line):
         _skip_header = True
 
-    # Use 'search' here since the line may sometimes start with "collecting ... "
+    # Use 'search' here since the line
+    # may sometimes start with "collecting ... "
     if PYTEST_HEADER_END_PATTERN.search(line):
         _skip_header = False
         _header_consumed = True
 
-        # skip this last line, even if _skip_header == False now...
+        # skip this last line,
+        # even if _skip_header == False now...
         return True
 
-    # _skip_header will be True here while in the header block
+    # _skip_header will be True
+    # here while in the header block
     return _skip_header
 
 
-_skip_footer: bool = False
+_parsing_failures: bool = False
+_failures_consumed: bool = False
 
 
-def skip_footer(line) -> bool:
-    global _skip_footer
+def annotate_failures(line) -> Tuple[bool, str]:
 
-    if PYTEST_FOOTER_START_PATTERN.match(line):
-        _skip_footer = True
+    global _parsing_failures, _failures_consumed
 
-    # _skip_header will be True here while in the header block
-    return _skip_footer
+    rewritten_line = ""
+    if _failures_consumed:
+        # short-circuit regex search
+        # for FAILURES, if already seen.
+        return False, ""
+
+    if not _parsing_failures:
+
+        if PYTEST_FAILURES_START_PATTERN.match(line):
+            _parsing_failures = True
+
+    else:
+        #
+        # TODO: capture the FAILURES annotation here, of format something like:
+        # C:\Users\richa\PycharmProjects\SRI_testing\translator\trapi\__init__.py:285: AssertionError:
+        #    test_onehops.py::test_trapi_aras[Test_ARA|Test_KP_2#0-by_subject] FAILED: TRAPI 1.2.0 query request
+        #
+        # converted to a parseable line, something like:
+        #
+        # test_onehops.py::test_trapi_aras[Test_ARA|Test_KP_2#0-by_subject] FAILED (TRAPI 1.2.0 query request)
+        #
+
+        # the line contains a pseudo UNICODE directive which causes problems during regex?
+        print(f"Parsing Failure line: {line}", flush=True, file=stderr)
+        line = line.replace("\\U", "")
+        rewritten_line = PYTEST_FAILURES_MESSAGE_PREFIX_PATTERN.sub(line, "")
+
+    if PYTEST_FAILURES_END_PATTERN.match(line):
+        _parsing_failures = False
+        _failures_consumed = True
+
+    # annotate_failures will be True here
+    # while parsing the FAILURES block
+    return _parsing_failures, rewritten_line
 
 
 def parse_result(raw_output: str) -> Optional[SRITestReport]:
@@ -407,9 +449,14 @@ def parse_result(raw_output: str) -> Optional[SRITestReport]:
                 psp["failed"],
                 psp["skipped"]
             )
-        elif skip_footer(line):
-            continue
         else:
+            parsing_failures, rewritten_line = annotate_failures(line)
+            if parsing_failures:
+                if not rewritten_line:
+                    continue
+
+                line = rewritten_line
+
             # all other lines are assumed to be PyTest unit test outcomes
             psf = PASSED_SKIPPED_FAILED_PATTERN.match(line)
             if psf:
@@ -520,7 +567,7 @@ class OneHopTestHarness:
                 logger.error(f"This OneHopTestHarness test run has an unmapped or expired UUID '{session_id_string}'")
         else:
             self._command_line = f"cd {ONEHOP_TEST_DIRECTORY} {CMD_DELIMITER} " + \
-                                 f"pytest -rA --tb=line -vv"
+                                 f"pytest --tb=line -vv"
             self._command_line += f" --log-cli-level={log}" if log else ""
             self._command_line += f" test_onehops.py"
             self._command_line += f" --TRAPI_Version={trapi_version}" if trapi_version else ""

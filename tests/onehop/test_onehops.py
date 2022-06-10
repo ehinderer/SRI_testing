@@ -66,10 +66,9 @@ def test_trapi_kps(kp_trapi_case, trapi_creator, results_bag):
     ]
 )
 def test_trapi_aras(ara_trapi_case, trapi_creator, results_bag):
-    """Generic Test for ARA TRAPI.  It does the same thing as the KP trapi, calling an ARA that should be pulling
+    """Generic Test for ARA TRAPI.  It does the same thing as the KP TRAPI, calling an ARA that should be pulling
     data from the KP.
     Then it performs a check on the result to make sure that the provenance is correct.
-    Currently, that provenance check is a short circuit since ARAs are not reporting this in a standard way yet.
     """
     if not ('biolink_errors' in ara_trapi_case or in_excluded_tests(test=trapi_creator, test_case=ara_trapi_case)):
         response_message = execute_trapi_lookup(ara_trapi_case, trapi_creator, results_bag)
