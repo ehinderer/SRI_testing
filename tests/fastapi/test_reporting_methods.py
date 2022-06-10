@@ -3,6 +3,7 @@ Test SRI Testing reporting code snippets
 """
 from typing import Optional, Union, Dict, Tuple, Set, List, Any
 from os import linesep, path
+from json import dumps
 
 import pytest
 
@@ -14,15 +15,12 @@ from app.util import (
     PYTEST_SUMMARY_PATTERN,
     TEST_CASE_IDENTIFIER_PATTERN,
     SRITestReport,
-    parse_result,
     PYTEST_HEADER_START_PATTERN,
     PYTEST_HEADER_END_PATTERN,
     PYTEST_FAILURES_START_PATTERN,
     LOGGER_PATTERN,
-    skip_header,
-    annotate_failures
 )
-from tests import TEST_DATA_DIR
+from tests import TEST_DATA_DIR, TEST_RESULT_DIR
 from tests.onehop.conftest import cache_resource_metadata, add_kp_edge
 from tests.translator.registry import MOCK_TRANSLATOR_SMARTAPI_REGISTRY_METADATA
 
@@ -109,11 +107,11 @@ def test_pytest_logger_pattern(query):
 TEST_HEADER = """
 ============================= test session starts =============================
 
-platform win32 -- Python 3.9.7, pytest-7.1.1, pluggy-1.0.0 -- c:\\users\\sri_testing\py\scripts\python.exe
+platform win32 -- Python 3.9.7, pytest-7.1.1, pluggy-1.0.0 -- c:\\\\users\\sri_testing\\py\\scripts\\python.exe
 
 cachedir: .pytest_cache
 
-rootdir: C:\\SRI_testing\tests\onehop
+rootdir: C:\\\\SRI_testing\\tests\\onehop
 
 plugins: anyio-3.5.0, asyncio-0.18.2, harvest-1.10.3
 
@@ -130,13 +128,14 @@ test_onehops.py::test_trapi_kps[Test_KP_1#0-by_subject] PASSED           [  1%]
 def test_skip_header():
     lines = TEST_HEADER.split('\n')
     line: str
+    report: SRITestReport = SRITestReport()
     for line in lines:
 
         line = line.strip()  # spurious leading and trailing whitespace removed
         if not line:
             continue  # ignore blank lines
 
-        if skip_header(line):
+        if report.skip_header(line):
             continue
 
         # if it makes it this far, then this line will be seen?
@@ -150,8 +149,8 @@ def test_pytest_failures_start_pattern():
 
 
 TEST_FAILURES = """================================== FAILURES ===================================
-C:\\SRI_testing\translator\trapi\__init__.py:282: AssertionError: test_onehops.py::test_trapi_kps[Test_KP_1#0-by_subject] FAILED  for expected TRAPI version '1.0.0'
-C:\\SRI_testing\translator\trapi\__init__.py:282: AssertionError: test_onehops.py::test_trapi_kps[Test_KP_1#0-inverse_by_new_subject] FAILED  for expected TRAPI version '1.0.0'
+C:\\SRI_testing\\translator\\trapi\\__init__.py:282: AssertionError: test_onehops.py::test_trapi_kps[Test_KP_1#0-by_subject] FAILED  for expected TRAPI version '1.0.0'
+C:\\SRI_testing\\translator\\trapi\\__init__.py:282: AssertionError: test_onehops.py::test_trapi_kps[Test_KP_1#0-inverse_by_new_subject] FAILED  for expected TRAPI version '1.0.0'
 ============================== warnings summary ===============================
 Beyond FAILURES"""
 
@@ -160,8 +159,9 @@ def test_annotate_failures():
     lines = TEST_FAILURES.split("\n")
     line: str
     failures_parsed: bool = False
+    report: SRITestReport = SRITestReport()
     for line in lines:
-        rewritten_line = annotate_failures(line)
+        rewritten_line = report.annotate_failures(line)
         if not rewritten_line:
             # We toggle the parse state based on the realization
             # that the rewritten line ought to be blank twice:
@@ -428,32 +428,31 @@ EDGE_ENTRY_TAGS: Tuple = (
     "query",
     [
         (
-                "sample_pytest_report_1.txt",
+                "sample_pytest_report_1",
                 "FAILED",
                 True,
                 True,
                 "6", "19", "63"
         ),
         (
-                "sample_pytest_report_2.txt",
+                "sample_pytest_report_2",
                 "PASSED",
                 True,
-                False,
-                "25", "0", "63"
+                True,
+                "11", "14", "63"
         )
     ]
 )
 def test_parse_test_output(query):
     mock_pytest_setup()
-    sample_file_path = path.join(TEST_DATA_DIR, query[0])
+    sample_file_path = path.join(TEST_DATA_DIR, f"{query[0]}.txt")
+    report: SRITestReport = SRITestReport()
     with open(sample_file_path, "r") as sf:
         raw_result = sf.read()
 
         # The function assumes that you are
         # processing the file as a monolithic text blob
-        report: SRITestReport = parse_result(raw_result)
-
-    assert report
+        report.parse_result(raw_result)
 
     output: Optional[Union[str, Dict]] = report.output()
     assert output
@@ -490,3 +489,6 @@ def test_parse_test_output(query):
         for i, outcome in enumerate(SUMMARY_ENTRY_TAGS):
             assert output["SUMMARY"][outcome] == query[i+4]
 
+    sample_output_path = path.join(TEST_RESULT_DIR, f"{query[0]}.json")
+    with open(sample_output_path, "w") as so:
+        so.write(dumps(output, indent=4))

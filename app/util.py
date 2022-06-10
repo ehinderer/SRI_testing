@@ -198,6 +198,17 @@ class ResourceEntry:
 class SRITestReport:
 
     def __init__(self):
+
+        # flag true while in Pytest output header
+        self._skip_header: bool = False
+        # flag true once header is processed
+        self._header_consumed: bool = False
+
+        # flag true while parsing Pytest FAILURES block
+        self._parsing_failures: bool = False
+        # flag true once FAILURES is are processed
+        self._failures_consumed: bool = False
+
         self.report: Dict[
             # 1st level dictionary key is in ["KP", "ARA", "SUMMARY"]
             str,  
@@ -327,197 +338,179 @@ class SRITestReport:
 
         return self._output
 
+    def skip_header(self, line: str) -> bool:
 
-# flag true while in header
-_header_consumed: bool = False
-_skip_header: bool = False
+        if self._header_consumed:
+            # short-circuit regex search
+            # for the header, if already seen.
+            return False
 
+        if not self._skip_header and \
+                PYTEST_HEADER_START_PATTERN.match(line):
+            self._skip_header = True
 
-def skip_header(line) -> bool:
-    global _header_consumed, _skip_header
+        # Use 'search' here since the line
+        # may sometimes start with "collecting ... "
+        if PYTEST_HEADER_END_PATTERN.search(line):
+            self._skip_header = False
+            self._header_consumed = True
 
-    if _header_consumed:
-        # short-circuit regex search
-        # for the header, if already seen.
-        return False
+            # skip this last line,
+            # even if _skip_header == False now...
+            return True
 
-    if not _skip_header and \
-            PYTEST_HEADER_START_PATTERN.match(line):
-        _skip_header = True
+        # _skip_header will be True
+        # here while in the header block
+        return self._skip_header
 
-    # Use 'search' here since the line
-    # may sometimes start with "collecting ... "
-    if PYTEST_HEADER_END_PATTERN.search(line):
-        _skip_header = False
-        _header_consumed = True
+    def failures_were_consumed(self) -> bool:
+        return self._failures_consumed
 
-        # skip this last line,
-        # even if _skip_header == False now...
-        return True
+    def annotate_failures(self, line) -> str:
 
-    # _skip_header will be True
-    # here while in the header block
-    return _skip_header
+        rewritten_line: str = line
 
+        if not self._parsing_failures:
 
-_parsing_failures: bool = False
-_failures_consumed: bool = False
+            if PYTEST_FAILURES_START_PATTERN.match(line):
+                self._parsing_failures = True
+                rewritten_line: str = ""
 
-
-def failures_were_consumed() -> bool:
-    return _failures_consumed
-
-
-def annotate_failures(line) -> str:
-
-    global _parsing_failures, _failures_consumed
-
-    rewritten_line: str = line
-
-    if not _parsing_failures:
-
-        if PYTEST_FAILURES_START_PATTERN.match(line):
-            _parsing_failures = True
+        elif PYTEST_FAILURES_END_PATTERN.match(line):
+            self._parsing_failures = False
+            self._failures_consumed = True
             rewritten_line: str = ""
 
-    elif PYTEST_FAILURES_END_PATTERN.match(line):
-        _parsing_failures = False
-        _failures_consumed = True
-        rewritten_line: str = ""
-
-    else:
-        # TODO: capture the FAILURES annotation here, of format something like:
-        # C:\Users\richa\PycharmProjects\SRI_testing\translator\trapi\__init__.py:285: AssertionError:
-        #    test_onehops.py::test_trapi_aras[Test_ARA|Test_KP_2#0-by_subject] FAILED (TRAPI 1.2.0 query request)
-        #
-        # converted to a parseable line, something like:
-        #
-        # test_onehops.py::test_trapi_aras[Test_ARA|Test_KP_2#0-by_subject] FAILED (TRAPI 1.2.0 query request)
-        if line:
-            # the line contains a pseudo UNICODE directive which causes problems during regex?
-            rewritten_line = line.replace("\\U", "")
-
-            # The 'AssertionError:' text seems to demarcate the boundary between the prefix and any error message
-            part = rewritten_line.split("AssertionError: ")
-            rewritten_line = part[1] if len(part) >= 2 else ""
-
-    return rewritten_line
-
-
-def parse_result(raw_output: str) -> Optional[SRITestReport]:
-    """
-    Extract summary of Pytest output as SRI Testing report.
-
-    :param raw_output: str, raw Pytest stdout content from test run with the -r option.
-
-    :return: TestReport, a structured summary of OneHopTestHarness test outcomes
-    """
-    if not raw_output:
-        return None
-
-    # This splits the test section of interest
-    # into lines, to facilitate further processing
-    top_level = raw_output.replace('\r', '')
-    top_level = top_level.split('\n')
-
-    report: SRITestReport = SRITestReport()
-    current_component = current_outcome = current_case = current_resource_id = current_test_id = "UNKNOWN"
-    current_edge_number: int = -1
-
-    for line in top_level:
-
-        # remove spurious leading and trailing whitespace
-        line = line.strip()
-
-        # ignore blank lines
-        if not line:
-            continue
-
-        # ignore Python Logger output lines
-        if LOGGER_PATTERN.match(line):
-            continue
-
-        if skip_header(line):
-            continue
-
-        if failures_were_consumed():
-            # only looking for the summary line now...
-            psp = PYTEST_SUMMARY_PATTERN.match(line)
-            if psp:
-                # PyTest summary line encountered.
-                # We ignore the "warning" count as
-                # unrelated to core SRI Testing
-                report.add_summary(
-                    psp["passed"],
-                    psp["failed"],
-                    psp["skipped"]
-                )
-            else:
-                # ... skipping everything else...
-                continue
         else:
-            line = annotate_failures(line)
+            # TODO: capture the FAILURES annotation here, of format something like:
+            # C:\Users\richa\PycharmProjects\SRI_testing\translator\trapi\__init__.py:285: AssertionError:
+            #    test_onehops.py::test_trapi_aras[Test_ARA|Test_KP_2#0-by_subject] FAILED (TRAPI 1.2.0 query request)
+            #
+            # converted to a parseable line, something like:
+            #
+            # test_onehops.py::test_trapi_aras[Test_ARA|Test_KP_2#0-by_subject] FAILED (TRAPI 1.2.0 query request)
+            if line:
+                # the line contains a pseudo UNICODE directive which causes problems during regex?
+                rewritten_line = line.replace("\\U", "")
+
+                # The 'AssertionError:' text seems to demarcate the boundary between the prefix and any error message
+                part = rewritten_line.split("AssertionError: ")
+                rewritten_line = part[1] if len(part) >= 2 else ""
+
+        return rewritten_line
+
+    def parse_result(self, raw_output: str):
+        """
+        Extract summary of Pytest output as SRI Testing report.
+
+        :param raw_output: str, raw Pytest stdout content from test run with the -r option.
+
+        :return: None, but internal state of object contains the report
+        """
+        if not raw_output:
+            return None
+
+        # This splits the test section of interest
+        # into lines, to facilitate further processing
+        top_level = raw_output.replace('\r', '')
+        top_level = top_level.split('\n')
+
+        current_component = current_outcome = current_case = current_resource_id = current_test_id = "UNKNOWN"
+        current_edge_number: int = -1
+
+        for line in top_level:
+
+            # remove spurious leading and trailing whitespace
+            line = line.strip()
+
+            # ignore blank lines
             if not line:
                 continue
-            # else:
-            #    pass through failure messages for further
-            #    processing of lines, as regular Pytest results
 
-            # all other lines are assumed to be PyTest unit test outcomes
-            psf = PASSED_SKIPPED_FAILED_PATTERN.match(line)
-            if psf:
-                outcome: str = psf["outcome"]
-                if outcome != current_outcome:
-                    current_outcome = outcome
+            # ignore Python Logger output lines
+            if LOGGER_PATTERN.match(line):
+                continue
 
-                case: Optional[str] = psf["case"]
-                if case != current_case:
-                    current_case = case
-                    current_resource_id, current_edge_number, current_test_id = \
-                        report.parse_test_case_identifier(current_case)
+            if self.skip_header(line):
+                continue
 
-                component: Optional[str] = psf["component"]
-                if component:
-                    # Convert the lower cased 'component' inferred from
-                    # the PASSED|SKIPPED|FAILED pattern into upper case
-                    component = component.upper()
-                else:
-                    # need to look up component type by resource ID
-                    component = get_component_by_resource(current_resource_id)
-                if component != current_component:
-                    current_component = component
-
-                resource_entry: ResourceEntry = report.get_resource_entry(current_component, current_resource_id)
-
-                tail: Optional[str] = psf["tail"]
-                if tail:
-                    # deferred capture of percentage
-                    # completion annotation in a line
-                    pc = PERCENTAGE_COMPLETION_SUFFIX_PATTERN.search(line)
-                    if pc and pc.group():
-                        # TODO: eventually want to return this back to
-                        #       the test run owner for progress monitoring
-                        percentage_completion = pc["percent_complete"]
-
-                        # Trim the percentage completion annotation from the message
-                        tail = tail.replace(pc.group(), "")
-
-                    tail = tail.strip()  # flanking whitespace
-                    tail = tail.strip("()")  # flanking parentheses
-
-                    resource_entry.add_test_result(current_edge_number, current_test_id, outcome, tail)
-            else:
-                if current_component == "UNKNOWN" or current_resource_id == "UNKNOWN":
-                    logger.warning(
-                        f"parse_result(): current_component is '{current_component}' and "
-                        f"current_resource_id is '{current_resource_id}' for line '{str(line)}'?"
+            if self.failures_were_consumed():
+                # only looking for the summary line now...
+                psp = PYTEST_SUMMARY_PATTERN.match(line)
+                if psp:
+                    # PyTest summary line encountered.
+                    # We ignore the "warning" count as
+                    # unrelated to core SRI Testing
+                    self.add_summary(
+                        psp["passed"],
+                        psp["failed"],
+                        psp["skipped"]
                     )
                 else:
-                    # probably a second level error message without percentage completion annotation?
-                    resource_entry: ResourceEntry = report.get_resource_entry(current_component, current_resource_id)
-                    resource_entry.add_test_result(current_edge_number, current_test_id, current_outcome, line)
+                    # ... skipping everything else...
+                    continue
+            else:
+                line = self.annotate_failures(line)
+                if not line:
+                    continue
+                # else:
+                #    pass through failure messages for further
+                #    processing of lines, as regular Pytest results
 
-    return report
+                # all other lines are assumed to be PyTest unit test outcomes
+                psf = PASSED_SKIPPED_FAILED_PATTERN.match(line)
+                if psf:
+                    outcome: str = psf["outcome"]
+                    if outcome != current_outcome:
+                        current_outcome = outcome
+
+                    case: Optional[str] = psf["case"]
+                    if case != current_case:
+                        current_case = case
+                        current_resource_id, current_edge_number, current_test_id = \
+                            self.parse_test_case_identifier(current_case)
+
+                    component: Optional[str] = psf["component"]
+                    if component:
+                        # Convert the lower cased 'component' inferred from
+                        # the PASSED|SKIPPED|FAILED pattern into upper case
+                        component = component.upper()
+                    else:
+                        # need to look up component type by resource ID
+                        component = get_component_by_resource(current_resource_id)
+                    if component != current_component:
+                        current_component = component
+
+                    resource_entry: ResourceEntry = self.get_resource_entry(current_component, current_resource_id)
+
+                    tail: Optional[str] = psf["tail"]
+                    if tail:
+                        # deferred capture of percentage
+                        # completion annotation in a line
+                        pc = PERCENTAGE_COMPLETION_SUFFIX_PATTERN.search(line)
+                        if pc and pc.group():
+                            # TODO: eventually want to return this back to
+                            #       the test run owner for progress monitoring
+                            percentage_completion = pc["percent_complete"]
+
+                            # Trim the percentage completion annotation from the message
+                            tail = tail.replace(pc.group(), "")
+
+                        tail = tail.strip()  # flanking whitespace
+                        tail = tail.strip("()")  # flanking parentheses
+
+                        resource_entry.add_test_result(current_edge_number, current_test_id, outcome, tail)
+                else:
+                    if current_component == "UNKNOWN" or current_resource_id == "UNKNOWN":
+                        logger.warning(
+                            f"parse_result(): current_component is '{current_component}' and "
+                            f"current_resource_id is '{current_resource_id}' for line '{str(line)}'?"
+                        )
+                    else:
+                        # probably a second level error message without percentage completion annotation?
+                        resource_entry: ResourceEntry = \
+                            self.get_resource_entry(current_component, current_resource_id)
+                        resource_entry.add_test_result(current_edge_number, current_test_id, current_outcome, line)
 
 
 class OneHopTestHarness:
@@ -626,7 +619,8 @@ class OneHopTestHarness:
                         with open(sample_file_path, "w") as sf:
                             sf.write(self._result)
 
-                        self._report = parse_result(self._result)
+                        self._report = SRITestReport()
+                        self._report.parse_result(self._result)
 
                 except WorkerProcessException as wpe:
                     return [str(wpe)]
