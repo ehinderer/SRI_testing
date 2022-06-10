@@ -234,7 +234,7 @@ def generate_test_error_msg_prefix(case: Dict, test_name: str) -> str:
     edge_id = generate_edge_id(resource_id, edge_idx)
     if not test_name:
         test_name = "input"
-    test_msg_prefix += f"{edge_id}-{test_name}] FAILED "
+    test_msg_prefix += f"{edge_id}-{test_name}] FAILED"
     return test_msg_prefix
 
 

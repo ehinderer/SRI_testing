@@ -35,7 +35,7 @@ PYTEST_FAILURES_END_PATTERN = re.compile(r"^=+\swarnings summary\s=+$")
 
 SHORT_TEST_SUMMARY_INFO_HEADER_PATTERN = re.compile(r"=+\sshort\stest\ssummary\sinfo\s=+")
 
-LOGGER_PATTERN = re.compile(r"^((CRITICAL|ERROR|WARNING|INFO|DEBUG)|\-+\slive\slog\scall\s\-+$)")
+LOGGER_PATTERN = re.compile(r"^((CRITICAL|ERROR|WARNING|INFO|DEBUG)|\-+\slive\slog\s.+\s\-+$)")
 
 #
 # Examples:
@@ -363,35 +363,34 @@ _parsing_failures: bool = False
 _failures_consumed: bool = False
 
 
+def failures_were_consumed() -> bool:
+    return _failures_consumed
+
+
 def annotate_failures(line) -> str:
 
     global _parsing_failures, _failures_consumed
 
-    rewritten_line: str = line
-    if not _failures_consumed:
+    rewritten_line: str = ""
 
-        if not _parsing_failures:
+    if not _parsing_failures:
 
-            if PYTEST_FAILURES_START_PATTERN.match(line):
-                _parsing_failures = True
-                rewritten_line = ""
+        if PYTEST_FAILURES_START_PATTERN.match(line):
+            _parsing_failures = True
 
-        elif PYTEST_FAILURES_END_PATTERN.match(line):
-            _parsing_failures = False
-            _failures_consumed = True
-            rewritten_line = ""
+    elif PYTEST_FAILURES_END_PATTERN.match(line):
+        _parsing_failures = False
+        _failures_consumed = True
 
-        else:
-            #
-            # TODO: capture the FAILURES annotation here, of format something like:
-            # C:\Users\richa\PycharmProjects\SRI_testing\translator\trapi\__init__.py:285: AssertionError:
-            #    test_onehops.py::test_trapi_aras[Test_ARA|Test_KP_2#0-by_subject] FAILED: TRAPI 1.2.0 query request
-            #
-            # converted to a parseable line, something like:
-            #
-            # test_onehops.py::test_trapi_aras[Test_ARA|Test_KP_2#0-by_subject] FAILED (TRAPI 1.2.0 query request)
-            #
-
+    else:
+        # TODO: capture the FAILURES annotation here, of format something like:
+        # C:\Users\richa\PycharmProjects\SRI_testing\translator\trapi\__init__.py:285: AssertionError:
+        #    test_onehops.py::test_trapi_aras[Test_ARA|Test_KP_2#0-by_subject] FAILED (TRAPI 1.2.0 query request)
+        #
+        # converted to a parseable line, something like:
+        #
+        # test_onehops.py::test_trapi_aras[Test_ARA|Test_KP_2#0-by_subject] FAILED (TRAPI 1.2.0 query request)
+        if line:
             # the line contains a pseudo UNICODE directive which causes problems during regex?
             rewritten_line = line.replace("\\U", "")
 
@@ -434,20 +433,27 @@ def parse_result(raw_output: str) -> Optional[SRITestReport]:
         if skip_header(line):
             continue
 
-        psp = PYTEST_SUMMARY_PATTERN.match(line)
-        if psp:
-            # PyTest summary line encountered.
-            # We ignore the "warning" count as
-            # unrelated to core SRI Testing
-            report.add_summary(
-                psp["passed"],
-                psp["failed"],
-                psp["skipped"]
-            )
+        if failures_were_consumed():
+            # only expecting the summary line now...
+            psp = PYTEST_SUMMARY_PATTERN.match(line)
+            if psp:
+                # PyTest summary line encountered.
+                # We ignore the "warning" count as
+                # unrelated to core SRI Testing
+                report.add_summary(
+                    psp["passed"],
+                    psp["failed"],
+                    psp["skipped"]
+                )
+            else:
+                continue
         else:
             line = annotate_failures(line)
             if not line:
                 continue
+            # else:
+            #    pass through failure messages for further
+            #    processing of lines, as regular Pytest results
 
             # all other lines are assumed to be PyTest unit test outcomes
             psf = PASSED_SKIPPED_FAILED_PATTERN.match(line)

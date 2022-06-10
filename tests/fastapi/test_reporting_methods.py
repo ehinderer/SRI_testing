@@ -167,7 +167,6 @@ def test_annotate_failures():
             # once at the start and once at the end of the section
             failures_parsed = not failures_parsed
             continue
-
         if failures_parsed:
             assert rewritten_line.startswith("test_onehops.py::test_trapi_kps")
         else:
