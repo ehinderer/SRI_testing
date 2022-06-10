@@ -35,7 +35,7 @@ PYTEST_FAILURES_END_PATTERN = re.compile(r"^=+\swarnings summary\s=+$")
 
 SHORT_TEST_SUMMARY_INFO_HEADER_PATTERN = re.compile(r"=+\sshort\stest\ssummary\sinfo\s=+")
 
-LOGGER_PATTERN = re.compile(r"^((CRITICAL|ERROR|WARNING|INFO|DEBUG)|\-+\slive\slog\s.+\s\-+$)")
+LOGGER_PATTERN = re.compile(r"^((CRITICAL|ERROR|WARNING|INFO|DEBUG)|-+\slive\slog\s.+\s-+$)")
 
 #
 # Examples:
@@ -44,7 +44,7 @@ LOGGER_PATTERN = re.compile(r"^((CRITICAL|ERROR|WARNING|INFO|DEBUG)|\-+\slive\sl
 # "FAILED test_onehops.py::test_trapi_aras[Test_ARA.json_Test KP_0-by_subject]"
 PASSED_SKIPPED_FAILED_PATTERN = re.compile(
     r"^test_onehops.py:(\d+)?:(test_trapi_(?P<component>kp|ara)s|\s)(\[(?P<case>[^]]+)])\s" +
-    r"(?P<outcome>PASSED|SKIPPED|FAILED)\s*((?P<tail>.+))?$"
+    r"(?P<outcome>PASSED|SKIPPED|FAILED)\s*(?P<tail>.+)?$"
 )
 PERCENTAGE_COMPLETION_SUFFIX_PATTERN = re.compile(r"(\[\s*(?P<percent_complete>\d+)%])?$")
 
@@ -372,16 +372,18 @@ def annotate_failures(line) -> str:
 
     global _parsing_failures, _failures_consumed
 
-    rewritten_line: str = ""
+    rewritten_line: str = line
 
     if not _parsing_failures:
 
         if PYTEST_FAILURES_START_PATTERN.match(line):
             _parsing_failures = True
+            rewritten_line: str = ""
 
     elif PYTEST_FAILURES_END_PATTERN.match(line):
         _parsing_failures = False
         _failures_consumed = True
+        rewritten_line: str = ""
 
     else:
         # TODO: capture the FAILURES annotation here, of format something like:
@@ -424,12 +426,16 @@ def parse_result(raw_output: str) -> Optional[SRITestReport]:
 
     for line in top_level:
 
-        line = line.strip()  # spurious leading and trailing whitespace removed
-        if not line:
-            continue  # ignore blank lines
+        # remove spurious leading and trailing whitespace
+        line = line.strip()
 
+        # ignore blank lines
+        if not line:
+            continue
+
+        # ignore Python Logger output lines
         if LOGGER_PATTERN.match(line):
-            continue  # ignore Python Logger output lines
+            continue
 
         if skip_header(line):
             continue
@@ -488,9 +494,9 @@ def parse_result(raw_output: str) -> Optional[SRITestReport]:
                     # deferred capture of percentage
                     # completion annotation in a line
                     pc = PERCENTAGE_COMPLETION_SUFFIX_PATTERN.search(line)
-                    if pc:
-                        # TODO: want to return this back to test run
-                        #       owner for progress monitoring
+                    if pc and pc.group():
+                        # TODO: eventually want to return this back to
+                        #       the test run owner for progress monitoring
                         percentage_completion = pc["percent_complete"]
 
                         # Trim the percentage completion annotation from the message
