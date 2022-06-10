@@ -31,14 +31,10 @@ PYTEST_HEADER_START_PATTERN = re.compile(r"^=+\stest\ssession\sstarts\s=+$")
 PYTEST_HEADER_END_PATTERN = re.compile(r"\s*collected\s\d+\sitems\s*$")
 
 PYTEST_FAILURES_START_PATTERN = re.compile(r"^=+\sFAILURES\s=+$")
-PYTEST_FAILURES_MESSAGE_PREFIX_PATTERN = re.compile(
-    rf".+translator{path_sep}trapi{path_sep}__init__.py:\d+: AssertionError: "
-)
 PYTEST_FAILURES_END_PATTERN = re.compile(r"^=+\swarnings summary\s=+$")
 
 SHORT_TEST_SUMMARY_INFO_HEADER_PATTERN = re.compile(r"=+\sshort\stest\ssummary\sinfo\s=+")
 LOGGER_PATTERN = re.compile(r"^(CRITICAL|ERROR|WARNING|INFO|DEBUG)")
-
 
 #
 # Examples:
@@ -394,9 +390,11 @@ def annotate_failures(line) -> Tuple[bool, str]:
         #
 
         # the line contains a pseudo UNICODE directive which causes problems during regex?
-        print(f"Parsing Failure line: {line}", flush=True, file=stderr)
-        line = line.replace("\\U", "")
-        rewritten_line = PYTEST_FAILURES_MESSAGE_PREFIX_PATTERN.sub(line, "")
+        rewritten_line = line.replace("\\U", "")
+
+        # The 'AssertionError:' text seems to demarcate the boundary between the prefix and any error message
+        part = rewritten_line.split("AssertionError: ")
+        rewritten_line = part[1] if len(part) >= 2 else ""
 
     if PYTEST_FAILURES_END_PATTERN.match(line):
         _parsing_failures = False
