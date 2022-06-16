@@ -104,8 +104,7 @@ def check_provenance(ara_case, ara_response):
             if attribute_type_id not in \
                     [
                         "biolink:aggregator_knowledge_source",
-                        "biolink:primary_knowledge_source",
-                        "biolink:original_knowledge_source"
+                        "biolink:primary_knowledge_source"
                     ]:
                 continue
 
@@ -133,30 +132,16 @@ def check_provenance(ara_case, ara_response):
 
                 if attribute_type_id == "biolink:aggregator_knowledge_source":
 
-                    # Checking specifically here whether both KP and ARA infores
-                    # attribute values are published as aggregator_knowledge_sources
+                    # Checking specifically here whether the ARA infores
+                    # attribute value is published as aggregator_knowledge_sources
                     if ara_case['ara_source'] and infores == ara_case['ara_source']:
                         found_ara_knowledge_source = True
 
-                    # check for special case of a KP provenance
-                    if ara_case['kp_source'] and \
-                            attribute_type_id == kp_source_type and \
-                            infores == kp_source:
-                        found_kp_knowledge_source = True
-                else:
-                    # attribute_type_id is either a
-                    # "biolink:primary_knowledge_source" or
-                    # a "biolink:original_knowledge_source"
-
-                    # TODO: not totally sure how mandatory having either a
-                    #       'primary' or 'original' provenance is for TRAPI?
-                    found_primary_or_original_knowledge_source = True
-
-                    # check for special case of a KP provenance tagged this way
-                    if ara_case['kp_source'] and \
-                            attribute_type_id == kp_source_type and \
-                            infores == kp_source:
-                        found_kp_knowledge_source = True
+                # check for special case of KP provenance tagged this way
+                if ara_case['kp_source'] and \
+                        attribute_type_id == kp_source_type and \
+                        infores == kp_source:
+                    found_kp_knowledge_source = True
 
         if ara_case['ara_source'] and not found_ara_knowledge_source:
             assert False,  f"{error_msg_prefix} missing ARA knowledge source provenance?"
@@ -165,10 +150,6 @@ def check_provenance(ara_case, ara_response):
             assert False, \
                 f"{error_msg_prefix} Knowledge Provider '{ara_case['kp_source']}' attribute value as " +\
                 f"'{kp_source_type}' is missing as expected knowledge source provenance?"
-
-        if not found_primary_or_original_knowledge_source:
-            assert False, f"{error_msg_prefix} has neither 'primary' nor 'original' " +\
-                          "Knowledge Provider knowledge source provenance?"
 
         # We are not likely to want to check the entire Knowledge Graph for
         # provenance but only sample a subset, making the assumption that
