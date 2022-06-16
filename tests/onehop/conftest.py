@@ -1,7 +1,7 @@
 """
 Configure one hop tests
 """
-from sys import stderr
+from sys import stdout, stderr
 from os import path, makedirs, walk
 from re import sub
 import json
@@ -332,7 +332,11 @@ def generate_trapi_kp_tests(metafunc, biolink_version):
             logger.error(err_msg)
             continue
 
+        # TODO: see below about echoing the edge input data to the Pytest stdout
+        print(f"### Start of Test Input Edges for KP '{kpjson['api_name']}' ###")
+
         if 'url' in kpjson:
+
             for edge_i, edge in enumerate(kpjson['edges']):
 
                 # We tag each edge internally with its
@@ -366,11 +370,11 @@ def generate_trapi_kp_tests(metafunc, biolink_version):
                     kp_api_name: str = edge['kp_api_name']
                     edge['kp_source'] = f"infores:{kp_api_name.lower()}"
 
-                if 'kp_source_type' in kpjson:
+                if 'source_type' in kpjson:
                     edge['kp_source_type'] = kpjson['source_type']
                 else:
-                    # If not specified, we assume that the KP is an "aggregator_knowledge_source"
-                    edge['kp_source_type'] = "aggregator"
+                    # If not specified, we assume that the KP is a "primary_knowledge_source"
+                    edge['kp_source_type'] = "primary"
 
                 if 'query_opts' in kpjson:
                     edge['query_opts'] = kpjson['query_opts']
@@ -392,13 +396,22 @@ def generate_trapi_kp_tests(metafunc, biolink_version):
                 edges.append(edge)
 
                 resource_id = edge['kp_api_name']
-                add_kp_edge(resource_id, edge_i, edge)
+
+                #
+                # TODO: caching the edge here doesn't help parsing of the results into a report since
+                #       the cache is not shared with the parent process.
+                #       Instead, we will try to echo the edge directly to stdout, for later parsing for the report.
+                #
+                # add_kp_edge(resource_id, edge_i, edge)
+                json.dump(edge, stdout)
 
                 edge_id = generate_edge_id(resource_id, edge_i)
                 idlist.append(edge_id)
 
                 if metafunc.config.getoption('one', default=False):
                     break
+
+        print(f"### End of Test Input Edges for KP '{kpjson['api_name']}' ###")
 
     if "kp_trapi_case" in metafunc.fixturenames:
 
