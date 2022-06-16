@@ -134,19 +134,18 @@ def check_provenance(ara_case, ara_response):
 
                     # Checking specifically here whether the ARA infores
                     # attribute value is published as aggregator_knowledge_sources
-                    if ara_case['ara_source'] and infores == ara_case['ara_source']:
+                    if infores == ara_case['ara_source']:
                         found_ara_knowledge_source = True
 
                 # check for special case of KP provenance tagged this way
-                if ara_case['kp_source'] and \
-                        attribute_type_id == kp_source_type and \
+                if attribute_type_id == kp_source_type and \
                         infores == kp_source:
                     found_kp_knowledge_source = True
 
-        if ara_case['ara_source'] and not found_ara_knowledge_source:
+        if not found_ara_knowledge_source:
             assert False,  f"{error_msg_prefix} missing ARA knowledge source provenance?"
 
-        if ara_case['kp_source'] and not found_kp_knowledge_source:
+        if not found_kp_knowledge_source:
             assert False, \
                 f"{error_msg_prefix} Knowledge Provider '{ara_case['kp_source']}' attribute value as " +\
                 f"'{kp_source_type}' is missing as expected knowledge source provenance?"
