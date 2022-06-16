@@ -67,17 +67,23 @@ class TestRunParameters(BaseModel):
     # which implies caller blocking until the data is available
     timeout: Optional[int] = DEFAULT_WORKER_TIMEOUT
 
+    # Python Logger activation handed to Pytest
+    # CLI argument '--log-cli-level', for debugging
+    log: Optional[str] = None
+
 
 @app.post("/run_tests")
 async def run_tests(test_parameters: TestRunParameters) -> Dict:
 
     trapi_version: Optional[str] = latest.get(test_parameters.trapi_version) if test_parameters.trapi_version else None
     biolink_version: Optional[str] = test_parameters.biolink_version
+    log: Optional[str] = test_parameters.log
 
     testrun = OneHopTestHarness(test_parameters.timeout)
     session_id: str = testrun.run(
         trapi_version=trapi_version,
-        biolink_version=biolink_version
+        biolink_version=biolink_version,
+        log=log
     )
 
     return {
@@ -98,6 +104,8 @@ async def run_tests(test_parameters: TestRunParameters) -> Dict:
 @app.get("/report/{session_id}")
 async def get_report(session_id: str):
     report: Optional[Union[str, SRITestReport]] = OneHopTestHarness.get_report(session_id)
+    if report is None:
+        report = f"Report not yet available?"
     return {
         "session_id": session_id,
         "report": report

@@ -7,12 +7,18 @@ See https://docs.python.org/3/library/multiprocessing.html?highlight=multiproces
 from multiprocessing import Process
 from multiprocessing.context import BaseContext
 from sys import platform, stdout, stderr
-from encodings.utf_8 import decode
 
 from typing import Optional, Union, Dict
 import multiprocessing as mp
 from queue import Empty
-from subprocess import run, CompletedProcess, CalledProcessError, TimeoutExpired
+from subprocess import (
+    run,
+    # PIPE,
+    # STDOUT,
+    CompletedProcess,
+    CalledProcessError,
+    TimeoutExpired
+)
 import os
 import logging
 from uuid import uuid4, UUID
@@ -58,11 +64,35 @@ def _worker_process(lock: mp.Lock, queue: mp.Queue, command_line: str):
     result: Union[CompletedProcess, CalledProcessError, TimeoutExpired]
     try:
         # do the heavy lifting here
+        #     try:
+        #         with Popen(
+        #                 args=cmd,
+        #                 # env=env,
+        #                 bufsize=1,
+        #                 universal_newlines=True,
+        #                 stdout=PIPE,
+        #                 stderr=STDOUT
+        #         ) as proc:
+        #             logger.info(f"run_script({script}) log:")
+        #             for line in proc.stdout:
+        #                 line = line.strip()
+        #                 if line:
+        #                     # propagate the line to the
+        #                     # parent process, via the Queue?
+        #                     queue.put(line)
+        #
+        #     except RuntimeError:
+        #         logger.error(f"run_script({script}) exception: {exc_info()}")
+        #         return -1
         result = run(
             command_line,
             shell=True,
             check=True,
             capture_output=True,
+            # stdout=PIPE,
+            # stderr=STDOUT,
+            universal_newlines=True,
+            text=True,
 
             # running test harnesses may take a very long time
             # so maybe a bit challenge to set a sensible timeout here
@@ -94,6 +124,10 @@ def _worker_process(lock: mp.Lock, queue: mp.Queue, command_line: str):
 
     # propagate the result - successful or not - back to the caller
     queue.put(result)
+
+
+class WorkerProcessException(Exception):
+    pass
 
 
 class WorkerProcess:
@@ -196,6 +230,10 @@ class WorkerProcess:
         # Sanity check
         assert session_id
 
+        if not self._process.is_alive():
+            logger.debug("Worker Process is no longer alive?")
+            raise WorkerProcessException("Worker Process is no longer alive?!")
+
         # this method is idempotent: once a non-empty output is
         # retrieved the first time, it is deemed ached for future access
         if not self._output:
@@ -208,7 +246,7 @@ class WorkerProcess:
 
             if self._result:
                 if isinstance(self._result, CompletedProcess):
-                    self._output = decode(self._result.stdout)[0]  # sending back full raw process standard output
+                    self._output = self._result.stdout  # sending back full raw process standard output
                     if self._result.returncode != 0:
                         # A special warning is added to the output?
                         self._output = "WARNING: Worker Process returned a non-zero return code: " + \
@@ -222,12 +260,12 @@ class WorkerProcess:
 
                 elif isinstance(self._result, CalledProcessError):
                     # process aborted by internal error?
-                    self._output = decode(self._result.stdout)[0]
+                    self._output = self._result.stdout
                     if self._process:
                         self._process.kill()
                         self._process = None
                 else:
-                    raise RuntimeError(
+                    raise WorkerProcessException(
                         f"ERROR: Unexpected result type encountered from worker process: {type(self._result)}"
                     )
             

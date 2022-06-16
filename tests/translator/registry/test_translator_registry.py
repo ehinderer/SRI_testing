@@ -9,7 +9,8 @@ from translator.registry import (
     query_smart_api,
     SMARTAPI_QUERY_PARAMETERS,
     tag_value,
-    extract_component_test_metadata_from_registry, get_the_registry_data
+    extract_component_test_metadata_from_registry,
+    get_the_registry_data
 )
 
 logger = logging.getLogger(__name__)

@@ -10,71 +10,10 @@ import yaml
 from requests.exceptions import RequestException
 
 import logging
+
+from tests.translator.registry import MOCK_TRANSLATOR_SMARTAPI_REGISTRY_METADATA, MOCK_REGISTRY
+
 logger = logging.getLogger(__name__)
-
-
-# As of May 18th, 2022, the Translator SmartAPI Registry doesn't yet
-# have any test_data_locations for KPs and ARAs, so we'll start by
-# simulating this for now, with mock registry metadata
-# (and test data in the SRI Testing project repository)
-_MOCK_REGISTRY: bool = False
-_MOCK_TRANSLATOR_SMARTAPI_REGISTRY_METADATA = {
-    "total": 3,
-    "hits": [
-        {
-            "info": {
-                "title": "Unit Test Knowledge Provider 1",
-                "version": "0.0.1",
-                "x-translator": {
-                    "component": "KP",
-                    "infores": "infores:panther",
-                    "team": "Ranking Agent",
-                    "biolink-version": "2.2.16"
-                },
-                "x-trapi": {
-                    "version": "1.2.0",
-                    "test_data_location": "https://raw.githubusercontent.com/TranslatorSRI/SRI_testing/main/" +
-                                          "tests/onehop/test_triples/KP/Unit_Test_KP/Test_KP_1.json"
-                }
-            }
-        },
-        {
-            "info": {
-                "title": "Unit Test Knowledge Provider 2",
-                "version": "0.0.1",
-                "x-translator": {
-                    "component": "KP",
-                    "infores": "infores:ontological-hierarchy",
-                    "team": "Ranking Agent",
-                    "biolink-version": "2.2.16"
-                },
-                "x-trapi": {
-                    "version": "1.2.0",
-                    "test_data_location": "https://raw.githubusercontent.com/TranslatorSRI/SRI_testing/main/" +
-                                          "tests/onehop/test_triples/KP/Unit_Test_KP/Test_KP_2.json"
-                }
-            }
-        },
-        {
-            "info": {
-                "title": "Unit Test Automatic Relay Agent",
-                "version": "0.0.1",
-                "x-translator": {
-                    "infores": "infores:aragorn",
-                    "component": "ARA",
-                    "team": "Ranking Agent",
-                    "biolink-version": "2.2.16"
-                },
-                "x-trapi": {
-                    "version": "1.2.0",
-                    "test_data_location": "https://raw.githubusercontent.com/TranslatorSRI/SRI_testing/main/" +
-                                          "tests/onehop/test_triples/ARA/Unit_Test_ARA/Test_ARA.json"
-                }
-            }
-        }
-    ]
-
-}
 
 SMARTAPI_URL = "https://smart-api.info/api/"
 SMARTAPI_QUERY_PARAMETERS = "q=__all__&tags=%22trapi%22&" + \
@@ -125,14 +64,14 @@ def query_smart_api(url: str = SMARTAPI_URL, parameters: Optional[str] = None) -
     query_string = f"query?{parameters}" if parameters else "query"
     data: Optional[Dict] = None
     try:
-        if _MOCK_REGISTRY:
+        if MOCK_REGISTRY:
             # TODO: Using Mock data for now given that the "real" repository
             #       currently lacks KP and ARA 'test_data_location' tags.
             # double deak: fake special "fake URL" unit test result
             if url == "fake URL":
                 raise RequestException(f"fake URL!")
 
-            data = _MOCK_TRANSLATOR_SMARTAPI_REGISTRY_METADATA
+            data = MOCK_TRANSLATOR_SMARTAPI_REGISTRY_METADATA
 
         else:
 
@@ -291,6 +230,7 @@ def extract_component_test_metadata_from_registry(
 
         capture_tag_value(service_metadata, test_data_location, "service_title", service_title)
         capture_tag_value(service_metadata, test_data_location, "service_version", service_version)
+        capture_tag_value(service_metadata, test_data_location, "component", component_type)
         capture_tag_value(service_metadata, test_data_location, "infores", infores)
         capture_tag_value(service_metadata, test_data_location, "biolink_version", biolink_version)
         capture_tag_value(service_metadata, test_data_location, "trapi_version", trapi_version)
