@@ -1,6 +1,6 @@
 {
     "url": "https://automat.renci.org/panther/1.2",
-    "source_type": "primary",
+    "source_type": "aggregator",
     "infores": "panther",
     "exclude_tests": ["RSE"],
     "edges": [
