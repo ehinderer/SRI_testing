@@ -104,7 +104,8 @@ def check_provenance(ara_case, ara_response):
             if attribute_type_id not in \
                     [
                         "biolink:aggregator_knowledge_source",
-                        "biolink:primary_knowledge_source"
+                        "biolink:primary_knowledge_source",
+                        "biolink:original_knowledge_source"  # TODO: this will be deprecated from Biolink 2.4.5
                     ]:
                 continue
 
