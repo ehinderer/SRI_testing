@@ -23,6 +23,7 @@ MAX_NO_OF_EDGES = 10
 
 # Default is actually specifically 1.2.0 as of March 2022,
 # but the reasoner_validator should discern this
+# TODO: this global variable is not thread safe across multiple tests
 _current_trapi_version = None
 
 
@@ -231,7 +232,6 @@ def execute_trapi_lookup(case, creator, rbag):
     """
     error_msg_prefix = generate_test_error_msg_prefix(case, test_name=creator.__name__)
 
-    # Create TRAPI query/response
     rbag.location = case['location']
     rbag.case = case
 

@@ -1,9 +1,62 @@
 from copy import deepcopy
 from functools import wraps
-from typing import Set, Dict
+from os import makedirs
+from re import sub
+from typing import Set, Dict, Optional, List
 
 from reasoner_validator.biolink import get_biolink_model_toolkit
 from translator.sri.testing.util import ontology_kp
+
+
+def clean_up_unit_test_filename(source: str):
+    """
+    Reformat (test run key) source identifier into a well-behaved test file name.
+    :param source:
+    :return:
+    """
+    name = source.split('/')[-1][:-1]
+    name = name.strip("[]")
+    name = name.replace(".py::", "-")
+    name = sub(r"[:\[\]|#/]+", "-", name)
+    return name
+
+
+def unit_test_report_filepath(location: Optional[str], unit_test_key: str, test_run_id: str, status: str) -> str:
+    """
+
+    :param location: str. original file path
+    :param unit_test_key: str, specific unit test key
+    :param test_run_id: str, caller-defined test session_id
+    :param status: test outcome (i.e. PASSED, FAILED, SKIPPED
+    :return:
+    """
+
+    # clean up the name for safe file system usage
+    rfname = clean_up_unit_test_filename(unit_test_key)
+
+    # We tag the filename with its status
+    rfname = f"{rfname}_{status.upper()}"
+
+    # rb['location'] looks like "test_triples/KP/Exposures_Provider/CAM-KP_API.json"
+    lparts: List[str]
+    if location:
+
+        # TODO: the following location path split doesn't work so well
+        #       when given a complex location, like an internet URI
+        #       Try to just limit to the tail of the lparts list of path directories?
+        lparts = location.split('/')[-4:]
+
+        lparts[0] = test_run_id
+        lparts[-1] = rfname
+        try:
+            makedirs('/'.join(lparts[:-1]))
+        except OSError:
+            pass
+    else:
+        lparts = [test_run_id, rfname]
+
+    outname = '/'.join(lparts)
+    return outname
 
 
 def create_one_hop_message(edge, look_up_subject=False):
