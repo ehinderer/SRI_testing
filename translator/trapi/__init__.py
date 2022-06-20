@@ -103,7 +103,7 @@ def check_provenance(ara_case, ara_response, test_report: TestReport):
     edges: Dict[str, Dict] = kg['edges']
 
     # Every knowledge graph should always have at least *some* edges
-    test_report.test(not len(edges), f"{error_msg_prefix} knowledge graph has no edges?")
+    test_report.test(len(edges) > 0, f"{error_msg_prefix} knowledge graph has no edges?")
 
     kp_source_type = f"biolink:{ara_case['kp_source_type']}_knowledge_source"
     kp_source = ara_case['kp_source'] if ara_case['kp_source'] else ""
@@ -114,15 +114,16 @@ def check_provenance(ara_case, ara_response, test_report: TestReport):
         error_msg_prefix = f"{error_msg_prefix} edge '{_output(edge, flat=True)}' from ARA '{ara_case['ara_api_name']}'"
 
         # Every edge should always have at least *some* (provenance source) attributes
-        test_report.test('attributes' not in edge.keys(), f"{error_msg_prefix} has no 'attributes' key?")
+        test_report.test('attributes' in edge.keys(), f"{error_msg_prefix} has no 'attributes' key?")
 
         attributes = edge['attributes']
 
-        test_report.test(not attributes, f"{error_msg_prefix} has no attributes?")
+        test_report.test(attributes, f"{error_msg_prefix} has no attributes?")
 
         # Expecting ARA and KP 'aggregator_knowledge_source' attributes?
         found_ara_knowledge_source = False
         found_kp_knowledge_source = False
+        found_primary_or_original_knowledge_source = False
 
         for entry in attributes:
 
@@ -133,9 +134,16 @@ def check_provenance(ara_case, ara_response, test_report: TestReport):
                     [
                         "biolink:aggregator_knowledge_source",
                         "biolink:primary_knowledge_source",
-                        "biolink:original_knowledge_source"  # TODO: this will be deprecated from Biolink 2.4.5
+                        "biolink:original_knowledge_source"  # TODO: 'original' KS will be deprecated from Biolink 2.4.5
                     ]:
                 continue
+
+            if attribute_type_id in \
+                    [
+                        "biolink:primary_knowledge_source",
+                        "biolink:original_knowledge_source"  # TODO: 'original' KS will be deprecated from Biolink 2.4.5
+                    ]:
+                found_primary_or_original_knowledge_source = True
 
             # TODO: there seems to be non-uniformity in provenance attribute values for some KP/ARA's
             #       in which a value is returned as a Python list (of at least one element?) instead of a string.
@@ -145,27 +153,26 @@ def check_provenance(ara_case, ara_response, test_report: TestReport):
             value = entry['value']
 
             if isinstance(value, List):
-                test_report.test(not value, f"{error_msg_prefix} value is an empty list?")
+                test_report.test(len(value) > 0, f"{error_msg_prefix} value is an empty list?")
 
-            elif isinstance(value, str):
-                value = [value]
             else:
                 test_report.test(
-                    False,
+                    isinstance(value, str),
                     f"{error_msg_prefix} value has an unrecognized data type for a provenance attribute?"
                 )
+                value = [value]
 
             for infores in value:
 
                 test_report.test(
-                    not infores.startswith("infores:"),
+                    infores.startswith("infores:"),
                     f"{error_msg_prefix} provenance value '{infores}' is not a well-formed InfoRes CURIE?"
                 )
 
                 if attribute_type_id == "biolink:aggregator_knowledge_source":
 
                     # Checking specifically here whether the ARA infores
-                    # attribute value is published as aggregator_knowledge_sources
+                    # attribute value is published as an aggregator_knowledge_source
                     if infores == ara_case['ara_source']:
                         found_ara_knowledge_source = True
 
@@ -174,12 +181,17 @@ def check_provenance(ara_case, ara_response, test_report: TestReport):
                         infores == kp_source:
                     found_kp_knowledge_source = True
 
-        test_report.test(not found_ara_knowledge_source, f"{error_msg_prefix} missing ARA knowledge source provenance?")
+        test_report.test(found_ara_knowledge_source, f"{error_msg_prefix} missing ARA knowledge source provenance?")
 
         test_report.test(
-            not found_kp_knowledge_source,
+            found_kp_knowledge_source,
             f"{error_msg_prefix} Knowledge Provider '{ara_case['kp_source']}' attribute value as " + \
             f"'{kp_source_type}' is missing as expected knowledge source provenance?"
+        )
+
+        test_report.test(
+            found_primary_or_original_knowledge_source,
+            f"{error_msg_prefix} has neither 'primary' nor 'original' knowledge source?"
         )
 
         # We are not likely to want to check the entire Knowledge Graph for
@@ -275,7 +287,7 @@ def execute_trapi_lookup(case, creator, rbag, test_report: TestReport):
     trapi_version = get_trapi_version()
 
     test_report.test(
-        not is_valid_trapi(trapi_request, trapi_version=trapi_version),
+        is_valid_trapi(trapi_request, trapi_version=trapi_version),
         f"{error_msg_prefix} the query request is not compliant to TRAPI version '{trapi_version}'?"
     )
 
@@ -286,7 +298,7 @@ def execute_trapi_lookup(case, creator, rbag, test_report: TestReport):
     rbag.response = trapi_response
 
     test_report.test(
-        trapi_response['status_code'] != 200,
+        trapi_response['status_code'] == 200,
         f"{error_msg_prefix} TRAPI response has an unexpected HTTP status code: '{str(trapi_response['status_code'])}'?"
     )
 
@@ -331,7 +343,7 @@ def execute_trapi_lookup(case, creator, rbag, test_report: TestReport):
         # the aliases of the case[output_element] identifier are in the object_ids list
         output_aliases = get_aliases(case[output_element])
         test_report.test(
-            not any([alias == object_id for alias in output_aliases for object_id in object_ids]),
+            any([alias == object_id for alias in output_aliases for object_id in object_ids]),
             f"{error_msg_prefix}: neither the input id '{case[output_element]}' nor resolved aliases " +
             f"[{','.join(output_aliases)}] were returned in the Result object IDs " +
             f"{_output(object_ids,flat=True)} for node '{output_node_binding}' binding?"
