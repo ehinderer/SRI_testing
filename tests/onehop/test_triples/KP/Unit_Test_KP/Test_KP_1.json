@@ -12,6 +12,13 @@
             "object": "PANTHER.FAMILY:PTHR34921"
         },
         {
+            "subject_category": "biolink:CellularComponent",
+            "object_category": "biolink:Cell",
+            "predicate": "biolink:part_of",
+            "subject": "GO:0005789",
+            "object": "CL:0000684 "
+        },
+        {
             "subject_category": "biolink:NotABiolinkCategory",
             "object_category": "biolink:GeneFamily",
             "predicate": "biolink:part_of",
