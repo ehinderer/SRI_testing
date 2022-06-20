@@ -57,7 +57,7 @@ def test_run_process_timeout():
     # the runtime of the specified command line
     _report_outcome(
         "test_run_process_timeout",
-        f"PING -n 10 127.0.0.1 > nul",
+        "python -c 'from time import sleep; sleep(2)'",
         timeout=1,
         expecting_output=False
     )

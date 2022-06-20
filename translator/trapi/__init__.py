@@ -11,6 +11,8 @@ from reasoner_validator.util import latest
 from reasoner_validator.biolink import check_biolink_model_compliance_of_knowledge_graph
 from translator.sri import get_aliases
 
+import pytest
+
 import logging
 logger = logging.getLogger(__name__)
 
@@ -59,11 +61,41 @@ def is_valid_trapi(instance, trapi_version):
         return False
 
 
-def check_provenance(ara_case, ara_response):
+class TestReport:
+
+    def __init__(self, errors: List[str]):
+        self.errors = errors
+
+    def test(self, is_true: bool, message: str):
+        """
+        Error test report.
+
+        :param is_true: test predicate, triggering error message report if False
+        :param message: error message reported when 'is_true' is False
+        :raises: AssertionError when 'is_true' flag has value False
+        """
+        if not is_true:
+            logger.error(message)
+            self.errors.append(message)
+            assert False, message
+
+    def skip(self, message: str):
+        """
+        Skip report wrapper.
+        :param message: str, message explaining why the test is skipped
+        :raises: AssertionError when 'is_true' flag has value False
+        """
+        self.errors.append(message)
+        pytest.skip(message)
+
+
+def check_provenance(ara_case, ara_response, test_report: TestReport):
     """
-    This is where we will check to see whether the edge
-    in the ARA response is marked with the expected KP.
-    But at the moment, there is not a standard way to do this.
+    Check to see whether the edge in the ARA response is marked with the expected KP.
+
+    :param ara_case: ARA associated input data test case
+    :param ara_response: TRAPI Response whose provenance is to be validated.
+    :param test_report: ErrorReport, class wrapper object for asserting and reporting errors
     """
     error_msg_prefix = generate_test_error_msg_prefix(ara_case, test_name="check_provenance")
 
@@ -71,8 +103,7 @@ def check_provenance(ara_case, ara_response):
     edges: Dict[str, Dict] = kg['edges']
 
     # Every knowledge graph should always have at least *some* edges
-    if not len(edges):
-        assert False, f"{error_msg_prefix} knowledge graph has no edges?"
+    test_report.test(not len(edges), f"{error_msg_prefix} knowledge graph has no edges?")
 
     kp_source_type = f"biolink:{ara_case['kp_source_type']}_knowledge_source"
     kp_source = ara_case['kp_source'] if ara_case['kp_source'] else ""
@@ -83,19 +114,15 @@ def check_provenance(ara_case, ara_response):
         error_msg_prefix = f"{error_msg_prefix} edge '{_output(edge, flat=True)}' from ARA '{ara_case['ara_api_name']}'"
 
         # Every edge should always have at least *some* (provenance source) attributes
-        if 'attributes' not in edge.keys():
-            assert False, f"{error_msg_prefix} has no 'attributes' key?"
+        test_report.test('attributes' not in edge.keys(), f"{error_msg_prefix} has no 'attributes' key?")
 
         attributes = edge['attributes']
-        if not attributes:
-            assert False, f"{error_msg_prefix} has no attributes?"
+
+        test_report.test(not attributes, f"{error_msg_prefix} has no attributes?")
 
         # Expecting ARA and KP 'aggregator_knowledge_source' attributes?
         found_ara_knowledge_source = False
         found_kp_knowledge_source = False
-
-        # TODO: is it acceptable to only have a 'knowledge_source' here?
-        found_primary_or_original_knowledge_source = False
 
         for entry in attributes:
 
@@ -118,19 +145,22 @@ def check_provenance(ara_case, ara_response):
             value = entry['value']
 
             if isinstance(value, List):
-                if not value:
-                    assert False, f"{error_msg_prefix} value is an empty list?"
+                test_report.test(not value, f"{error_msg_prefix} value is an empty list?")
 
             elif isinstance(value, str):
                 value = [value]
             else:
-                assert False, f"{error_msg_prefix} value has an unrecognized data type for a provenance attribute?"
+                test_report.test(
+                    False,
+                    f"{error_msg_prefix} value has an unrecognized data type for a provenance attribute?"
+                )
 
             for infores in value:
 
-                if not infores.startswith("infores:"):
-                    assert False, \
-                        f"{error_msg_prefix} provenance value '{infores}' is not a well-formed InfoRes CURIE?"
+                test_report.test(
+                    not infores.startswith("infores:"),
+                    f"{error_msg_prefix} provenance value '{infores}' is not a well-formed InfoRes CURIE?"
+                )
 
                 if attribute_type_id == "biolink:aggregator_knowledge_source":
 
@@ -144,13 +174,13 @@ def check_provenance(ara_case, ara_response):
                         infores == kp_source:
                     found_kp_knowledge_source = True
 
-        if not found_ara_knowledge_source:
-            assert False,  f"{error_msg_prefix} missing ARA knowledge source provenance?"
+        test_report.test(not found_ara_knowledge_source, f"{error_msg_prefix} missing ARA knowledge source provenance?")
 
-        if not found_kp_knowledge_source:
-            assert False, \
-                f"{error_msg_prefix} Knowledge Provider '{ara_case['kp_source']}' attribute value as " +\
-                f"'{kp_source_type}' is missing as expected knowledge source provenance?"
+        test_report.test(
+            not found_kp_knowledge_source,
+            f"{error_msg_prefix} Knowledge Provider '{ara_case['kp_source']}' attribute value as " + \
+            f"'{kp_source_type}' is missing as expected knowledge source provenance?"
+        )
 
         # We are not likely to want to check the entire Knowledge Graph for
         # provenance but only sample a subset, making the assumption that
@@ -222,32 +252,32 @@ def generate_test_error_msg_prefix(case: Dict, test_name: str) -> str:
     return test_msg_prefix
 
 
-def execute_trapi_lookup(case, creator, rbag):
+def execute_trapi_lookup(case, creator, rbag, test_report: TestReport):
     """
     Method to execute a TRAPI lookup, using the 'creator' test template.
 
-    :param case:
-    :param creator:
-    :param rbag:
+    :param case: input data test case
+    :param creator: unit test-specific query message creator
+    :param rbag: dictionary of results
+    :param test_report: ErrorReport, class wrapper object for asserting and reporting errors
+
     """
     error_msg_prefix = generate_test_error_msg_prefix(case, test_name=creator.__name__)
 
-    rbag.location = case['location']
-    rbag.case = case
-
     trapi_request, output_element, output_node_binding = creator(case)
 
-    if trapi_request is None:
-        # The particular creator cannot make a valid message from this triple
-        assert False, f"{error_msg_prefix} message creator could not generate a valid TRAPI query request object?"
+    test_report.test(
+        trapi_request is not None,
+        f"{error_msg_prefix} message creator could not generate a valid TRAPI query request object?"
+    )
 
     # query use cases pertain to a particular TRAPI version
     trapi_version = get_trapi_version()
 
-    if not is_valid_trapi(trapi_request, trapi_version=trapi_version):
-        # This is a problem with the testing framework.
-        assert False, f"{error_msg_prefix} for the expected TRAPI version '{trapi_version}', " +\
-                      "the query request is not TRAPI compliant?"
+    test_report.test(
+        not is_valid_trapi(trapi_request, trapi_version=trapi_version),
+        f"{error_msg_prefix} the query request is not compliant to TRAPI version '{trapi_version}'?"
+    )
 
     trapi_response = call_trapi(case['url'], case['query_opts'], trapi_request)
 
@@ -255,28 +285,31 @@ def execute_trapi_lookup(case, creator, rbag):
     rbag.request = trapi_request
     rbag.response = trapi_response
 
-    if trapi_response['status_code'] != 200:
-        err_msg = f"{error_msg_prefix} TRAPI response has an " \
-                  f"unexpected HTTP status code of '{str(trapi_response['status_code'])}'?"
-        logger.warning(err_msg)
-        assert False, err_msg
+    test_report.test(
+        trapi_response['status_code'] != 200,
+        f"{error_msg_prefix} TRAPI response has an unexpected HTTP status code: '{str(trapi_response['status_code'])}'?"
+    )
 
     # Validate that we got back valid TRAPI Response
     valid_trapi_response = is_valid_trapi(trapi_response['response_json'], trapi_version=trapi_version)
-    if not valid_trapi_response:
-        logger.error(f"TRAPI Response: {_output(trapi_response['response_json'])}")
-        assert False,  \
-            f"{error_msg_prefix} for expected TRAPI version '{trapi_version}', TRAPI response is not TRAPI compliant?"
+    test_report.test(
+        valid_trapi_response,
+        f"{error_msg_prefix} for expected TRAPI version '{trapi_version}', TRAPI response is not TRAPI compliant?"
+    )
 
     response_message = trapi_response['response_json']['message']
 
     # Verify that the response had some results...
-    assert len(response_message['results']) > 0,\
+    test_report.test(
+        len(response_message['results']) > 0,
         f"{error_msg_prefix} TRAPI response returned an empty TRAPI Message Result?"
+    )
 
     # ...Then, validate the associated Knowledge Graph...
-    assert len(response_message['knowledge_graph']) > 0,\
+    test_report.test(
+        len(response_message['knowledge_graph']) > 0,
         f"{error_msg_prefix} returned an empty TRAPI Message Knowledge Graph?"
+    )
 
     # Verify that the TRAPI message output knowledge graph
     # is compliant to the applicable Biolink Model release
@@ -285,9 +318,11 @@ def execute_trapi_lookup(case, creator, rbag):
             graph=response_message['knowledge_graph'],
             biolink_version=case['biolink_version']
         )
-    assert not errors, \
-        f"{error_msg_prefix} TRAPI response is not compliant to " \
+    test_report.test(
+        not errors,
+        f"{error_msg_prefix} TRAPI response is not compliant to " +
         f"Biolink Model release '{model_version}':\n{_output(errors)}\n?"
+    )
 
     # Finally, check that the Results contained the object of the query
     object_ids = [r['node_bindings'][output_node_binding][0]['id'] for r in response_message['results']]
@@ -295,9 +330,11 @@ def execute_trapi_lookup(case, creator, rbag):
         # The 'get_aliases' method uses the Translator NodeNormalizer to check if any of
         # the aliases of the case[output_element] identifier are in the object_ids list
         output_aliases = get_aliases(case[output_element])
-        if not any([alias == object_id for alias in output_aliases for object_id in object_ids]):
-            assert False, f"{error_msg_prefix}: neither the input id '{case[output_element]}' nor resolved aliases " \
-                          f"[{','.join(output_aliases)}] were returned in the Result object IDs " \
-                          f"{_output(object_ids,flat=True)} for node '{output_node_binding}' binding?"
+        test_report.test(
+            not any([alias == object_id for alias in output_aliases for object_id in object_ids]),
+            f"{error_msg_prefix}: neither the input id '{case[output_element]}' nor resolved aliases " +
+            f"[{','.join(output_aliases)}] were returned in the Result object IDs " +
+            f"{_output(object_ids,flat=True)} for node '{output_node_binding}' binding?"
+        )
 
     return response_message

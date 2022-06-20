@@ -6,7 +6,8 @@ from typing import Optional, Dict, Tuple
 
 import pytest
 
-from translator.trapi import set_trapi_version, get_trapi_version, check_provenance, generate_test_error_msg_prefix
+from translator.trapi import set_trapi_version, get_trapi_version, check_provenance, generate_test_error_msg_prefix, \
+    TestReport
 
 logger = logging.getLogger(__name__)
 
@@ -70,6 +71,7 @@ def test_generate_test_error_msg_prefix(query):
 
 
 TEST_ARA_CASE_TEMPLATE = {
+    "idx" : 0,
     "url": "http://test_ara_endpoint",
     "ara_api_name": "test_ARA",
     "ara_source": "infores:test_ara",
@@ -310,7 +312,9 @@ def get_ara_test_case(changes: Optional[Dict[str, str]] = None):
 )
 def test_check_provenance(query: Tuple):
     try:
-        check_provenance(query[0], query[1])
+        errors = list()
+        test_report = TestReport(errors)
+        check_provenance(query[0], query[1], test_report)
     except AssertionError as ae:
         assert query[2], "check_provenance() should pass!"
         assert str(ae).endswith(query[2]), "unexpected assertion error?"
