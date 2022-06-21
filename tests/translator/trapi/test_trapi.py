@@ -77,7 +77,7 @@ TEST_ARA_CASE_TEMPLATE = {
     "ara_source": "infores:test_ara",
     "kp_api_name": "Test_KP_1",
     "kp_source": "infores:panther",
-    "kp_source_type": "primary"
+    "kp_source_type": "original"
 }
 
 

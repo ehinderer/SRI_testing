@@ -89,6 +89,24 @@ class TestReport:
         pytest.skip(message)
 
 
+def generate_test_error_msg_prefix(case: Dict, test_name: str) -> str:
+    assert case
+    test_msg_prefix: str = "test_onehops.py::test_trapi_"
+    resource_id: str = ""
+    component: str = "kp"
+    if 'ara_api_name' in case and case['ara_api_name']:
+        component = "ara"
+        resource_id += case['ara_api_name'] + "|"
+    test_msg_prefix += f"{component}s["
+    resource_id += case['kp_api_name']
+    edge_idx = case['idx']
+    edge_id = generate_edge_id(resource_id, edge_idx)
+    if not test_name:
+        test_name = "input"
+    test_msg_prefix += f"{edge_id}-{test_name}] FAILED"
+    return test_msg_prefix
+
+
 def check_provenance(ara_case, ara_response, test_report: TestReport):
     """
     Check to see whether the edge in the ARA response is marked with the expected KP.
@@ -244,24 +262,6 @@ def call_trapi(url: str, opts, trapi_message):
 
 def generate_edge_id(resource_id: str, edge_i: int) -> str:
     return f"{resource_id}#{str(edge_i)}"
-
-
-def generate_test_error_msg_prefix(case: Dict, test_name: str) -> str:
-    assert case
-    test_msg_prefix: str = "test_onehops.py::test_trapi_"
-    resource_id: str = ""
-    component: str = "kp"
-    if 'ara_api_name' in case and case['ara_api_name']:
-        component = "ara"
-        resource_id += case['ara_api_name'] + "|"
-    test_msg_prefix += f"{component}s["
-    resource_id += case['kp_api_name']
-    edge_idx = case['idx']
-    edge_id = generate_edge_id(resource_id, edge_idx)
-    if not test_name:
-        test_name = "input"
-    test_msg_prefix += f"{edge_id}-{test_name}] FAILED"
-    return test_msg_prefix
 
 
 def execute_trapi_lookup(case, creator, rbag, test_report: TestReport):
