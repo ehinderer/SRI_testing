@@ -56,6 +56,11 @@ def pytest_sessionfinish(session):
                 outf.write("# Input:\n")
                 json.dump(rb['case'], outf, indent=4)
                 outf.write("\n")
+            if 'errors' in rb and len(rb['errors']) > 0:
+                # Print out input edge test case, if available
+                outf.write("# Errors:\n")
+                json.dump(rb['errors'], outf, indent=4)
+                outf.write("\n")
             if details['status'] == 'failed':
                 if 'request' in rb:
                     outf.write(f"# Request:\n")
@@ -355,7 +360,8 @@ def generate_trapi_kp_tests(metafunc, biolink_version):
                 edge['idx'] = edge_i
 
                 # we track each test edge as belonging to a given user session
-                edge['session_id'] = session_id
+                if session_id:
+                    edge['session_id'] = session_id
 
                 # We can already do some basic Biolink Model validation here of the
                 # S-P-O contents of the edge being input from the current triples file?

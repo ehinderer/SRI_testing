@@ -21,7 +21,7 @@ from subprocess import (
 )
 import os
 import logging
-from uuid import uuid4, UUID
+from uuid import UUID
 
 logger = logging.getLogger()
 
@@ -139,12 +139,6 @@ class WorkerProcess:
     # between Process and Session identifiers
     _worker_pid_2_sid: Dict[int, UUID] = dict()
     _worker_sid_2_pid: Dict[UUID, int] = dict()
-    
-    def _create_session_id(self):
-        # encapsulate process identifier with a UUID session identifier
-        if self._session_id:
-            raise RuntimeError("Session id already created?")
-        self._session_id = uuid4()
 
     def _register_process(self):
         # map session id onto (new) process?
@@ -170,9 +164,9 @@ class WorkerProcess:
             if process_id and process_id in self._worker_pid_2_sid:
                 self._worker_pid_2_sid.pop(process_id)
 
-        stale_session = self._session_id
+        stale_session_id = self._session_id
         self._session_id = 0
-        return stale_session
+        return stale_session_id
 
     def __init__(self, timeout: Optional[int] = None):
         """
@@ -190,12 +184,11 @@ class WorkerProcess:
         self._process: Optional[Process] = None
         self._process_id: int = 0
 
-    def run_command(self, command_line: str, has_session: bool = True) -> Optional[UUID]:
+    def run_command(self, command_line: str):
         """
         Run a provided command line string, as a background process.
 
         :param command_line: str, command line string to run as a shell command in a background worker process.
-        :param has_session: bool, flag to signal that session_id should be  propagated to background process.
 
         :return: Optional[UUID], session identifier for this background Worker Process executing the command line.
                  If the method returns None, then the process is considered inaccessible; otherwise, the returned
@@ -210,11 +203,6 @@ class WorkerProcess:
             # TODO: may need to manage several worker processes, therefore, may need to use multiprocessing Pools? see
             #   https://docs.python.org/3/library/multiprocessing.html?highlight=multiprocessing#module-multiprocessing
             assert not self._process
-
-            # We now proactively create a session id early so that it can be used
-            # to tag Pytest output, when passed as part of the command string
-            self._create_session_id()
-            command_line += f" --session_id={str(self._get_session_id())}" if has_session else ""
             
             self._process = self._ctx.Process(target=_worker_process, args=(self._lock, self._queue, command_line))
 
@@ -250,20 +238,14 @@ class WorkerProcess:
             
             self._output = f"Background process start-up exception: {str(ex)}?"
 
-        return self._get_session_id()
-
-    def get_output(self, session_id: UUID) -> Optional[str]:
+    def get_output(self) -> Optional[str]:
         """
         Retrieves the raw STDOUT output or (alternately) error messages
         from the WorkerProcess, when it is complete.
-        
-        :param session_id: UUID, Universally Unique IDentifier assigned to a worker process
+
         :return: Optional[str], output which may be a raw worker process result,
                                 an error message or None if not yet available.
         """
-        # Sanity check
-        assert session_id
-
         # this method is idempotent: once a non-empty output is
         # retrieved the first time, it is deemed ached for future access
         if not self._output:
