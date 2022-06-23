@@ -18,7 +18,7 @@ def post(url, message, params=None):
     else:
         response = requests.post(url, json=message, params=params)
     if not response.status_code == 200:
-        print('error:', response.status_code)
+        print('\nOntology server HTTP error code:', response.status_code)
         return {}
     return response.json()
 
@@ -66,16 +66,20 @@ def get_ontology_ancestors(curie, btype):
     response = post(ONTOLOGY_KP_TRAPI_SERVER, m)
     original_prefix = curie.split(':')[0]
     ancestors = []
-    for result in response['message']['results']:
-        parent_id = result['node_bindings']['b'][0]['id']
-        if parent_id == curie:
-            # everything is a subclass of itself
-            continue
-        if not parent_id.startswith(original_prefix):
-            # Don't give me UPHENO:000001 if I asked for a parent of HP:000012312
-            continue
-        # good enough
-        ancestors.append(parent_id)
+    if response:
+        for result in response['message']['results']:
+            parent_id = result['node_bindings']['b'][0]['id']
+            if parent_id == curie:
+                # everything is a subclass of itself
+                continue
+            if not parent_id.startswith(original_prefix):
+                # Don't give me UPHENO:000001 if I asked for a parent of HP:000012312
+                continue
+            # good enough
+            ancestors.append(parent_id)
+    else:
+        print("### No response from the Ontology server: it may be offline?")
+
     return ancestors
 
 

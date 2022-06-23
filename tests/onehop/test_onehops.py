@@ -5,8 +5,8 @@ from typing import List, Dict
 
 import pytest
 
-from tests.onehop.util import in_excluded_tests, get_unit_test_name
-from translator.trapi import check_provenance, execute_trapi_lookup
+from tests.onehop.util import in_excluded_tests
+from translator.trapi import check_provenance, execute_trapi_lookup, TestReport
 from tests.onehop import util as oh_util
 
 import logging
@@ -15,13 +15,25 @@ logger = logging.getLogger(__name__)
 _edge_error_seen_already: List = list()
 
 
-def _report_and_skip_edge(scope: str, test, test_case: Dict):
-    resource_id = test_case[f"{scope.lower()}_api_name"]
+def _report_and_skip_edge(scope: str, test, test_case: Dict, test_report: TestReport):
+    """
+
+    :param scope: str, 'KP" or 'ARA'
+    :param test: the particular unit test being skipped
+    :param test_case: input edge data unit test case
+    :param test_report: TestReport wrapper for reporting test status
+    :raises: pytest.skip with an informative message
+    """
+
+    # resource_id = test_case[f"{scope.lower()}_api_name"]
+
     try:
         test_name = test.__name__
     except AttributeError:
         raise RuntimeError(f"_report_and_skip_edge(): invalid 'test' parameter: '{str(test)}'")
-    edge_i = test_case["idx"]
+
+    # edge_i = test_case["idx"]
+
     subject_category = test_case['subject_category']
     subject_id = test_case['subject']
     predicate = test_case['predicate']
@@ -31,12 +43,12 @@ def _report_and_skip_edge(scope: str, test, test_case: Dict):
 
     if 'biolink_errors' in test_case:
         model_version, errors = test_case['biolink_errors']
-        pytest.skip(
+        test_report.skip(
             f"test case S-P-O triple '{label}', since it is not "
             f"Biolink Model compliant: {' and '.join(errors)}"
         )
     else:
-        pytest.skip(
+        test_report.skip(
             f"test case S-P-O triple '{label}' or all test case S-P-O triples from resource test location."
         )
 
@@ -49,10 +61,15 @@ def test_trapi_kps(kp_trapi_case, trapi_creator, results_bag):
     This approach will need modification if there turn out to be particular elements we want to test for different
     creators.
     """
+    results_bag.location = kp_trapi_case['location']
+    results_bag.case = kp_trapi_case
+    results_bag.errors = list()
+    test_report = TestReport(results_bag.errors)
+
     if not ('biolink_errors' in kp_trapi_case or in_excluded_tests(test=trapi_creator, test_case=kp_trapi_case)):
-        execute_trapi_lookup(kp_trapi_case, trapi_creator, results_bag)
+        execute_trapi_lookup(case=kp_trapi_case, creator=trapi_creator, rbag=results_bag, test_report=test_report)
     else:
-        _report_and_skip_edge("KP", test=trapi_creator, test_case=kp_trapi_case)
+        _report_and_skip_edge("KP", test=trapi_creator, test_case=kp_trapi_case, test_report=test_report)
 
 
 @pytest.mark.parametrize(
@@ -70,9 +87,19 @@ def test_trapi_aras(ara_trapi_case, trapi_creator, results_bag):
     data from the KP.
     Then it performs a check on the result to make sure that the provenance is correct.
     """
+    results_bag.location = ara_trapi_case['location']
+    results_bag.case = ara_trapi_case
+    results_bag.errors = list()
+    test_report = TestReport(results_bag.errors)
+
     if not ('biolink_errors' in ara_trapi_case or in_excluded_tests(test=trapi_creator, test_case=ara_trapi_case)):
-        response_message = execute_trapi_lookup(ara_trapi_case, trapi_creator, results_bag)
+        response_message = execute_trapi_lookup(
+            case=ara_trapi_case,
+            creator=trapi_creator,
+            rbag=results_bag,
+            test_report=test_report
+        )
         if response_message is not None:
-            check_provenance(ara_trapi_case, response_message)
+            check_provenance(ara_case=ara_trapi_case, ara_response=response_message, test_report=test_report)
     else:
-        _report_and_skip_edge("ARA", test=trapi_creator, test_case=ara_trapi_case)
+        _report_and_skip_edge("ARA", test=trapi_creator, test_case=ara_trapi_case, test_report=test_report)

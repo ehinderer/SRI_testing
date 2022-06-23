@@ -1,7 +1,14 @@
 version: '3.9'
+
 services:
   ui:
     build:
       context: .
     ports:
     - "80:80"
+    # need to tie into code/tests/onehop/results VOLUME
+    volumes:
+    - results:/code/tests/onehop/results
+
+volumes:
+  results:

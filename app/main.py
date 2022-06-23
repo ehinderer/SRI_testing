@@ -2,7 +2,7 @@
 FastAPI web service wrapper for SRI Testing harness
 (i.e. for reports to a Translator Runtime Status Dashboard)
 """
-from typing import Optional, Union, List, Dict
+from typing import Optional, Union, Dict
 from pydantic import BaseModel
 
 import uvicorn
@@ -23,6 +23,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
 #
 # We don't instantiate the full TRAPI models here but
 # just use an open-ended dictionary which should have
@@ -80,14 +82,14 @@ async def run_tests(test_parameters: TestRunParameters) -> Dict:
     log: Optional[str] = test_parameters.log
 
     testrun = OneHopTestHarness(test_parameters.timeout)
-    session_id: str = testrun.run(
+    testrun.run(
         trapi_version=trapi_version,
         biolink_version=biolink_version,
         log=log
     )
 
     return {
-        "session_id": session_id,
+        "session_id": testrun.get_session_id(),
 
         # TODO: user specified TRAPI version...
         #       we should somehow try to report the

@@ -8,7 +8,7 @@ from typing import Optional, Union, List, Dict, Tuple
 # from sys import stderr
 from os import path
 import time
-from uuid import UUID
+from uuid import UUID, uuid4
 from json import dump
 import re
 
@@ -519,9 +519,12 @@ class OneHopTestHarness:
     _session_id_2_testrun: Dict = dict()
     
     def __init__(self, timeout: Optional[int] = DEFAULT_WORKER_TIMEOUT):
+
+        # each test harness run has its own unique session identifier
+        self._session_id: UUID = uuid4()
+
         self._command_line: Optional[str] = None
         self._process: Optional[WorkerProcess] = None
-        self._session_id: Optional[UUID] = None
         self._result: Optional[str] = None
         self._report: Optional[SRITestReport] = None
         self._timeout: Optional[int] = timeout
@@ -546,7 +549,7 @@ class OneHopTestHarness:
             ara_source:  Optional[str] = None,
             one: bool = False,
             log: Optional[str] = None
-    ) -> Optional[str]:
+    ):
         """
         Run the SRT Testing test harness as a worker process.
 
@@ -568,37 +571,23 @@ class OneHopTestHarness:
 
         :return: str, UUID session identifier for this testing run
         """
-        session_id_string: Optional[str]
+        session_id_string: str = str(self._session_id)
 
-        if self._session_id:
-            # Enforcing idempotency:
-            # this OneHopTestHarness run is already initialized
-            session_id_string = self.get_session_id()
-            if session_id_string in self._session_id_2_testrun:
-                logger.warning(
-                    "This OneHopTestHarness test run is already running! " +
-                    f"Try accessing the report with UUID '{session_id_string}'")
-            else:
-                logger.error(f"This OneHopTestHarness test run has an unmapped or expired UUID '{session_id_string}'")
-        else:
-            self._command_line = f"cd {ONEHOP_TEST_DIRECTORY} {CMD_DELIMITER} " + \
-                                 f"pytest --tb=line -vv"
-            self._command_line += f" --log-cli-level={log}" if log else ""
-            self._command_line += f" test_onehops.py"
-            self._command_line += f" --TRAPI_Version={trapi_version}" if trapi_version else ""
-            self._command_line += f" --Biolink_Version={biolink_version}" if biolink_version else ""
-            self._command_line += f" --triple_source={triple_source}" if triple_source else ""
-            self._command_line += f" --ARA_source={ara_source}" if ara_source else ""
-            self._command_line += " --one" if one else ""
+        self._command_line = f"cd {ONEHOP_TEST_DIRECTORY} {CMD_DELIMITER} " + \
+                             f"pytest --tb=line -vv"
+        self._command_line += f" --log-cli-level={log}" if log else ""
+        self._command_line += f" test_onehops.py"
+        self._command_line += f" --session_id={session_id_string}"
+        self._command_line += f" --TRAPI_Version={trapi_version}" if trapi_version else ""
+        self._command_line += f" --Biolink_Version={biolink_version}" if biolink_version else ""
+        self._command_line += f" --triple_source={triple_source}" if triple_source else ""
+        self._command_line += f" --ARA_source={ara_source}" if ara_source else ""
+        self._command_line += " --one" if one else ""
 
-            logger.debug(f"OneHopTestHarness.run() command line: {self._command_line}")
-            self._process = WorkerProcess(self._timeout)
-            self._session_id = self._process.run_command(self._command_line)
-
-            session_id_string = self.get_session_id()
-            self._session_id_2_testrun[session_id_string] = self
-
-        return session_id_string
+        logger.debug(f"OneHopTestHarness.run() command line: {self._command_line}")
+        self._process = WorkerProcess(self._timeout)
+        self._session_id = self._process.run_command(self._command_line)
+        self._session_id_2_testrun[session_id_string] = self
     
     def get_testrun_report(self) -> Optional[Union[List[str], Dict]]:
         """
@@ -610,26 +599,20 @@ class OneHopTestHarness:
         # ts stores the time in seconds
         ts = time.time()
         if not self._report:
-            if self._session_id:
-                try:
-                    self._result = self._process.get_output(self._session_id)
-                    if self._result:
-                        # Raw Pytest data and report output is cached locally with a timestamp
-                        sample_file_path = path.join(TEST_RESULT_DIR, f"raw_pytest_output{ts}.txt")
-                        with open(sample_file_path, "w") as sf:
-                            sf.write(self._result)
-
-                        self._report = SRITestReport()
-                        self._report.parse_result(self._result)
-
-                except WorkerProcessException as wpe:
-                    return [str(wpe)]
-            else:
+            try:
+                self._result = self._process.get_output()
                 if self._result:
-                    return [self._result]  # likely a simple raw error message from a global error
-                else:
-                    # totally opaque OneHopTestHarness test run failure?
-                    return [f"Worker process failed to execute command line '{self._command_line}'?"]
+                    # Raw Pytest data and report output is cached locally with a timestamp
+                    sample_file_path = path.join(TEST_RESULT_DIR, f"raw_pytest_output{ts}.txt")
+                    with open(sample_file_path, "w") as sf:
+                        sf.write(self._result)
+
+                    self._report = SRITestReport()
+                    self._report.parse_result(self._result)
+
+            except WorkerProcessException as wpe:
+                return [str(wpe)]
+
         if self._report:
             report = self._report.output()
             sri_report_file_path = path.join(TEST_RESULT_DIR, f"sri_report_{ts}.json")

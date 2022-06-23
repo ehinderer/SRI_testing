@@ -1,21 +1,18 @@
 """
 Configure one hop tests
 """
-from sys import stderr
-from os import path, makedirs, walk
-from re import sub
-import json
-import logging
-from collections import defaultdict
-from json import JSONDecodeError
 from typing import Optional, Union, List, Set, Dict, Any
+from sys import stdout, stderr
+from os import path, walk
+from collections import defaultdict
+import json
+
+import logging
 
 from pytest_harvest import get_session_results_dct
 
-from tests import TEST_RESULT_DIR
-from tests.onehop.util import get_unit_test_codes
 from reasoner_validator.biolink import check_biolink_model_compliance_of_input_edge
-from tests.onehop import util as oh_util
+
 from translator.registry import (
     get_remote_test_data_file,
     get_the_registry_data,
@@ -23,17 +20,10 @@ from translator.registry import (
 )
 from translator.trapi import set_trapi_version, generate_edge_id
 
+from tests.onehop import util as oh_util
+from tests.onehop.util import get_unit_test_codes, unit_test_report_filepath
+
 logger = logging.getLogger(__name__)
-
-
-def clean_up_filename(source: str):
-    name = source.split('/')[-1][:-1]
-    name = name.strip("[]")
-    name = name.replace(".py::", "-")
-    name = sub(r"[:\[\]|#/]+", "-", name)
-    name = f"{name}.results"
-    logger.debug(f"_clean_up_filename: '{source}' to '{name}'")
-    return name
 
 
 def pytest_sessionfinish(session):
@@ -41,39 +31,57 @@ def pytest_sessionfinish(session):
     Works both on worker and master nodes, and also with xdist disabled"""
 
     session_results = get_session_results_dct(session)
-    for t, v in session_results.items():
-        if v['status'] == 'failed':
-            # clean up the name for safe file system usage
-            rfname = clean_up_filename(t)
-            rb: Dict = v['fixtures']['results_bag']
-            rb = {key.strip("\r\n"): value for key, value in rb.items()}
-            # rb['location'] looks like "test_triples/KP/Exposures_Provider/CAM-KP_API.json"
-            if 'location' in rb:
-                lparts = rb['location'].split('/')
-                lparts[0] = 'results'
-                lparts[-1] = rfname
-                try:
-                    makedirs('/'.join(lparts[:-1]))
-                except OSError:
-                    pass
-                outname = '/'.join(lparts)
-            else:
-                outname = rfname
+    for unit_test_key, details in session_results.items():
 
-            if 'request' in rb:
-                with open(outname, 'w') as outf:
-                    outf.write(rb['location'])
-                    outf.write('\n')
+        rb: Dict = details['fixtures']['results_bag']
+
+        # sanity check: clean up MS Windoze EOL characters, when present in results_bag keys
+        rb = {key.strip("\r\n"): value for key, value in rb.items()}
+
+        if 'case' in rb and 'session_id' in rb['case'] and rb['case']["session_id"]:
+            test_run_id = rb['case']['session_id']
+        else:
+            test_run_id = 'test_results'
+
+        output_filepath = unit_test_report_filepath(
+            location=rb['location'] if 'location' in rb else None,
+            unit_test_key=unit_test_key,
+            test_run_id=test_run_id,
+            status=details['status']
+        )
+
+        with open(output_filepath, 'w') as outf:
+            if 'case' in rb:
+                # Print out input edge test case, if available
+                outf.write("# Input:\n")
+                json.dump(rb['case'], outf, indent=4)
+                outf.write("\n")
+            if 'errors' in rb and len(rb['errors']) > 0:
+                # Print out input edge test case, if available
+                outf.write("# Errors:\n")
+                json.dump(rb['errors'], outf, indent=4)
+                outf.write("\n")
+            if details['status'] == 'failed':
+                if 'request' in rb:
+                    outf.write(f"# Request:\n")
                     json.dump(rb['request'], outf, indent=4)
-                    outf.write(f'\nStatus Code: {rb["response"]["status_code"]}\n')
+                    outf.write("\n")
+                else:
+                    # This means that there was no generated request.
+                    # But we don't need to make a big deal about it.
+                    outf.write("# Error generating results: No results bag 'request' output available?")
+                if 'response' in rb:
+                    outf.write(f'# HTTP Status Code: {rb["response"]["status_code"]}\n')
+                    outf.write(f'# Response:\n')
                     json.dump(rb['response']['response_json'], outf, indent=4)
-            else:
-                # This means that there was no generated request.
-                # But we don't need to make a big deal about it.
-                with open(outname+"_NOTEST", 'w') as outf:
-                    outf.write('Error generating results: No request generated?')
-                    if 'case' in rb:
-                        json.dump(rb['case'], outf, indent=4)
+                else:
+                    # This means that there was no generated request.
+                    # But we don't need to make a big deal about it.
+                    outf.write("# Error generating results: No results bag 'response' output available?")
+
+            elif details['status'] == 'skipped':
+                # TODO: can we report anything more here?
+                pass
 
 
 def pytest_addoption(parser):
@@ -105,6 +113,11 @@ def pytest_addoption(parser):
         "--Biolink_Version", action="store", default=None,
         help='Biolink Model Version to use for the tests ' +
              '(Default: latest Biolink Model Toolkit default or REGISTRY metadata value).'
+    )
+    #  Mostly used when the SRI Testing harness is run by a web service
+    parser.addoption(
+        "--session_id", action="store", default="",
+        help='Optional Session Identifier for use internally to tag test results.'
     )
 
 
@@ -223,7 +236,7 @@ def load_test_data_source(
         with open(source, 'r') as local_file:
             try:
                 test_data = json.load(local_file)
-            except (JSONDecodeError, TypeError):
+            except (json.JSONDecodeError, TypeError):
                 logger.error(f"load_test_data_source(): input file '{source}': Invalid JSON")
 
     if test_data is not None:
@@ -308,6 +321,9 @@ def generate_trapi_kp_tests(metafunc, biolink_version):
     edges = []
     idlist = []
 
+    # optional user session identifier for test (maybe be an empty string)
+    session_id = metafunc.config.getoption('session_id')
+
     triple_source = metafunc.config.getoption('triple_source')
 
     kp_metadata: Dict[str, Dict[str, Optional[str]]] = get_test_data_sources(triple_source, component_type="KP")
@@ -332,12 +348,20 @@ def generate_trapi_kp_tests(metafunc, biolink_version):
             logger.error(err_msg)
             continue
 
+        # TODO: see below about echoing the edge input data to the Pytest stdout
+        print(f"### Start of Test Input Edges for KP '{kpjson['api_name']}' ###")
+
         if 'url' in kpjson:
+
             for edge_i, edge in enumerate(kpjson['edges']):
 
                 # We tag each edge internally with its
                 # sequence number, for later convenience
                 edge['idx'] = edge_i
+
+                # we track each test edge as belonging to a given user session
+                if session_id:
+                    edge['session_id'] = session_id
 
                 # We can already do some basic Biolink Model validation here of the
                 # S-P-O contents of the edge being input from the current triples file?
@@ -366,11 +390,11 @@ def generate_trapi_kp_tests(metafunc, biolink_version):
                     kp_api_name: str = edge['kp_api_name']
                     edge['kp_source'] = f"infores:{kp_api_name.lower()}"
 
-                if 'kp_source_type' in kpjson:
+                if 'source_type' in kpjson:
                     edge['kp_source_type'] = kpjson['source_type']
                 else:
-                    # If not specified, we assume that the KP is an "aggregator_knowledge_source"
-                    edge['kp_source_type'] = "aggregator"
+                    # If not specified, we assume that the KP is a "primary_knowledge_source"
+                    edge['kp_source_type'] = "primary"
 
                 if 'query_opts' in kpjson:
                     edge['query_opts'] = kpjson['query_opts']
@@ -392,13 +416,22 @@ def generate_trapi_kp_tests(metafunc, biolink_version):
                 edges.append(edge)
 
                 resource_id = edge['kp_api_name']
-                add_kp_edge(resource_id, edge_i, edge)
+
+                #
+                # TODO: caching the edge here doesn't help parsing of the results into a report since
+                #       the cache is not shared with the parent process.
+                #       Instead, we will try to echo the edge directly to stdout, for later parsing for the report.
+                #
+                # add_kp_edge(resource_id, edge_i, edge)
+                json.dump(edge, stdout)
 
                 edge_id = generate_edge_id(resource_id, edge_i)
                 idlist.append(edge_id)
 
                 if metafunc.config.getoption('one', default=False):
                     break
+
+        print(f"### End of Test Input Edges for KP '{kpjson['api_name']}' ###")
 
     if "kp_trapi_case" in metafunc.fixturenames:
 
@@ -460,6 +493,7 @@ def generate_trapi_ara_tests(metafunc, kp_edges, biolink_version):
             kp = '_'.join(kp.split())
 
             for edge_i, kp_edge in enumerate(kp_dict[kp]):
+
                 edge: dict = kp_edge.copy()
 
                 edge['url'] = arajson['url']

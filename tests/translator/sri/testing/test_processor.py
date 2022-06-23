@@ -5,7 +5,7 @@ from sys import stderr
 from typing import Optional
 import logging
 
-from translator.sri.testing.processor import CMD_DELIMITER, WorkerProcess
+from translator.sri.testing.processor import CMD_DELIMITER, PWD_CMD, WorkerProcess
 from tests.onehop import ONEHOP_TEST_DIRECTORY
 
 logger = logging.getLogger()
@@ -19,7 +19,9 @@ def _report_outcome(
         expected_output: Optional[str] = None
 ):
     wp = WorkerProcess(timeout)
-    session_id = wp.run_command(command_line)
+
+    # we don't propagate the session id to the test commands here
+    session_id = wp.run_command(command_line, has_session=False)
     assert session_id
     print(f"{test_name}() worker 'session_id': {session_id}", file=stderr)
     output = wp.get_output(session_id)
@@ -41,7 +43,7 @@ def test_run_command():
 
 def test_cd_path():
     _report_outcome(
-        "test_cd_path", f"cd {ONEHOP_TEST_DIRECTORY} {CMD_DELIMITER} cd",
+        "test_cd_path", f"cd {ONEHOP_TEST_DIRECTORY} {CMD_DELIMITER} {PWD_CMD}",
         expected_output=ONEHOP_TEST_DIRECTORY
     )
 
@@ -55,7 +57,7 @@ def test_run_process_timeout():
     # the runtime of the specified command line
     _report_outcome(
         "test_run_process_timeout",
-        f"PING -n 10 127.0.0.1 > nul",
+        "python -c 'from time import sleep; sleep(2)'",
         timeout=1,
         expecting_output=False
     )

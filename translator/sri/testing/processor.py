@@ -21,7 +21,7 @@ from subprocess import (
 )
 import os
 import logging
-from uuid import uuid4, UUID
+from uuid import UUID
 
 logger = logging.getLogger()
 
@@ -29,12 +29,15 @@ logger = logging.getLogger()
 if platform == "win32":
     # Windoze
     CMD_DELIMITER = "&&"
+    PWD_CMD  = "cd"
 elif platform in ["linux", "linux1", "linux2", "darwin"]:
     # *nix
     CMD_DELIMITER = ";"
+    PWD_CMD = "pwd"
 else:
     print(f"Warning: other OS platform '{platform}' encountered?")
     CMD_DELIMITER = ";"
+    PWD_CMD = "pwd"
 
 
 def _worker_process(lock: mp.Lock, queue: mp.Queue, command_line: str):
@@ -135,20 +138,36 @@ class WorkerProcess:
     # Bidirectional(?) WorkerProcess class map
     # between Process and Session identifiers
     _worker_pid_2_sid: Dict[int, UUID] = dict()
-    # _worker_sid_2_pid: Dict[UUID, int] = dict()
-    
-    def _create_session_id(self):
-        # encapsulate process identifier with a UUID session identifier
-        session_id = uuid4()
-        self._worker_pid_2_sid[self._process_id] = session_id
-        # self._worker_sid_2_pid[session_id] = self.process_id
+    _worker_sid_2_pid: Dict[UUID, int] = dict()
 
-    def get_session_id(self) -> Optional[UUID]:
+    def _register_process(self):
+        # map session id onto (new) process?
+        if self._session_id:
+            self._worker_pid_2_sid[self._process_id] = self._session_id
+            self._worker_sid_2_pid[self._session_id] = self._process_id
+
+    def _get_session_id(self) -> Optional[UUID]:
         if self._process_id and self._process_id in self._worker_pid_2_sid:
             return self._worker_pid_2_sid[self._process_id]
         else:
             return None
-    
+
+    def _delete_session_id(self) -> UUID:
+
+        if not self._session_id:
+            # TODO: fail hard for now, to trap inconsistent logic... perhaps not a problem later
+            raise RuntimeError("No active session id to delete?")
+
+        # Remove id from session process maps
+        if self._session_id in self._worker_sid_2_pid:
+            process_id = self._worker_sid_2_pid.pop(self._session_id)
+            if process_id and process_id in self._worker_pid_2_sid:
+                self._worker_pid_2_sid.pop(process_id)
+
+        stale_session_id = self._session_id
+        self._session_id = 0
+        return stale_session_id
+
     def __init__(self, timeout: Optional[int] = None):
         """
         Constructor for WorkerProcess.
@@ -161,10 +180,11 @@ class WorkerProcess:
         self._ctx: BaseContext = mp.get_context('spawn')
         self._queue = self._ctx.Queue()
         self._lock = self._ctx.Lock()
+        self._session_id: Optional[UUID] = None
         self._process: Optional[Process] = None
         self._process_id: int = 0
 
-    def run_command(self, command_line: str) -> Optional[UUID]:
+    def run_command(self, command_line: str):
         """
         Run a provided command line string, as a background process.
 
@@ -178,19 +198,24 @@ class WorkerProcess:
 
         logger.debug(f"run_command() command: {command_line}")
 
-        # TODO: might need to manage several worker processes, therefore, may need to use multiprocessing Pools? see
-        #       https://docs.python.org/3/library/multiprocessing.html?highlight=multiprocessing#module-multiprocessing
         try:
             # Sanity check: WorkProcess is a singleton?
+            # TODO: may need to manage several worker processes, therefore, may need to use multiprocessing Pools? see
+            #   https://docs.python.org/3/library/multiprocessing.html?highlight=multiprocessing#module-multiprocessing
             assert not self._process
             
             self._process = self._ctx.Process(target=_worker_process, args=(self._lock, self._queue, command_line))
+
             self._process.start()
 
             pid_tries: int = 10
             while not self._process_id and pid_tries:
                 try:
                     self._process_id = self._queue.get(block=True, timeout=self._timeout)
+
+                    # map the new process id against the session id
+                    self._register_process()
+
                 except Empty:
                     logger.debug("run_command() 'process_id' not available (yet) in the interprocess Queue?")
                     self._process_id = 0  # return a zero PID to signal 'Empty'?
@@ -199,41 +224,28 @@ class WorkerProcess:
             # for some reason, the worker process didn't send back a
             # 'process_id', with queue access timeouts after several retries
             if not self._process_id:
-                self._process.kill()
-                self._process = None
-                self._process_id = 0
-                self._output = "Background process did not start up properly?"
-            else:
-                self._create_session_id()
+                raise RuntimeError("Worker process startup time-out?")
 
         except Exception as ex:
 
             logger.warning(f"run_command() command: '{command_line}' raised an exception: {str(ex)}?")
 
             if self._process:
+                self._delete_session_id()
                 self._process.kill()
                 self._process = None
+                self._process_id = 0
             
             self._output = f"Background process start-up exception: {str(ex)}?"
 
-        return self.get_session_id()
-
-    def get_output(self, session_id: UUID) -> Optional[str]:
+    def get_output(self) -> Optional[str]:
         """
         Retrieves the raw STDOUT output or (alternately) error messages
         from the WorkerProcess, when it is complete.
-        
-        :param session_id: UUID, Universally Unique IDentifier assigned to a worker process
+
         :return: Optional[str], output which may be a raw worker process result,
                                 an error message or None if not yet available.
         """
-        # Sanity check
-        assert session_id
-
-        if not self._process.is_alive():
-            logger.debug("Worker Process is no longer alive?")
-            raise WorkerProcessException("Worker Process is no longer alive?!")
-
         # this method is idempotent: once a non-empty output is
         # retrieved the first time, it is deemed ached for future access
         if not self._output:
