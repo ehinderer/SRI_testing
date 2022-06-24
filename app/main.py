@@ -9,7 +9,7 @@ import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from reasoner_validator.util import latest
-from app.util import OneHopTestHarness, DEFAULT_WORKER_TIMEOUT, SRITestReport, SRITestSummary, UnitTestDetails
+from app.util import OneHopTestHarness, DEFAULT_WORKER_TIMEOUT, TestRunSummary, UnitTestDetails
 
 app = FastAPI()
 
@@ -113,7 +113,7 @@ async def get_summary(session_id: str):
     :return: Union[str, SRITestSummary], where the result is a
              serialized test summary or a status/error message string.
     """
-    summary: Optional[Union[str, SRITestSummary]] = OneHopTestHarness.get_summary(session_id)
+    summary: Optional[Union[str, TestRunSummary]] = OneHopTestHarness.get_summary(session_id)
 
     if summary is None:
         summary = f"Report not yet available?"
