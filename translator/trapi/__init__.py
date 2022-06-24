@@ -238,6 +238,11 @@ def call_trapi(url: str, opts, trapi_message):
         response = requests.post(query_url, json=trapi_message, params=opts, timeout=DEFAULT_TRAPI_POST_TIMEOUT)
     except requests.Timeout:
         # fake response object
+        logger.error(
+            f"call_trapi(\n\turl: '{url}',\n\topts: '{_output(opts)}',"
+            f"\n\ttrapi_message: '{_output(trapi_message)}') - "
+            f"Request POST TimeOut?"
+        )
         response = requests.Response()
         response.status_code = 408
     except requests.RequestException as re:
@@ -245,7 +250,7 @@ def call_trapi(url: str, opts, trapi_message):
         logger.error(
             f"call_trapi(\n\turl: '{url}',\n\topts: '{_output(opts)}',"
             f"\n\ttrapi_message: '{_output(trapi_message)}') - "
-            f"Request POST exception:\n\t\t{str(re)}"
+            f"Request POST exception: {str(re)}"
         )
         response = requests.Response()
         response.status_code = 408

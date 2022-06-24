@@ -9,7 +9,7 @@ import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from reasoner_validator.util import latest
-from app.util import OneHopTestHarness, DEFAULT_WORKER_TIMEOUT, SRITestReport
+from app.util import OneHopTestHarness, DEFAULT_WORKER_TIMEOUT, SRITestReport, SRITestSummary, UnitTestDetails
 
 app = FastAPI()
 
@@ -103,14 +103,50 @@ async def run_tests(test_parameters: TestRunParameters) -> Dict:
     }
 
 
-@app.get("/report/{session_id}")
-async def get_report(session_id: str):
-    report: Optional[Union[str, SRITestReport]] = OneHopTestHarness.get_report(session_id)
-    if report is None:
-        report = f"Report not yet available?"
+@app.get("/results/{session_id}")
+async def get_summary(session_id: str):
+    """
+    Returns a summary list of test results for a given session ID.
+
+    :param session_id: session for which the test summary is requested.
+
+    :return: Union[str, SRITestSummary], where the result is a
+             serialized test summary or a status/error message string.
+    """
+    summary: Optional[Union[str, SRITestSummary]] = OneHopTestHarness.get_summary(session_id)
+
+    if summary is None:
+        summary = f"Report not yet available?"
+
     return {
         "session_id": session_id,
-        "report": report
+        "summary": summary
+    }
+
+
+@app.get("/results/{session_id}/{unit_test_id}")
+async def get_details(session_id: str, unit_test_id: str):
+    """
+    Return details for a specified unit test in a given test session.
+
+    :param session_id: Identifier of the test session (started by /run_tests endpoint)
+    :param unit_test_id: Identifier of the unit test of interest, for retrieval of details.
+
+    :return: Dict[str, Union[str, UnitTestDetails]], where the result are
+             serialized unit test details or a status/error message string,
+            returned alongside the input session and unit test id's.
+    """
+    assert session_id, "Null or empty Session Identifier?"
+    assert unit_test_id, "Null or empty Unit Test Identifier?"
+
+    details: Optional[Union[str, UnitTestDetails]] = OneHopTestHarness.get_details(session_id, unit_test_id)
+    if details is None:
+        details = f"Details for unit test {session_id} in session {unit_test_id} are not (yet) available?"
+
+    return {
+        "session_id": session_id,
+        "unit_test_id": unit_test_id,
+        "details": details
     }
 
 

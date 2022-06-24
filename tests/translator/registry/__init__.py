@@ -8,8 +8,12 @@ Registry package
 # (dereferencing test data in the SRI Testing project repository)
 #
 #
-# Setting the following flag triggers use of this local 'mock' data
-MOCK_REGISTRY: bool = True
+# Setting the following flag to 'True' triggers use of the
+# local 'mock' Registry data entries immediately below
+MOCK_REGISTRY: bool = False
+
+# This 'mock' registry entry relies a bit on ARAGORN (Ranking Agent)
+# and the RENCI Automat KP's, which may sometimes be offline?
 MOCK_TRANSLATOR_SMARTAPI_REGISTRY_METADATA = {
     "total": 3,
     "hits": [

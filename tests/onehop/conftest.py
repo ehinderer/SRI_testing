@@ -3,7 +3,7 @@ Configure one hop tests
 """
 from typing import Optional, Union, List, Set, Dict, Any
 from sys import stdout, stderr
-from os import path, walk
+from os import path, walk, makedirs
 from collections import defaultdict
 import json
 
@@ -21,7 +21,11 @@ from translator.registry import (
 from translator.trapi import set_trapi_version, generate_edge_id
 
 from tests.onehop import util as oh_util
-from tests.onehop.util import get_unit_test_codes, unit_test_report_filepath
+from tests.onehop.util import (
+    get_unit_test_codes,
+    cleaned_up_unit_test_name,
+    unit_test_report_filepath
+)
 
 logger = logging.getLogger(__name__)
 
@@ -30,7 +34,14 @@ def pytest_sessionfinish(session):
     """ Gather all results and save them to a csv.
     Works both on worker and master nodes, and also with xdist disabled"""
 
+    test_run_id: str = session.config.option.session_id \
+        if "session_id" in session.config.option and session.config.option.session_id else 'test_results'
+    makedirs(test_run_id, exist_ok=True)
+
     session_results = get_session_results_dct(session)
+
+    test_summary: List[str] = list()
+
     for unit_test_key, details in session_results.items():
 
         rb: Dict = details['fixtures']['results_bag']
@@ -38,16 +49,19 @@ def pytest_sessionfinish(session):
         # sanity check: clean up MS Windoze EOL characters, when present in results_bag keys
         rb = {key.strip("\r\n"): value for key, value in rb.items()}
 
-        if 'case' in rb and 'session_id' in rb['case'] and rb['case']["session_id"]:
-            test_run_id = rb['case']['session_id']
-        else:
-            test_run_id = 'test_results'
+        # clean up the name for safe file system usage
+        unit_test_name: str = cleaned_up_unit_test_name(
+            unit_test_key=unit_test_key,
+            status=details['status']
+        )
+
+        # Simple initial summary: just compile a list of Unit Test Names to write out
+        test_summary.append(unit_test_name)
 
         output_filepath = unit_test_report_filepath(
-            location=rb['location'] if 'location' in rb else None,
-            unit_test_key=unit_test_key,
             test_run_id=test_run_id,
-            status=details['status']
+            unit_test_name=unit_test_name,
+            location=rb['location'] if 'location' in rb else None
         )
 
         with open(output_filepath, 'w') as outf:
@@ -79,9 +93,11 @@ def pytest_sessionfinish(session):
                     # But we don't need to make a big deal about it.
                     outf.write("# Error generating results: No results bag 'response' output available?")
 
-            elif details['status'] == 'skipped':
-                # TODO: can we report anything more here?
-                pass
+    # Write out the whole list of identifiers of unit tests seen, into one summary file
+    summary_filepath = f"{test_run_id}/onehops_test_summary.txt"
+    with open(summary_filepath, 'w') as summary_file:
+
+        summary_file.writelines([f"{entry}\n" for entry in test_summary])
 
 
 def pytest_addoption(parser):

@@ -8,52 +8,50 @@ from reasoner_validator.biolink import get_biolink_model_toolkit
 from translator.sri.testing.util import ontology_kp
 
 
-def clean_up_unit_test_filename(source: str):
+def cleaned_up_unit_test_name(unit_test_key: str, status: str) -> str:
     """
     Reformat (test run key) source identifier into a well-behaved test file name.
-    :param source:
-    :return:
+    :param unit_test_key: original full unit test label
+    :param status: test outcome (i.e. PASSED, FAILED, SKIPPED)
+    :return: str, cleaned up reference unit test name with status suffix
     """
-    name = source.split('/')[-1][:-1]
-    name = name.strip("[]")
-    name = name.replace(".py::", "-")
-    name = sub(r"[:\[\]|#/]+", "-", name)
-    return name
-
-
-def unit_test_report_filepath(location: Optional[str], unit_test_key: str, test_run_id: str, status: str) -> str:
-    """
-
-    :param location: str. original file path
-    :param unit_test_key: str, specific unit test key
-    :param test_run_id: str, caller-defined test session_id
-    :param status: test outcome (i.e. PASSED, FAILED, SKIPPED
-    :return:
-    """
-
-    # clean up the name for safe file system usage
-    rfname = clean_up_unit_test_filename(unit_test_key)
+    unit_test_name = unit_test_key.split('/')[-1][:-1]
+    unit_test_name = unit_test_name.strip("[]")
+    unit_test_name = unit_test_name.replace("test_onehops.py::test_trapi", "onehops")
+    unit_test_name = sub(r"[:\[\]|#/]+", "-", unit_test_name)
 
     # We tag the filename with its status
-    rfname = f"{rfname}_{status.upper()}"
+    unit_test_name = f"{unit_test_name}_{status.upper()}"
 
-    # rb['location'] looks like "test_triples/KP/Exposures_Provider/CAM-KP_API.json"
+    return unit_test_name
+
+
+def unit_test_report_filepath(test_run_id: str, unit_test_name: str, location: Optional[str]) -> str:
+    """
+    Generate a report file path for a specific unit test result, compiled from descriptive components.
+
+    :param test_run_id: str, caller-defined test run ("session") identifier, e.g. UUID string or 'test_results'
+    :param unit_test_name: str, normalized unit test name, something like "Test_KP_1-0-inverse_by_new_subject_FAILED"
+    :param location: str. original file path, something like "test_triples/KP/Unit_Test_KP/Test_KP_1.json"
+
+    :return: str, (posix) filepath
+    """
     lparts: List[str]
     if location:
 
         # TODO: the following location path split doesn't work so well
         #       when given a complex location, like an internet URI
-        #       Try to just limit to the tail of the lparts list of path directories?
+        #       Try to just limit to the tail of the 'lparts' list of path directories?
         lparts = location.split('/')[-4:]
 
         lparts[0] = test_run_id
-        lparts[-1] = rfname
+        lparts[-1] = unit_test_name
         try:
             makedirs('/'.join(lparts[:-1]))
         except OSError:
             pass
     else:
-        lparts = [test_run_id, rfname]
+        lparts = [test_run_id, unit_test_name]
 
     outname = '/'.join(lparts)
     return outname
