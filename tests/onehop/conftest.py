@@ -58,46 +58,42 @@ def pytest_sessionfinish(session):
         # Simple initial summary: just compile a list of Unit Test Names to write out
         test_summary.append(unit_test_name)
 
-        output_filepath = unit_test_report_filepath(
+        test_details: Dict = dict()
+
+        # Print out input edge test case, if available
+        if 'case' in rb:
+            test_details['input'] = rb['case']
+
+        # Print out errors
+        if 'errors' in rb and len(rb['errors']) > 0:
+            test_details['errors'] = rb['errors']
+
+        # Print out more request/response information for test failures
+        if details['status'] == 'failed':
+
+            if 'request' in rb:
+                test_details['request'] = rb['request']
+            else:
+                test_details['request'] = "No 'request' generated for this unit test?"
+
+            if 'response' in rb:
+                test_details['http_status_code'] = rb["response"]["status_code"]
+                test_details['response'] = rb['response']['response_json']
+            else:
+                test_details['response'] = "No 'response' generated for this unit test?"
+
+        test_details_filepath = unit_test_report_filepath(
             test_run_id=test_run_id,
             unit_test_name=unit_test_name,
             location=rb['location'] if 'location' in rb else None
         )
+        with open(test_details_filepath, 'w') as details_file:
+            json.dump(test_details, details_file, indent=4)
 
-        with open(output_filepath, 'w') as outf:
-            if 'case' in rb:
-                # Print out input edge test case, if available
-                outf.write("# Input:\n")
-                json.dump(rb['case'], outf, indent=4)
-                outf.write("\n")
-            if 'errors' in rb and len(rb['errors']) > 0:
-                # Print out input edge test case, if available
-                outf.write("# Errors:\n")
-                json.dump(rb['errors'], outf, indent=4)
-                outf.write("\n")
-            if details['status'] == 'failed':
-                if 'request' in rb:
-                    outf.write(f"# Request:\n")
-                    json.dump(rb['request'], outf, indent=4)
-                    outf.write("\n")
-                else:
-                    # This means that there was no generated request.
-                    # But we don't need to make a big deal about it.
-                    outf.write("# Error generating results: No results bag 'request' output available?")
-                if 'response' in rb:
-                    outf.write(f'# HTTP Status Code: {rb["response"]["status_code"]}\n')
-                    outf.write(f'# Response:\n')
-                    json.dump(rb['response']['response_json'], outf, indent=4)
-                else:
-                    # This means that there was no generated request.
-                    # But we don't need to make a big deal about it.
-                    outf.write("# Error generating results: No results bag 'response' output available?")
-
-    # Write out the whole list of identifiers of unit tests seen, into one summary file
-    summary_filepath = f"{test_run_id}/onehops_test_summary.txt"
+    # Write out the whole List[str] of unit test identifiers, into one JSON summary file
+    summary_filepath = f"{test_run_id}/onehops_test_summary.json"
     with open(summary_filepath, 'w') as summary_file:
-
-        summary_file.writelines([f"{entry}\n" for entry in test_summary])
+        json.dump(test_summary, summary_file, indent=4)
 
 
 def pytest_addoption(parser):

@@ -28,20 +28,20 @@ def test_clean_up_unit_test_filename(query):
             "Test_KP_1-0-inverse_by_new_subject_FAILED",
             "test_triples/KP/Unit_Test_KP/Test_KP_1.json",
             "test_results/KP/Unit_Test_KP/" +
-            "Test_KP_1-0-inverse_by_new_subject_FAILED"
+            "Test_KP_1-0-inverse_by_new_subject_FAILED.json"
         ),
         (
             "d6098879-d791-4c77-a300-f60d95f48ee1",
             "Test_KP_1-0-by_subject_PASSED",
             "test_triples/KP/Unit_Test_KP/Test_KP_1.json",
             "d6098879-d791-4c77-a300-f60d95f48ee1/KP/Unit_Test_KP/" +
-            "Test_KP_1-0-by_subject_PASSED"
+            "Test_KP_1-0-by_subject_PASSED.json"
         ),
         (
             "d6098879-d791-4c77-a300-f60d95f48ee1",
             "Test_KP_1-0-by_subject_PASSED",
             None,
-            "d6098879-d791-4c77-a300-f60d95f48ee1/Test_KP_1-0-by_subject_PASSED"
+            "d6098879-d791-4c77-a300-f60d95f48ee1/Test_KP_1-0-by_subject_PASSED.json"
         )
     ]
 )

@@ -21,10 +21,8 @@ def _report_outcome(
     wp = WorkerProcess(timeout)
 
     # we don't propagate the session id to the test commands here
-    session_id = wp.run_command(command_line, has_session=False)
-    assert session_id
-    print(f"{test_name}() worker 'session_id': {session_id}", file=stderr)
-    output = wp.get_output(session_id)
+    wp.run_command(command_line)
+    output = wp.get_output()
     if expecting_output:
         assert output, f"{test_name}() is missing Worker Process output?"
         msg = '\n'.join(output.split('\r\n'))

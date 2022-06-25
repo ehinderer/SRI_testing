@@ -36,6 +36,7 @@ def unit_test_report_filepath(test_run_id: str, unit_test_name: str, location: O
 
     :return: str, (posix) filepath
     """
+    unit_test_file_name = f"{unit_test_name}.json"
     lparts: List[str]
     if location:
 
@@ -45,16 +46,17 @@ def unit_test_report_filepath(test_run_id: str, unit_test_name: str, location: O
         lparts = location.split('/')[-4:]
 
         lparts[0] = test_run_id
-        lparts[-1] = unit_test_name
+        lparts[-1] = unit_test_file_name
         try:
             makedirs('/'.join(lparts[:-1]))
         except OSError:
             pass
     else:
-        lparts = [test_run_id, unit_test_name]
+        lparts = [test_run_id, unit_test_file_name]
 
-    outname = '/'.join(lparts)
-    return outname
+    unit_test_file_path = '/'.join(lparts)
+
+    return unit_test_file_path
 
 
 def create_one_hop_message(edge, look_up_subject=False):

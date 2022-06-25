@@ -5,18 +5,12 @@ The module launches the SRT Testing test harness using the Python 'multiprocesso
 See https://docs.python.org/3/library/multiprocessing.html?highlight=multiprocessing for details.
 """
 from typing import Optional, Union, List, Dict, Tuple
-# from sys import stderr
-from os import path
-import time
+
 from uuid import UUID, uuid4
-from json import dump
 import re
 
-from deprecation import deprecated
-
-from tests import TEST_RESULT_DIR
 from tests.onehop.conftest import get_kp_edge, get_component_by_resource
-from translator.sri.testing.processor import CMD_DELIMITER, WorkerProcess, WorkerProcessException
+from translator.sri.testing.processor import CMD_DELIMITER, WorkerProcess
 from tests.onehop import ONEHOP_TEST_DIRECTORY
 
 import logging
@@ -52,7 +46,7 @@ PERCENTAGE_COMPLETION_SUFFIX_PATTERN = re.compile(r"(\[\s*(?P<percent_complete>\
 
 PYTEST_SUMMARY_PATTERN = re.compile(
     r"^=+(\s(?P<failed>\d+)\sfailed,?)?(\s(?P<passed>\d+)\spassed,?)?"
-    r"(\s(?P<skipped>\d+)\sskipped,?)?(\s(?P<warning>\d+)\swarning)?\sin\s[0-9.]+.+$"
+    r"(\s(?P<skipped>\d+)\sskipped,?)?(\s(?P<warning>\d+)\swarning)?\sin\s[\d.]+.+$"
 )
 
 TEST_CASE_IDENTIFIER_PATTERN = re.compile(
@@ -197,7 +191,6 @@ class ResourceEntry:
             edge_entry.add_test_result(test_label, outcome, message)
 
 
-@deprecated
 class SRITestReport:
 
     def __init__(self):
@@ -516,35 +509,26 @@ class SRITestReport:
                         resource_entry.add_test_result(current_edge_number, current_test_id, current_outcome, line)
 
 
-class UnitTestDetails:
-
-    def __init__(self, session_id: str, unit_test_id: str):
-        self._session_id = session_id
-        self._unit_test_id = unit_test_id
-
-    def __str__(self):
-        return ""
-
-
-class TestRunSummary:
+class TestRunReport:
 
     def __init__(self, session_id: str):
         self._session_id = session_id
 
-    def report(self) -> Optional[List[str]]:
-        # Stub report
-        summary_file_path = f"{self._session_id}/onehops_test_summary.txt"
+    def _output(self, report_type: str, report_file: str):
+        report_file_path = f"{self._session_id}/{report_file}.json"
+        report: Optional[str] = None
         try:
-            # with open(summary_file_path, 'r') as summary_file:
-            #     test_summary: List[str] = summary_file.readlines()
-            # return test_summary
-            return ["onehops_kps-Test_KP_1-0-inverse_by_new_subject_FAILED"]
+            with open(report_file_path, 'r') as report_file:
+                report = report_file.read()
         except OSError as ose:
-            logger.warning(f"Summary file '{summary_file_path}' not (yet) accessible?")
-            return None
+            logger.warning(f"{report_type} file '{report_file_path}' not (yet) accessible: {str(ose)}?")
+        return report
 
-    def get_details(self, unit_test_id: str) -> UnitTestDetails:
-        return UnitTestDetails(self._session_id, unit_test_id)
+    def get_summary(self) -> Optional[str]:
+        return self._output(report_type="Summary", report_file="onehops_test_summary")
+
+    def get_details(self, unit_test_id: str) -> Optional[str]:
+        return self._output(report_type="Details", report_file=unit_test_id)
 
 
 class OneHopTestHarness:
@@ -559,15 +543,18 @@ class OneHopTestHarness:
 
         self._command_line: Optional[str] = None
         self._process: Optional[WorkerProcess] = None
-        self._result: Optional[str] = None
-        self._report: Optional[SRITestReport] = None
+
+        # Deprecated internal variables
+        # self._result: Optional[str] = None
+        # self._report: Optional[SRITestReport] = None
+
         self._timeout: Optional[int] = timeout
 
     def get_worker(self) -> Optional[WorkerProcess]:
         return self._process
 
-    def get_result(self) -> Optional[str]:
-        return self._result
+    # def get_result(self) -> Optional[str]:
+    #     return self._result
 
     def get_session_id(self) -> Optional[str]:
         if self._session_id:
@@ -619,65 +606,68 @@ class OneHopTestHarness:
         self._command_line += " --one" if one else ""
 
         logger.debug(f"OneHopTestHarness.run() command line: {self._command_line}")
+
         self._process = WorkerProcess(self._timeout)
-        self._session_id = self._process.run_command(self._command_line)
+        self._process.run_command(self._command_line)
         self._session_id_2_testrun[session_id_string] = self
-    
-    def get_testrun_report(self) -> Optional[Union[List[str], Dict]]:
-        """
-        Generates and caches a OneHopTestHarness test report the first time this method is called.
 
-        :return: Optional[Union[str, TestReport]], structured Pytest report from the OneHopTest of
-                 target KPs & ARAs, or a single string global error message, or None (if still unavailable)
-        """
-        # ts stores the time in seconds
-        ts = time.time()
-        if not self._report:
-            try:
-                self._result = self._process.get_output()
-                if self._result:
-                    # Raw Pytest data and report output is cached locally with a timestamp
-                    sample_file_path = path.join(TEST_RESULT_DIR, f"raw_pytest_output{ts}.txt")
-                    with open(sample_file_path, "w") as sf:
-                        sf.write(self._result)
-
-                    self._report = SRITestReport()
-                    self._report.parse_result(self._result)
-
-            except WorkerProcessException as wpe:
-                return [str(wpe)]
-
-        if self._report:
-            report = self._report.output()
-            sri_report_file_path = path.join(TEST_RESULT_DIR, f"sri_report_{ts}.json")
-            with open(sri_report_file_path, "w") as sr:
-                dump(report, sr, indent=4)
-            return report
-        else:
-            return None  # Report simply not yet available, but Pytest may still be running?
+    # Deprecated approach of direct parsing of PyTest stdout output
+    #
+    # def get_testrun_report(self) -> Optional[Union[List[str], Dict]]:
+    #     """
+    #     Generates and caches a OneHopTestHarness test report the first time this method is called.
+    #
+    #     :return: Optional[Union[str, TestReport]], structured Pytest report from the OneHopTest of
+    #              target KPs & ARAs, or a single string global error message, or None (if still unavailable)
+    #     """
+    #     # ts stores the time in seconds
+    #     ts = time.time()
+    #     if not self._report:
+    #         try:
+    #             self._result = self._process.get_output()
+    #             if self._result:
+    #                 # Raw Pytest data and report output is cached locally with a timestamp
+    #                 sample_file_path = path.join(TEST_RESULT_DIR, f"raw_pytest_output{ts}.txt")
+    #                 with open(sample_file_path, "w") as sf:
+    #                     sf.write(self._result)
+    #
+    #                 self._report = SRITestReport()
+    #                 self._report.parse_result(self._result)
+    #
+    #         except WorkerProcessException as wpe:
+    #             return [str(wpe)]
+    #
+    #     if self._report:
+    #         report = self._report.output()
+    #         sri_report_file_path = path.join(TEST_RESULT_DIR, f"sri_report_{ts}.json")
+    #         with open(sri_report_file_path, "w") as sr:
+    #             dump(report, sr, indent=4)
+    #         return report
+    #     else:
+    #         return None  # Report simply not yet available, but Pytest may still be running?
+    #
+    # @classmethod
+    # def get_report(cls, session_id_str: str) -> Optional[Union[str, SRITestReport]]:
+    #     """
+    #     Looks up the OneHopTestHarness for the specified 'session_id_str'
+    #     then returns its (possibly just-in-time generated or cached) test report.
+    #
+    #     :param session_id_str: str, UUID session_id of the OneHopTestHarness running the test
+    #
+    #     :return: Optional[Union[str, TestReport]], structured Pytest report from the OneHopTest of
+    #              target KPs & ARAs, or a single string global error message, or None (if still unavailable)
+    #     """
+    #     assert session_id_str  # should not be empty
+    #
+    #     if session_id_str not in cls._session_id_2_testrun:
+    #         return f"Unknown Worker Process 'session_id': {session_id_str}"
+    #
+    #     testrun = cls._session_id_2_testrun[session_id_str]
+    #
+    #     return testrun.get_testrun_report()
 
     @classmethod
-    def get_report(cls, session_id_str: str) -> Optional[Union[str, SRITestReport]]:
-        """
-        Looks up the OneHopTestHarness for the specified 'session_id_str'
-        then returns its (possibly just-in-time generated or cached) test report.
-
-        :param session_id_str: str, UUID session_id of the OneHopTestHarness running the test
-
-        :return: Optional[Union[str, TestReport]], structured Pytest report from the OneHopTest of
-                 target KPs & ARAs, or a single string global error message, or None (if still unavailable)
-        """
-        assert session_id_str  # should not be empty
-
-        if session_id_str not in cls._session_id_2_testrun:
-            return f"Unknown Worker Process 'session_id': {session_id_str}"
-
-        testrun = cls._session_id_2_testrun[session_id_str]
-
-        return testrun.get_testrun_report()
-
-    @classmethod
-    def get_summary(cls, session_id: str) -> Optional[Union[str, List[str]]]:
+    def get_summary(cls, session_id: str) -> Optional[str]:
         """
         Looks up the OneHopTestHarness for the specified 'session_id_str'
         then returns its (possibly just-in-time generated or cached) test report.
@@ -688,10 +678,10 @@ class OneHopTestHarness:
         """
         assert session_id, "Null or empty Session Identifier?"
 
-        return TestRunSummary(session_id).report()
+        return TestRunReport(session_id).get_summary()
 
     @classmethod
-    def get_details(cls, session_id: str, unit_test_id: str) -> Optional[Union[str, UnitTestDetails]]:
+    def get_details(cls, session_id: str, unit_test_id: str) -> Optional[str]:
         """
         Looks up the OneHopTestHarness for the specified 'session_id_str'
         then returns its (possibly just-in-time generated or cached) test report.
@@ -699,10 +689,10 @@ class OneHopTestHarness:
         :param session_id: str, UUID session_id of the OneHopTestHarness running the test
         :param unit_test_id: str, identifier of unit test for which details are needed
 
-        :return: Optional[Union[str, TestReport]], structured Pytest report from the OneHopTest of
-                 target KPs & ARAs, or a single string global error message, or None (if still unavailable)
+        :return: Optional[str], structured JSON report from the OneHops testing of target KPs & ARAs,
+                 or an exceptional error message, or None (if the details are not (yet) available)
         """
         assert session_id, "Null or empty Session Identifier?"
         assert unit_test_id, "Null or empty Unit Test Identifier?"
 
-        return TestRunSummary(session_id).get_details(unit_test_id)
+        return TestRunReport(session_id).get_details(unit_test_id)

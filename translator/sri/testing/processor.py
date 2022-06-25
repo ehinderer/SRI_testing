@@ -8,7 +8,7 @@ from multiprocessing import Process
 from multiprocessing.context import BaseContext
 from sys import platform, stdout, stderr
 
-from typing import Optional, Union, Dict
+from typing import Optional, Union
 import multiprocessing as mp
 from queue import Empty
 from subprocess import (
@@ -21,7 +21,6 @@ from subprocess import (
 )
 import os
 import logging
-from uuid import UUID
 
 logger = logging.getLogger()
 
@@ -29,7 +28,7 @@ logger = logging.getLogger()
 if platform == "win32":
     # Windoze
     CMD_DELIMITER = "&&"
-    PWD_CMD  = "cd"
+    PWD_CMD = "cd"
 elif platform in ["linux", "linux1", "linux2", "darwin"]:
     # *nix
     CMD_DELIMITER = ";"
@@ -134,39 +133,6 @@ class WorkerProcessException(Exception):
 
 
 class WorkerProcess:
-    
-    # Bidirectional(?) WorkerProcess class map
-    # between Process and Session identifiers
-    _worker_pid_2_sid: Dict[int, UUID] = dict()
-    _worker_sid_2_pid: Dict[UUID, int] = dict()
-
-    def _register_process(self):
-        # map session id onto (new) process?
-        if self._session_id:
-            self._worker_pid_2_sid[self._process_id] = self._session_id
-            self._worker_sid_2_pid[self._session_id] = self._process_id
-
-    def _get_session_id(self) -> Optional[UUID]:
-        if self._process_id and self._process_id in self._worker_pid_2_sid:
-            return self._worker_pid_2_sid[self._process_id]
-        else:
-            return None
-
-    def _delete_session_id(self) -> UUID:
-
-        if not self._session_id:
-            # TODO: fail hard for now, to trap inconsistent logic... perhaps not a problem later
-            raise RuntimeError("No active session id to delete?")
-
-        # Remove id from session process maps
-        if self._session_id in self._worker_sid_2_pid:
-            process_id = self._worker_sid_2_pid.pop(self._session_id)
-            if process_id and process_id in self._worker_pid_2_sid:
-                self._worker_pid_2_sid.pop(process_id)
-
-        stale_session_id = self._session_id
-        self._session_id = 0
-        return stale_session_id
 
     def __init__(self, timeout: Optional[int] = None):
         """
@@ -180,7 +146,6 @@ class WorkerProcess:
         self._ctx: BaseContext = mp.get_context('spawn')
         self._queue = self._ctx.Queue()
         self._lock = self._ctx.Lock()
-        self._session_id: Optional[UUID] = None
         self._process: Optional[Process] = None
         self._process_id: int = 0
 
@@ -190,9 +155,7 @@ class WorkerProcess:
 
         :param command_line: str, command line string to run as a shell command in a background worker process.
 
-        :return: Optional[UUID], session identifier for this background Worker Process executing the command line.
-                 If the method returns None, then the process is considered inaccessible; otherwise, the returned
-                 UUID may be used to access background worker process results using the 'output()' method.
+        :return: None
         """
         assert command_line  # should not be empty?
 
@@ -213,9 +176,6 @@ class WorkerProcess:
                 try:
                     self._process_id = self._queue.get(block=True, timeout=self._timeout)
 
-                    # map the new process id against the session id
-                    self._register_process()
-
                 except Empty:
                     logger.debug("run_command() 'process_id' not available (yet) in the interprocess Queue?")
                     self._process_id = 0  # return a zero PID to signal 'Empty'?
@@ -231,7 +191,6 @@ class WorkerProcess:
             logger.warning(f"run_command() command: '{command_line}' raised an exception: {str(ex)}?")
 
             if self._process:
-                self._delete_session_id()
                 self._process.kill()
                 self._process = None
                 self._process_id = 0
