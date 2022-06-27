@@ -1,60 +1,9 @@
 from copy import deepcopy
 from functools import wraps
-from os import makedirs
-from re import sub
-from typing import Set, Dict, Optional, List
+from typing import Set, Dict
 
 from reasoner_validator.biolink import get_biolink_model_toolkit
 from translator.sri.testing.util import ontology_kp
-
-
-def cleaned_up_unit_test_name(unit_test_key: str, status: str) -> str:
-    """
-    Reformat (test run key) source identifier into a well-behaved test file name.
-    :param unit_test_key: original full unit test label
-    :param status: test outcome (i.e. PASSED, FAILED, SKIPPED)
-
-    :return: str, cleaned up reference unit test file path, including status suffix
-    """
-    unit_test_name = unit_test_key.split('/')[-1]
-    unit_test_name = unit_test_name.strip("[]")
-    unit_test_name = unit_test_name.replace("test_onehops.py::test_trapi", "")
-    unit_test_name = unit_test_name.replace("_kps", "KP")
-    unit_test_name = unit_test_name.replace("_aras", "ARA")
-    unit_test_file_path = sub(r"[\[|#-]", "/", unit_test_name)
-
-    # We tag the filename with its status
-    unit_test_file_path = f"{unit_test_file_path}_{status.upper()}"
-
-    return unit_test_file_path
-
-
-def unit_test_report_filepath(test_run_root_path: str, unit_test_file_path: str) -> str:
-    """
-    Generate a report file path for a specific unit test result, compiled from descriptive components.
-
-    :param test_run_root_path: str, caller-defined test run ("session") identifier, e.g. UUID string or 'test_results'
-    :param unit_test_file_path: str, normalized unit test name, something like "Test_KP_1-0-inverse_by_new_subject_FAILED"
-
-    :return: str, (posix) unit test file path
-    """
-    assert test_run_root_path, f"unit_test_report_filepath() empty 'test_run_root_path'"
-    assert unit_test_file_path, f"unit_test_report_filepath() empty 'unit_test_file_path'"
-
-    trrparts = test_run_root_path.split('/')
-    utfparts = unit_test_file_path.split('/')
-    path_parts = trrparts + utfparts
-
-    dir_path = '/'.join(path_parts[:-1])
-    try:
-        makedirs(dir_path)
-    except OSError:
-        pass
-
-    unit_test_file_path = '/'.join(path_parts)
-    unit_test_file_path = f"{unit_test_file_path}.json"
-
-    return unit_test_file_path
 
 
 def create_one_hop_message(edge, look_up_subject=False):

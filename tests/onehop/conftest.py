@@ -25,9 +25,12 @@ from translator.trapi import set_trapi_version, generate_edge_id
 
 from tests.onehop import util as oh_util
 from tests.onehop.util import (
-    get_unit_test_codes,
-    cleaned_up_unit_test_name,
-    unit_test_report_filepath
+    get_unit_test_codes
+)
+from translator.sri.testing.report import (
+    TEST_RESULTS_DIR,
+    unit_test_report_filepath,
+    parse_unit_test_name
 )
 
 logger = logging.getLogger(__name__)
@@ -45,12 +48,13 @@ def pytest_sessionfinish(session):
         test_run_id = str(uuid4())
 
     # subdirectory for local run output data
-    test_run_root_path: str = f"test_results/{test_run_id}"
-    makedirs(test_run_root_path, exist_ok=True)
+    test_run_root_path: str = f"{TEST_RESULTS_DIR}/{test_run_id}"
+    makedirs(test_run_root_path)
 
     session_results = get_session_results_dct(session)
 
-    test_summary: List[str] = list()
+    test_summary: Dict = dict()
+    case_details: Dict = dict()
 
     for unit_test_key, details in session_results.items():
 
@@ -59,45 +63,87 @@ def pytest_sessionfinish(session):
         # sanity check: clean up MS Windoze EOL characters, when present in results_bag keys
         rb = {key.strip("\r\n"): value for key, value in rb.items()}
 
-        test_details: Dict = dict()
-
-        # Print out input edge test case, if available
-        if 'case' in rb:
-            test_details['input'] = rb['case']
-
-        # Print out errors
-        if 'errors' in rb and len(rb['errors']) > 0:
-            test_details['errors'] = rb['errors']
-
-        # Print out more request/response information for test failures
-        if details['status'] == 'failed':
-
-            if 'request' in rb:
-                test_details['request'] = rb['request']
-            else:
-                test_details['request'] = "No 'request' generated for this unit test?"
-
-            if 'response' in rb:
-                test_details['http_status_code'] = rb["response"]["status_code"]
-                test_details['response'] = rb['response']['response_json']
-            else:
-                test_details['response'] = "No 'response' generated for this unit test?"
-
         # clean up the name for safe file system usage
-        unit_test_file_path: str = cleaned_up_unit_test_name(
-            unit_test_key=unit_test_key,
-            status=details['status']
+        component, ara_id, kp_id, edge_num, test_id, edge_details_file_path = parse_unit_test_name(
+            unit_test_key=unit_test_key
         )
 
-        test_details_filepath = unit_test_report_filepath(
-            test_run_root_path=test_run_root_path,
-            unit_test_file_path=unit_test_file_path
+        if component not in test_summary:
+            test_summary[component] = dict()
+
+        case_summary: List[Dict]
+        if ara_id:
+            if ara_id not in test_summary[component]:
+                test_summary[component][ara_id] = dict()
+            if kp_id not in test_summary[component][ara_id]:
+                test_summary[component][ara_id][kp_id] = list()
+            case_summary = test_summary[component][ara_id][kp_id]
+        else:
+            if kp_id not in test_summary[component]:
+                test_summary[component][kp_id] = list()
+            case_summary = test_summary[component][kp_id]
+
+        while edge_num >= len(case_summary):
+            case_summary.append(dict())
+
+        if 'edge_num' not in case_summary[edge_num]:
+            case_summary[edge_num]['edge_num'] = edge_num
+
+        if test_id not in case_summary[edge_num]:
+            # Top level summary reporting 'PASSED, FAILED, SKIPPED' for each unit test
+            case_summary[edge_num][test_id] = details['status']
+
+        # Print out unit details as necessary files
+        # relative to TEST_RESULTS_DIR and test_run_id
+
+        test_details_file_path = unit_test_report_filepath(
+            test_run_id=test_run_id,
+            unit_test_file_path=edge_details_file_path
         )
 
-        # Simple initial summary: just compile a list of Unit Test Details File paths
-        test_summary.append(test_details_filepath)
+        if test_details_file_path not in case_details:
 
-        with open(test_details_filepath, 'w') as details_file:
+            # TODO: this is a bit memory intensive...
+            #      may need another strategy for capturing details
+            case_details[test_details_file_path] = dict()
+
+            if 'case' in rb and 'case' not in case_details[test_details_file_path]:
+                case_details[test_details_file_path] = rb['case']
+
+            if 'results' not in case_details[test_details_file_path]:
+                case_details[test_details_file_path]['results'] = dict()
+
+            if test_id not in case_details[test_details_file_path]['results']:
+                case_details[test_details_file_path]['results'][test_id] = dict()
+
+            test_details = case_details[test_details_file_path]['results'][test_id]
+
+            # Replicating 'PASSED, FAILED, SKIPPED' test status
+            # for each unit test, here in the detailed report
+            test_details['outcome'] = details['status']
+
+            # Print out errors - we assume they are only reported once for any given test?
+            if 'errors' in rb and len(rb['errors']) > 0:
+                test_details['errors'] = rb['errors']
+
+            # Capture more request/response details for test failures
+            if details['status'] == 'failed':
+
+                if 'request' in rb:
+                    test_details['request'] = rb['request']
+                else:
+                    test_details['request'] = "No 'request' generated for this unit test?"
+
+                if 'response' in rb:
+                    test_details['http_status_code'] = rb["response"]["status_code"]
+                    test_details['response'] = rb['response']['response_json']
+                else:
+                    test_details['response'] = "No 'response' generated for this unit test?"
+
+    for test_details_file_path in case_details:
+        # Print out the test case details
+        with open(test_details_file_path, 'w') as details_file:
+            test_details = case_details[test_details_file_path]
             json.dump(test_details, details_file, indent=4)
 
     # Write out the whole List[str] of unit test identifiers, into one JSON summary file
