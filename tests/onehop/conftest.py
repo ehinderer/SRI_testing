@@ -41,8 +41,8 @@ def pytest_sessionfinish(session):
     Works both on worker and master nodes, and also with xdist disabled"""
 
     test_run_id: str
-    if "session_id" in session.config.option and session.config.option.session_id:
-        test_run_id = session.config.option.session_id
+    if "test_run_id" in session.config.option and session.config.option.test_run_id:
+        test_run_id = session.config.option.test_run_id
     else:
         # Generate a fake UUID test id for local runs
         test_run_id = str(uuid4())
@@ -102,54 +102,54 @@ def pytest_sessionfinish(session):
         # relative to TEST_RESULTS_DIR and test_run_id
         ################################################
 
+        if edge_details_file_path not in case_details:
+
+            # TODO: this is a bit memory intensive...
+            #      may need another strategy for capturing details
+            case_details[edge_details_file_path] = dict()
+
+            if 'case' in rb and 'case' not in case_details[edge_details_file_path]:
+                case_details[edge_details_file_path] = rb['case']
+
+            if 'results' not in case_details[edge_details_file_path]:
+                case_details[edge_details_file_path]['results'] = dict()
+
+        if test_id not in case_details[edge_details_file_path]['results']:
+            case_details[edge_details_file_path]['results'][test_id] = dict()
+
+        test_details = case_details[edge_details_file_path]['results'][test_id]
+
+        # Replicating 'PASSED, FAILED, SKIPPED' test status
+        # for each unit test, here in the detailed report
+        test_details['outcome'] = details['status']
+
+        # Print out errors - we assume they are only reported once for any given test?
+        if 'errors' in rb and len(rb['errors']) > 0:
+            test_details['errors'] = rb['errors']
+
+        # Capture more request/response details for test failures
+        if details['status'] == 'failed':
+
+            if 'request' in rb:
+                test_details['request'] = rb['request']
+            else:
+                test_details['request'] = "No 'request' generated for this unit test?"
+
+            if 'response' in rb:
+                test_details['http_status_code'] = rb["response"]["status_code"]
+                test_details['response'] = rb['response']['response_json']
+            else:
+                test_details['response'] = "No 'response' generated for this unit test?"
+
+    for edge_details_file_path in case_details:
+        # Print out the test case details
+
         test_details_file_path = unit_test_report_filepath(
             test_run_id=test_run_id,
             unit_test_file_path=edge_details_file_path
         )
-
-        if test_details_file_path not in case_details:
-
-            # TODO: this is a bit memory intensive...
-            #      may need another strategy for capturing details
-            case_details[test_details_file_path] = dict()
-
-            if 'case' in rb and 'case' not in case_details[test_details_file_path]:
-                case_details[test_details_file_path] = rb['case']
-
-            if 'results' not in case_details[test_details_file_path]:
-                case_details[test_details_file_path]['results'] = dict()
-
-            if test_id not in case_details[test_details_file_path]['results']:
-                case_details[test_details_file_path]['results'][test_id] = dict()
-
-            test_details = case_details[test_details_file_path]['results'][test_id]
-
-            # Replicating 'PASSED, FAILED, SKIPPED' test status
-            # for each unit test, here in the detailed report
-            test_details['outcome'] = details['status']
-
-            # Print out errors - we assume they are only reported once for any given test?
-            if 'errors' in rb and len(rb['errors']) > 0:
-                test_details['errors'] = rb['errors']
-
-            # Capture more request/response details for test failures
-            if details['status'] == 'failed':
-
-                if 'request' in rb:
-                    test_details['request'] = rb['request']
-                else:
-                    test_details['request'] = "No 'request' generated for this unit test?"
-
-                if 'response' in rb:
-                    test_details['http_status_code'] = rb["response"]["status_code"]
-                    test_details['response'] = rb['response']['response_json']
-                else:
-                    test_details['response'] = "No 'response' generated for this unit test?"
-
-    for test_details_file_path in case_details:
-        # Print out the test case details
         with open(test_details_file_path, 'w') as details_file:
-            test_details = case_details[test_details_file_path]
+            test_details = case_details[edge_details_file_path]
             json.dump(test_details, details_file, indent=4)
 
     # Write out the whole List[str] of unit test identifiers, into one JSON summary file
@@ -190,8 +190,8 @@ def pytest_addoption(parser):
     )
     #  Mostly used when the SRI Testing harness is run by a web service
     parser.addoption(
-        "--session_id", action="store", default="",
-        help='Optional Session Identifier for use internally to tag test results.'
+        "--test_run_id", action="store", default="",
+        help='Optional Test Run Identifier for internal use to index test results.'
     )
 
 
@@ -396,7 +396,7 @@ def generate_trapi_kp_tests(metafunc, biolink_version):
     idlist = []
 
     # optional user session identifier for test (maybe be an empty string)
-    session_id = metafunc.config.getoption('session_id')
+    test_run_id = metafunc.config.getoption('test_run_id')
 
     triple_source = metafunc.config.getoption('triple_source')
 
@@ -434,8 +434,8 @@ def generate_trapi_kp_tests(metafunc, biolink_version):
                 edge['idx'] = edge_i
 
                 # we track each test edge as belonging to a given user session
-                if session_id:
-                    edge['session_id'] = session_id
+                if test_run_id:
+                    edge['test_run_id'] = test_run_id
 
                 # We can already do some basic Biolink Model validation here of the
                 # S-P-O contents of the edge being input from the current triples file?

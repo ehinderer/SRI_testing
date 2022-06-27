@@ -2,14 +2,19 @@
 FastAPI web service wrapper for SRI Testing harness
 (i.e. for reports to a Translator Runtime Status Dashboard)
 """
-from typing import Optional, Dict
+from typing import Optional, Dict, List
 from pydantic import BaseModel
 
 import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+
 from reasoner_validator.util import latest
-from translator.sri.testing.report import OneHopTestHarness, DEFAULT_WORKER_TIMEOUT
+from translator.sri.testing.report import (
+    OneHopTestHarness,
+    DEFAULT_WORKER_TIMEOUT,
+    get_edge_details_file_path
+)
 
 app = FastAPI()
 
@@ -89,7 +94,7 @@ async def run_tests(test_parameters: TestRunParameters) -> Dict:
     )
 
     return {
-        "session_id": testrun.get_session_id(),
+        "test_run_id": testrun.get_test_run_id(),
 
         # TODO: user specified TRAPI version...
         #       we should somehow try to report the
@@ -103,48 +108,66 @@ async def run_tests(test_parameters: TestRunParameters) -> Dict:
     }
 
 
-@app.get("/results/{session_id}")
-async def get_summary(session_id: str):
+@app.get("/results/{test_run_id}")
+async def get_summary(test_run_id: str):
     """
     Returns a summary list of test results for a given session ID.
 
-    :param session_id: session for which the test summary is requested.
+    :param test_run_id: test_run_id: test run identifier (as returned by /run_tests endpoint).
 
-    :return: Dict, with keys 'session_id' and 'summary', the latter being a serialized JSON list of
-                   identifiers relating to unit tests performed, or a status/error message string.
+    :return: Dict, with keys 'test_run_id' and 'summary', the latter being a
+                   JSON indexed summary of available unit test results.
     """
-    summary: Optional[str] = OneHopTestHarness.get_summary(session_id)
+    summary: Optional[str] = OneHopTestHarness.get_summary(test_run_id)
 
     if summary is None:
-        summary = f"Test summary for session '{session_id}' is not yet available?"
+        summary = f"Test summary for session is not yet available?"
 
     return {
-        "session_id": session_id,
+        "test_run_id": test_run_id,
         "summary": summary
     }
 
 
-@app.get("/results/{session_id}/{unit_test_id}")
-async def get_details(session_id: str, unit_test_id: str):
+@app.get("/results/{test_run_id}/{component}/{resource_id}/{edge_num}")
+async def get_details(test_run_id: str, component: str, resource_id: str, edge_num: str):
     """
     Return details for a specified unit test in a given test session.
 
-    :param session_id: Identifier of the test session (started by /run_tests endpoint)
-    :param unit_test_id: Identifier of the unit test of interest, for retrieval of details.
+    :param test_run_id: test run identifier (as returned by /run_tests endpoint)
+    :param component: Translator component being tested: 'ARA' or 'KP'
+    :param resource_id: identifier of the resource being tested (may be single KP identifier (i.e. 'Some_KP') or a
+                        hyphen-delimited 2-Tuple composed of an ARA and an associated KP identifier
+                        (i.e. 'Some_ARA-Some_KP') as found in the JSON hierarchy of the test run summary.
+    :param edge_num: Identifier of the unit test of interest, for retrieval of details, path like
 
-    :return: Dict, with keys 'session_id', 'unit_test_id' and 'details', the latter which are the
+    :return: Dict, with keys 'test_run_id', 'unit_test_id' and 'details', the latter which are the
                    details relating to the specified unit test, encoded as a JSON data structure.
     """
-    assert session_id, "Null or empty Session Identifier?"
-    assert unit_test_id, "Null or empty Unit Test Identifier?"
+    assert test_run_id, "Null or empty Session Identifier?"
+    assert component, "Null or empty Translator Component?"
+    assert resource_id, "Null or empty Resource Identifier?"
+    assert edge_num, "Null or empty Edge Number?"
 
-    details: Optional[str] = OneHopTestHarness.get_details(session_id, unit_test_id)
+    rid_part: List[str] = resource_id.split("-")
+    if len(rid_part) > 1:
+        ara_id = rid_part[0]
+        kp_id = rid_part[1]
+    else:
+        ara_id = None
+        kp_id = rid_part[0]
+
+    edge_details_file_path: str = get_edge_details_file_path(component, ara_id, kp_id, edge_num)
+
+    details: Optional[str] = OneHopTestHarness.get_details(test_run_id, edge_details_file_path)
     if details is None:
-        details = f"Test details for unit test '{unit_test_id}' in session '{session_id}' are not (yet) available?"
+        details = f"Test details for edge are not (yet) available?"
 
     return {
-        "session_id": session_id,
-        "unit_test_id": unit_test_id,
+        "test_run_id": test_run_id,
+        "component": component,
+        "resource_id": resource_id,
+        "edge_num": edge_num,
         "details": details
     }
 

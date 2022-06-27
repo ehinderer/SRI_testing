@@ -1,5 +1,17 @@
 """
 One Hops Testing Suite
+
+Existing KP Unit Tests (defined in onehop.util module):
+
+- by_subject
+- inverse_by_new_subject
+- by_object
+- raise_subject_entity
+- raise_object_by_subject
+- raise_predicate_by_subject
+
+Also, for ARA Unit tests:
+- check_provenance (defined in translator.trapi module)
 """
 from typing import List, Dict
 

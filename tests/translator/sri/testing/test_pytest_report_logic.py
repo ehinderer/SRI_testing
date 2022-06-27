@@ -76,7 +76,7 @@ def test_run_local_onehop_tests_one_only():
     )
     _report_outcome(
         "test_run_local_onehop_tests",
-        session_id=onehop_test.get_session_id()
+        session_id=onehop_test.get_test_run_id()
     )
 
 
@@ -90,7 +90,7 @@ def test_run_local_onehop_tests_all():
     )
     _report_outcome(
         "test_run_local_onehop_tests",
-        session_id=onehop_test.get_session_id()
+        session_id=onehop_test.get_test_run_id()
     )
 
 
@@ -105,7 +105,7 @@ def test_run_local_onehop_tests_all_older_trapi_version():
 
     _report_outcome(
         "test_run_local_onehop_tests",
-        session_id=onehop_test.get_session_id()
+        session_id=onehop_test.get_test_run_id()
     )
 
 
@@ -119,7 +119,7 @@ def test_run_local_onehop_tests_all_older_blm_version():
     )
     _report_outcome(
         "test_run_local_onehop_tests",
-        session_id=onehop_test.get_session_id()
+        session_id=onehop_test.get_test_run_id()
     )
 
 
@@ -132,7 +132,7 @@ def test_run_onehop_tests_from_registry():
     )
     _report_outcome(
         "test_run_onehop_tests_from_registry",
-        session_id=onehop_test.get_session_id()
+        session_id=onehop_test.get_test_run_id()
     )
 
 
@@ -141,7 +141,7 @@ def test_run_onehop_tests_from_registry_with_default_versioning():
     onehop_test.run(one=True)
     _report_outcome(
         "test_run_onehop_tests_from_registry_with_default_versioning",
-        session_id=onehop_test.get_session_id()
+        session_id=onehop_test.get_test_run_id()
     )
 
 
@@ -156,6 +156,6 @@ def test_run_onehop_tests_with_timeout():
     )
     _report_outcome(
         "test_run_onehop_tests_with_timeout",
-        session_id=onehop_test.get_session_id(),
+        session_id=onehop_test.get_test_run_id(),
         expecting_report=False
     )
