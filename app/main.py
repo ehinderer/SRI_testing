@@ -2,7 +2,7 @@
 FastAPI web service wrapper for SRI Testing harness
 (i.e. for reports to a Translator Runtime Status Dashboard)
 """
-from typing import Optional, Dict, List
+from typing import Optional, List
 from pydantic import BaseModel
 
 import uvicorn
@@ -79,70 +79,118 @@ class TestRunParameters(BaseModel):
     log: Optional[str] = None
 
 
-@app.post("/run_tests")
-async def run_tests(test_parameters: TestRunParameters) -> Dict:
+class TestRunSession(BaseModel):
 
+    test_run_id: str
+
+    # TODO: user specified TRAPI version...
+    #       we should somehow try to report the
+    #       actual version used by the system
+    # "trapi_version": trapi_version,
+
+    # TODO: user specified Biolink Model version...
+    #       we should somehow try to report the
+    #       actual version used by the system
+    # "biolink_version": biolink_version
+
+
+@app.post(
+    "/run_tests",
+    response_model=TestRunSession,
+    summary="Initiate an SRI Testing Run"
+)
+async def run_tests(test_parameters: TestRunParameters) -> TestRunSession:
+    """
+    Initiate an SRI Testing Run with TestRunParameters:
+
+    - **trapi_version**: Optional[str]
+    - **biolink_version**: Optional[str]
+    - **timeout**: Optional[int]
+    - **log**: Optional[str]
+    \f
+    :param test_parameters:
+    :return: TestRunSession (just 'test_run_id' for now)
+    """
     trapi_version: Optional[str] = latest.get(test_parameters.trapi_version) if test_parameters.trapi_version else None
     biolink_version: Optional[str] = test_parameters.biolink_version
     log: Optional[str] = test_parameters.log
 
     testrun = OneHopTestHarness(test_parameters.timeout)
+
     testrun.run(
         trapi_version=trapi_version,
         biolink_version=biolink_version,
         log=log
     )
 
-    return {
-        "test_run_id": testrun.get_test_run_id(),
-
-        # TODO: user specified TRAPI version...
-        #       we should somehow try to report the
-        #       actual version used by the system
-        # "trapi_version": trapi_version,
-
-        # TODO: user specified Biolink Model version...
-        #       we should somehow try to report the
-        #       actual version used by the system
-        # "biolink_version": biolink_version,
-    }
+    return TestRunSession(test_run_id=testrun.get_test_run_id())
 
 
-@app.get("/results/{test_run_id}")
-async def get_summary(test_run_id: str):
+class TestRunSummary(BaseModel):
+    test_run_id: str
+    summary: Optional[str]
+
+
+@app.get(
+    "/results/{test_run_id}",
+    response_model=TestRunSummary,
+    summary="Retrieve the summary of a specified SRI Testing run."
+)
+async def get_summary(test_run_id: str) -> TestRunSummary:
     """
-    Returns a summary list of test results for a given session ID.
+    Returns a JSON summary report of test results for a given **test_run_id**.
 
+    \f
     :param test_run_id: test_run_id: test run identifier (as returned by /run_tests endpoint).
 
-    :return: Dict, with keys 'test_run_id' and 'summary', the latter being a
-                   JSON indexed summary of available unit test results.
+    :return: TestRunSummary, with fields 'test_run_id' and 'summary', the latter being a
+                             JSON indexed summary of available unit test results.
     """
     summary: Optional[str] = OneHopTestHarness.get_summary(test_run_id)
 
     if summary is None:
-        summary = f"Test summary for session is not yet available?"
+        summary = f"Test summary for testing run is not yet available?"
 
-    return {
-        "test_run_id": test_run_id,
-        "summary": summary
-    }
+    return TestRunSummary(
+        test_run_id=test_run_id,
+        summary=summary
+    )
 
 
-@app.get("/results/{test_run_id}/{component}/{resource_id}/{edge_num}")
-async def get_details(test_run_id: str, component: str, resource_id: str, edge_num: str):
+class TestRunEdgeDetails(BaseModel):
+    test_run_id: str
+    component: str
+    resource_id: str
+    edge_num: str
+    details: str
+
+
+@app.get(
+    "/results/{test_run_id}/{component}/{resource_id}/{edge_num}",
+    response_model=TestRunEdgeDetails,
+    summary="Retrieve the test result details for a specified SRI Testing Run input edge."
+)
+async def get_details(test_run_id: str, component: str, resource_id: str, edge_num: str) -> TestRunEdgeDetails:
     """
-    Return details for a specified unit test in a given test session.
+    Return edge details for a specified unit test in an
+     identified test run defined by the following query path parameters:
 
+    - **component**: Translator component being tested: 'ARA' or 'KP'
+    - **resource_id**: identifier of the resource being tested (may be single KP identifier (i.e. 'Some_KP') or a
+                        hyphen-delimited 2-Tuple composed of an ARA and an associated KP identifier
+                        (i.e. 'Some_ARA-Some_KP') as found in the JSON hierarchy of the test run summary.
+    - **edge_num**: target input 'edge_num' edge number, as found in edge leaf nodes of the JSON test run summary.
+
+    \f
     :param test_run_id: test run identifier (as returned by /run_tests endpoint)
     :param component: Translator component being tested: 'ARA' or 'KP'
     :param resource_id: identifier of the resource being tested (may be single KP identifier (i.e. 'Some_KP') or a
                         hyphen-delimited 2-Tuple composed of an ARA and an associated KP identifier
                         (i.e. 'Some_ARA-Some_KP') as found in the JSON hierarchy of the test run summary.
-    :param edge_num: Identifier of the unit test of interest, for retrieval of details, path like
+    :param edge_num: target input 'edge_num' edge number, as found in edge leaf nodes of the JSON test run summary.
 
-    :return: Dict, with keys 'test_run_id', 'unit_test_id' and 'details', the latter which are the
-                   details relating to the specified unit test, encoded as a JSON data structure.
+    :return: TestRunEdgeDetails, echoing input parameters alongside the requested 'details', the latter which are the
+                                 details relating to the specified unit test, encoded as a JSON data structure.
     """
     assert test_run_id, "Null or empty Session Identifier?"
     assert component, "Null or empty Translator Component?"
@@ -161,15 +209,15 @@ async def get_details(test_run_id: str, component: str, resource_id: str, edge_n
 
     details: Optional[str] = OneHopTestHarness.get_details(test_run_id, edge_details_file_path)
     if details is None:
-        details = f"Test details for edge are not (yet) available?"
+        details = f"Test details for edge in specified testing run are not (yet) available?"
 
-    return {
-        "test_run_id": test_run_id,
-        "component": component,
-        "resource_id": resource_id,
-        "edge_num": edge_num,
-        "details": details
-    }
+    return TestRunEdgeDetails(
+        test_run_id=test_run_id,
+        component=component,
+        resource_id=resource_id,
+        edge_num=edge_num,
+        details=details
+    )
 
 
 if __name__ == "__main__":

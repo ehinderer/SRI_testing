@@ -203,7 +203,7 @@ def check_provenance(ara_case, ara_response, test_report: TestReport):
 
         test_report.test(
             found_kp_knowledge_source,
-            f"{error_msg_prefix} Knowledge Provider '{ara_case['kp_source']}' attribute value as " + \
+            f"{error_msg_prefix} Knowledge Provider '{ara_case['kp_source']}' attribute value as " +
             f"'{kp_source_type}' is missing as expected knowledge source provenance?"
         )
 

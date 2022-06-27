@@ -118,7 +118,7 @@ class TestRunReport:
     def __init__(self, test_run_id: str):
         self._test_run_id = test_run_id
 
-    def _output(self, report_type: str, report_file: str):
+    def _output(self, report_type: str, report_file: str) -> Optional[str]:
         report_file_path = f"test_results/{self._test_run_id}/{report_file}.json"
         report: Optional[str] = None
         try:
