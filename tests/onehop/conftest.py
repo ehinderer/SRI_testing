@@ -5,6 +5,9 @@ from typing import Optional, Union, List, Set, Dict, Any
 from sys import stdout, stderr
 from os import path, walk, makedirs
 from collections import defaultdict
+
+from uuid import uuid4
+
 import json
 
 import logging
@@ -34,9 +37,16 @@ def pytest_sessionfinish(session):
     """ Gather all results and save them to a csv.
     Works both on worker and master nodes, and also with xdist disabled"""
 
-    test_run_id: str = session.config.option.session_id \
-        if "session_id" in session.config.option and session.config.option.session_id else 'test_results'
-    makedirs(test_run_id, exist_ok=True)
+    test_run_id: str
+    if "session_id" in session.config.option and session.config.option.session_id:
+        test_run_id = session.config.option.session_id
+    else:
+        # Generate a fake UUID test id for local runs
+        test_run_id = str(uuid4())
+
+    # subdirectory for local run output data
+    test_run_root_path: str = f"test_results/{test_run_id}"
+    makedirs(test_run_root_path, exist_ok=True)
 
     session_results = get_session_results_dct(session)
 
@@ -48,15 +58,6 @@ def pytest_sessionfinish(session):
 
         # sanity check: clean up MS Windoze EOL characters, when present in results_bag keys
         rb = {key.strip("\r\n"): value for key, value in rb.items()}
-
-        # clean up the name for safe file system usage
-        unit_test_name: str = cleaned_up_unit_test_name(
-            unit_test_key=unit_test_key,
-            status=details['status']
-        )
-
-        # Simple initial summary: just compile a list of Unit Test Names to write out
-        test_summary.append(unit_test_name)
 
         test_details: Dict = dict()
 
@@ -82,16 +83,25 @@ def pytest_sessionfinish(session):
             else:
                 test_details['response'] = "No 'response' generated for this unit test?"
 
-        test_details_filepath = unit_test_report_filepath(
-            test_run_id=test_run_id,
-            unit_test_name=unit_test_name,
-            location=rb['location'] if 'location' in rb else None
+        # clean up the name for safe file system usage
+        unit_test_file_path: str = cleaned_up_unit_test_name(
+            unit_test_key=unit_test_key,
+            status=details['status']
         )
+
+        test_details_filepath = unit_test_report_filepath(
+            test_run_root_path=test_run_root_path,
+            unit_test_file_path=unit_test_file_path
+        )
+
+        # Simple initial summary: just compile a list of Unit Test Details File paths
+        test_summary.append(test_details_filepath)
+
         with open(test_details_filepath, 'w') as details_file:
             json.dump(test_details, details_file, indent=4)
 
     # Write out the whole List[str] of unit test identifiers, into one JSON summary file
-    summary_filepath = f"{test_run_id}/onehops_test_summary.json"
+    summary_filepath = f"{test_run_root_path}/test_summary.json"
     with open(summary_filepath, 'w') as summary_file:
         json.dump(test_summary, summary_file, indent=4)
 

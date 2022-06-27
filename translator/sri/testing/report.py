@@ -21,6 +21,150 @@ logger = logging.getLogger()
 #
 DEFAULT_WORKER_TIMEOUT = 120  # 2 minutes for small PyTests?
 
+#
+# June 2022 - new reporting strategy, based on cached Pytest exported summary and details files
+#
+
+
+class TestRunReport:
+
+    def __init__(self, session_id: str):
+        self._session_id = session_id
+
+    def _output(self, report_type: str, report_file: str):
+        report_file_path = f"test_results/{self._session_id}/{report_file}.json"
+        report: Optional[str] = None
+        try:
+            with open(report_file_path, 'r') as report_file:
+                report = report_file.read()
+        except OSError as ose:
+            logger.warning(f"{report_type} file '{report_file_path}' not (yet) accessible: {str(ose)}?")
+        return report
+
+    def get_summary(self) -> Optional[str]:
+        return self._output(report_type="Summary", report_file="onehops_test_summary")
+
+    def get_details(self, unit_test_id: str) -> Optional[str]:
+        return self._output(report_type="Details", report_file=unit_test_id)
+
+
+class OneHopTestHarness:
+    # Caching of processes indexed by session_id (UUID as string)
+    _session_id_2_testrun: Dict = dict()
+
+    def __init__(self, timeout: Optional[int] = DEFAULT_WORKER_TIMEOUT):
+
+        # each test harness run has its own unique session identifier
+        self._session_id: UUID = uuid4()
+
+        self._command_line: Optional[str] = None
+        self._process: Optional[WorkerProcess] = None
+
+        # Deprecated internal variables
+        # self._result: Optional[str] = None
+        # self._report: Optional[SRITestReport] = None
+
+        self._timeout: Optional[int] = timeout
+
+    def get_worker(self) -> Optional[WorkerProcess]:
+        return self._process
+
+    # def get_result(self) -> Optional[str]:
+    #     return self._result
+
+    def get_session_id(self) -> Optional[str]:
+        if self._session_id:
+            return str(self._session_id)
+        else:
+            return None
+
+    def run(
+            self,
+            trapi_version: Optional[str] = None,
+            biolink_version: Optional[str] = None,
+            triple_source: Optional[str] = None,
+            ara_source: Optional[str] = None,
+            one: bool = False,
+            log: Optional[str] = None
+    ):
+        """
+        Run the SRT Testing test harness as a worker process.
+
+        :param trapi_version: Optional[str], TRAPI version assumed for test run (default: None)
+
+        :param biolink_version: Optional[str], Biolink Model version used in test run (default: None)
+
+        :param triple_source: Optional[str], 'REGISTRY', directory or file from which to retrieve triples
+                                             (Default: 'REGISTRY', which triggers the use of metadata, in KP entries
+                                              from the Translator SmartAPI Registry, to configure the tests).
+
+        :param ara_source: Optional[str], 'REGISTRY', directory or file from which to retrieve ARA Config.
+                                             (Default: 'REGISTRY', which triggers the use of metadata, in ARA entries
+                                             from the Translator SmartAPI Registry, to configure the tests).
+
+        :param one: bool, Only use first edge from each KP file (default: False if omitted).
+
+        :param log: Optional[str], desired Python logger level label (default: None, implying default logger)
+
+        :return: None
+        """
+        session_id_string: str = str(self._session_id)
+
+        self._command_line = f"cd {ONEHOP_TEST_DIRECTORY} {CMD_DELIMITER} " + \
+                             f"pytest --tb=line -vv"
+        self._command_line += f" --log-cli-level={log}" if log else ""
+        self._command_line += f" test_onehops.py"
+        self._command_line += f" --session_id={session_id_string}"
+        self._command_line += f" --TRAPI_Version={trapi_version}" if trapi_version else ""
+        self._command_line += f" --Biolink_Version={biolink_version}" if biolink_version else ""
+        self._command_line += f" --triple_source={triple_source}" if triple_source else ""
+        self._command_line += f" --ARA_source={ara_source}" if ara_source else ""
+        self._command_line += " --one" if one else ""
+
+        logger.debug(f"OneHopTestHarness.run() command line: {self._command_line}")
+
+        self._process = WorkerProcess(self._timeout)
+        self._process.run_command(self._command_line)
+        self._session_id_2_testrun[session_id_string] = self
+
+    @classmethod
+    def get_summary(cls, session_id: str) -> Optional[str]:
+        """
+        Looks up the OneHopTestHarness for the specified 'session_id_str'
+        then returns its (possibly just-in-time generated or cached) test report.
+
+        :param session_id: str, UUID session_id of the OneHopTestHarness running the test
+
+        :return: Optional[Union[str, SRITestSummary]], list of available SRI Testing unit test results
+        """
+        assert session_id, "Null or empty Session Identifier?"
+
+        return TestRunReport(session_id).get_summary()
+
+    @classmethod
+    def get_details(cls, session_id: str, unit_test_id: str) -> Optional[str]:
+        """
+        Looks up the OneHopTestHarness for the specified 'session_id_str'
+        then returns its (possibly just-in-time generated or cached) test report.
+
+        :param session_id: str, UUID session_id of the OneHopTestHarness running the test
+        :param unit_test_id: str, identifier of unit test for which details are needed
+
+        :return: Optional[str], structured JSON report from the OneHops testing of target KPs & ARAs,
+                 or an exceptional error message, or None (if the details are not (yet) available)
+        """
+        assert session_id, "Null or empty Session Identifier?"
+        assert unit_test_id, "Null or empty Unit Test Identifier?"
+
+        return TestRunReport(session_id).get_details(unit_test_id)
+
+
+"""
+** Deprecated **
+PyTest parsing version of SRITestReport is a
+multi-level indexed Edge dictionary of
+captured error messages, plus an error summary.
+"""
 SUMMARY_ENTRY_TAGS: List = ["FAILED", "PASSED", "SKIPPED"]
 
 PYTEST_HEADER_START_PATTERN = re.compile(r"^=+\stest\ssession\sstarts\s=+$")
@@ -52,12 +196,6 @@ PYTEST_SUMMARY_PATTERN = re.compile(
 TEST_CASE_IDENTIFIER_PATTERN = re.compile(
     r"^(?P<resource_id>[^#]+)(#(?P<edge_num>\d+))?(-(?P<test_id>.+))?$"
 )
-
-
-"""
-TestReport is a multi-level indexed EdgeTestReport
-dictionary of captured error messages, plus an error summary.
-"""
 
 
 # Edge entry from a resource's test data,
@@ -507,192 +645,3 @@ class SRITestReport:
                         resource_entry: ResourceEntry = \
                             self.get_resource_entry(current_component, current_resource_id)
                         resource_entry.add_test_result(current_edge_number, current_test_id, current_outcome, line)
-
-
-class TestRunReport:
-
-    def __init__(self, session_id: str):
-        self._session_id = session_id
-
-    def _output(self, report_type: str, report_file: str):
-        report_file_path = f"{self._session_id}/{report_file}.json"
-        report: Optional[str] = None
-        try:
-            with open(report_file_path, 'r') as report_file:
-                report = report_file.read()
-        except OSError as ose:
-            logger.warning(f"{report_type} file '{report_file_path}' not (yet) accessible: {str(ose)}?")
-        return report
-
-    def get_summary(self) -> Optional[str]:
-        return self._output(report_type="Summary", report_file="onehops_test_summary")
-
-    def get_details(self, unit_test_id: str) -> Optional[str]:
-        return self._output(report_type="Details", report_file=unit_test_id)
-
-
-class OneHopTestHarness:
-
-    # Caching of processes indexed by session_id (UUID as string)
-    _session_id_2_testrun: Dict = dict()
-    
-    def __init__(self, timeout: Optional[int] = DEFAULT_WORKER_TIMEOUT):
-
-        # each test harness run has its own unique session identifier
-        self._session_id: UUID = uuid4()
-
-        self._command_line: Optional[str] = None
-        self._process: Optional[WorkerProcess] = None
-
-        # Deprecated internal variables
-        # self._result: Optional[str] = None
-        # self._report: Optional[SRITestReport] = None
-
-        self._timeout: Optional[int] = timeout
-
-    def get_worker(self) -> Optional[WorkerProcess]:
-        return self._process
-
-    # def get_result(self) -> Optional[str]:
-    #     return self._result
-
-    def get_session_id(self) -> Optional[str]:
-        if self._session_id:
-            return str(self._session_id)
-        else:
-            return None
-
-    def run(
-            self,
-            trapi_version: Optional[str] = None,
-            biolink_version: Optional[str] = None,
-            triple_source: Optional[str] = None,
-            ara_source:  Optional[str] = None,
-            one: bool = False,
-            log: Optional[str] = None
-    ):
-        """
-        Run the SRT Testing test harness as a worker process.
-
-        :param trapi_version: Optional[str], TRAPI version assumed for test run (default: None)
-
-        :param biolink_version: Optional[str], Biolink Model version used in test run (default: None)
-
-        :param triple_source: Optional[str], 'REGISTRY', directory or file from which to retrieve triples
-                                             (Default: 'REGISTRY', which triggers the use of metadata, in KP entries
-                                              from the Translator SmartAPI Registry, to configure the tests).
-
-        :param ara_source: Optional[str], 'REGISTRY', directory or file from which to retrieve ARA Config.
-                                             (Default: 'REGISTRY', which triggers the use of metadata, in ARA entries
-                                             from the Translator SmartAPI Registry, to configure the tests).
-
-        :param one: bool, Only use first edge from each KP file (default: False if omitted).
-
-        :param log: Optional[str], desired Python logger level label (default: None, implying default logger)
-
-        :return: str, UUID session identifier for this testing run
-        """
-        session_id_string: str = str(self._session_id)
-
-        self._command_line = f"cd {ONEHOP_TEST_DIRECTORY} {CMD_DELIMITER} " + \
-                             f"pytest --tb=line -vv"
-        self._command_line += f" --log-cli-level={log}" if log else ""
-        self._command_line += f" test_onehops.py"
-        self._command_line += f" --session_id={session_id_string}"
-        self._command_line += f" --TRAPI_Version={trapi_version}" if trapi_version else ""
-        self._command_line += f" --Biolink_Version={biolink_version}" if biolink_version else ""
-        self._command_line += f" --triple_source={triple_source}" if triple_source else ""
-        self._command_line += f" --ARA_source={ara_source}" if ara_source else ""
-        self._command_line += " --one" if one else ""
-
-        logger.debug(f"OneHopTestHarness.run() command line: {self._command_line}")
-
-        self._process = WorkerProcess(self._timeout)
-        self._process.run_command(self._command_line)
-        self._session_id_2_testrun[session_id_string] = self
-
-    # Deprecated approach of direct parsing of PyTest stdout output
-    #
-    # def get_testrun_report(self) -> Optional[Union[List[str], Dict]]:
-    #     """
-    #     Generates and caches a OneHopTestHarness test report the first time this method is called.
-    #
-    #     :return: Optional[Union[str, TestReport]], structured Pytest report from the OneHopTest of
-    #              target KPs & ARAs, or a single string global error message, or None (if still unavailable)
-    #     """
-    #     # ts stores the time in seconds
-    #     ts = time.time()
-    #     if not self._report:
-    #         try:
-    #             self._result = self._process.get_output()
-    #             if self._result:
-    #                 # Raw Pytest data and report output is cached locally with a timestamp
-    #                 sample_file_path = path.join(TEST_RESULT_DIR, f"raw_pytest_output{ts}.txt")
-    #                 with open(sample_file_path, "w") as sf:
-    #                     sf.write(self._result)
-    #
-    #                 self._report = SRITestReport()
-    #                 self._report.parse_result(self._result)
-    #
-    #         except WorkerProcessException as wpe:
-    #             return [str(wpe)]
-    #
-    #     if self._report:
-    #         report = self._report.output()
-    #         sri_report_file_path = path.join(TEST_RESULT_DIR, f"sri_report_{ts}.json")
-    #         with open(sri_report_file_path, "w") as sr:
-    #             dump(report, sr, indent=4)
-    #         return report
-    #     else:
-    #         return None  # Report simply not yet available, but Pytest may still be running?
-    #
-    # @classmethod
-    # def get_report(cls, session_id_str: str) -> Optional[Union[str, SRITestReport]]:
-    #     """
-    #     Looks up the OneHopTestHarness for the specified 'session_id_str'
-    #     then returns its (possibly just-in-time generated or cached) test report.
-    #
-    #     :param session_id_str: str, UUID session_id of the OneHopTestHarness running the test
-    #
-    #     :return: Optional[Union[str, TestReport]], structured Pytest report from the OneHopTest of
-    #              target KPs & ARAs, or a single string global error message, or None (if still unavailable)
-    #     """
-    #     assert session_id_str  # should not be empty
-    #
-    #     if session_id_str not in cls._session_id_2_testrun:
-    #         return f"Unknown Worker Process 'session_id': {session_id_str}"
-    #
-    #     testrun = cls._session_id_2_testrun[session_id_str]
-    #
-    #     return testrun.get_testrun_report()
-
-    @classmethod
-    def get_summary(cls, session_id: str) -> Optional[str]:
-        """
-        Looks up the OneHopTestHarness for the specified 'session_id_str'
-        then returns its (possibly just-in-time generated or cached) test report.
-
-        :param session_id: str, UUID session_id of the OneHopTestHarness running the test
-
-        :return: Optional[Union[str, SRITestSummary]], list of available SRI Testing unit test results
-        """
-        assert session_id, "Null or empty Session Identifier?"
-
-        return TestRunReport(session_id).get_summary()
-
-    @classmethod
-    def get_details(cls, session_id: str, unit_test_id: str) -> Optional[str]:
-        """
-        Looks up the OneHopTestHarness for the specified 'session_id_str'
-        then returns its (possibly just-in-time generated or cached) test report.
-
-        :param session_id: str, UUID session_id of the OneHopTestHarness running the test
-        :param unit_test_id: str, identifier of unit test for which details are needed
-
-        :return: Optional[str], structured JSON report from the OneHops testing of target KPs & ARAs,
-                 or an exceptional error message, or None (if the details are not (yet) available)
-        """
-        assert session_id, "Null or empty Session Identifier?"
-        assert unit_test_id, "Null or empty Unit Test Identifier?"
-
-        return TestRunReport(session_id).get_details(unit_test_id)

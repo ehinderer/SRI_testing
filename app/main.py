@@ -2,14 +2,14 @@
 FastAPI web service wrapper for SRI Testing harness
 (i.e. for reports to a Translator Runtime Status Dashboard)
 """
-from typing import Optional, Union, Dict
+from typing import Optional, Dict
 from pydantic import BaseModel
 
 import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from reasoner_validator.util import latest
-from app.util import OneHopTestHarness, DEFAULT_WORKER_TIMEOUT, TestRunReport
+from translator.sri.testing.report import OneHopTestHarness, DEFAULT_WORKER_TIMEOUT
 
 app = FastAPI()
 

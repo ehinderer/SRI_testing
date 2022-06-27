@@ -1,4 +1,6 @@
 """
+Deprecated - tests relating to the direct parsing of the Pytest output.
+
 Test SRI Testing reporting code snippets
 """
 from typing import Optional, Union, Dict, Tuple, Set, List, Any
@@ -7,7 +9,7 @@ from json import dumps
 
 import pytest
 
-from app.util import (
+from translator.sri.testing.report import (
     SUMMARY_ENTRY_TAGS,
     SHORT_TEST_SUMMARY_INFO_HEADER_PATTERN,
     PASSED_SKIPPED_FAILED_PATTERN,

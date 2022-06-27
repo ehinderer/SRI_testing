@@ -13,48 +13,46 @@ def cleaned_up_unit_test_name(unit_test_key: str, status: str) -> str:
     Reformat (test run key) source identifier into a well-behaved test file name.
     :param unit_test_key: original full unit test label
     :param status: test outcome (i.e. PASSED, FAILED, SKIPPED)
-    :return: str, cleaned up reference unit test name with status suffix
+
+    :return: str, cleaned up reference unit test file path, including status suffix
     """
-    unit_test_name = unit_test_key.split('/')[-1][:-1]
+    unit_test_name = unit_test_key.split('/')[-1]
     unit_test_name = unit_test_name.strip("[]")
-    unit_test_name = unit_test_name.replace("test_onehops.py::test_trapi", "onehops")
-    unit_test_name = sub(r"[:\[\]|#/]+", "-", unit_test_name)
+    unit_test_name = unit_test_name.replace("test_onehops.py::test_trapi", "")
+    unit_test_name = unit_test_name.replace("_kps", "KP")
+    unit_test_name = unit_test_name.replace("_aras", "ARA")
+    unit_test_file_path = sub(r"[\[|#-]", "/", unit_test_name)
 
     # We tag the filename with its status
-    unit_test_name = f"{unit_test_name}_{status.upper()}"
+    unit_test_file_path = f"{unit_test_file_path}_{status.upper()}"
 
-    return unit_test_name
+    return unit_test_file_path
 
 
-def unit_test_report_filepath(test_run_id: str, unit_test_name: str, location: Optional[str]) -> str:
+def unit_test_report_filepath(test_run_root_path: str, unit_test_file_path: str) -> str:
     """
     Generate a report file path for a specific unit test result, compiled from descriptive components.
 
-    :param test_run_id: str, caller-defined test run ("session") identifier, e.g. UUID string or 'test_results'
-    :param unit_test_name: str, normalized unit test name, something like "Test_KP_1-0-inverse_by_new_subject_FAILED"
-    :param location: str. original file path, something like "test_triples/KP/Unit_Test_KP/Test_KP_1.json"
+    :param test_run_root_path: str, caller-defined test run ("session") identifier, e.g. UUID string or 'test_results'
+    :param unit_test_file_path: str, normalized unit test name, something like "Test_KP_1-0-inverse_by_new_subject_FAILED"
 
-    :return: str, (posix) filepath
+    :return: str, (posix) unit test file path
     """
-    unit_test_file_name = f"{unit_test_name}.json"
-    lparts: List[str]
-    if location:
+    assert test_run_root_path, f"unit_test_report_filepath() empty 'test_run_root_path'"
+    assert unit_test_file_path, f"unit_test_report_filepath() empty 'unit_test_file_path'"
 
-        # TODO: the following location path split doesn't work so well
-        #       when given a complex location, like an internet URI
-        #       Try to just limit to the tail of the 'lparts' list of path directories?
-        lparts = location.split('/')[-4:]
+    trrparts = test_run_root_path.split('/')
+    utfparts = unit_test_file_path.split('/')
+    path_parts = trrparts + utfparts
 
-        lparts[0] = test_run_id
-        lparts[-1] = unit_test_file_name
-        try:
-            makedirs('/'.join(lparts[:-1]))
-        except OSError:
-            pass
-    else:
-        lparts = [test_run_id, unit_test_file_name]
+    dir_path = '/'.join(path_parts[:-1])
+    try:
+        makedirs(dir_path)
+    except OSError:
+        pass
 
-    unit_test_file_path = '/'.join(lparts)
+    unit_test_file_path = '/'.join(path_parts)
+    unit_test_file_path = f"{unit_test_file_path}.json"
 
     return unit_test_file_path
 
