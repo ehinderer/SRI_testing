@@ -63,4 +63,4 @@ def test_unit_test_report_filepath(query):
         test_run_id=query[0],
         unit_test_file_path=query[1]
     ) == query[2]
-    # shutil.rmtree(query[0], ignore_errors=True)
+    shutil.rmtree("test_results", ignore_errors=True)

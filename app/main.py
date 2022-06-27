@@ -116,7 +116,7 @@ async def get_summary(session_id: str):
     summary: Optional[str] = OneHopTestHarness.get_summary(session_id)
 
     if summary is None:
-        summary = f"Summary for session '{session_id}' is not yet available?"
+        summary = f"Test summary for session '{session_id}' is not yet available?"
 
     return {
         "session_id": session_id,
@@ -140,7 +140,7 @@ async def get_details(session_id: str, unit_test_id: str):
 
     details: Optional[str] = OneHopTestHarness.get_details(session_id, unit_test_id)
     if details is None:
-        details = f"Details for unit test '{unit_test_id}' in session '{session_id}' are not (yet) available?"
+        details = f"Test details for unit test '{unit_test_id}' in session '{session_id}' are not (yet) available?"
 
     return {
         "session_id": session_id,

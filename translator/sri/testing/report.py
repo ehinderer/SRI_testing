@@ -116,6 +116,7 @@ class TestRunReport:
                 report = report_file.read()
         except OSError as ose:
             logger.warning(f"{report_type} file '{report_file_path}' not (yet) accessible: {str(ose)}?")
+
         return report
 
     def get_summary(self) -> Optional[str]:
