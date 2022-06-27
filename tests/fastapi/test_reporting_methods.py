@@ -9,7 +9,7 @@ from json import dumps
 
 import pytest
 
-from translator.sri.testing.report import (
+from translator.sri.testing.util.legacy_test_report import (
     SUMMARY_ENTRY_TAGS,
     SHORT_TEST_SUMMARY_INFO_HEADER_PATTERN,
     PASSED_SKIPPED_FAILED_PATTERN,
