@@ -68,6 +68,10 @@ def pytest_sessionfinish(session):
             unit_test_key=unit_test_key
         )
 
+        ##############################################################
+        # Summary file indexed by component, resources and edge cases
+        ##############################################################
+
         if component not in test_summary:
             test_summary[component] = dict()
 
@@ -93,8 +97,10 @@ def pytest_sessionfinish(session):
             # Top level summary reporting 'PASSED, FAILED, SKIPPED' for each unit test
             case_summary[edge_num][test_id] = details['status']
 
-        # Print out unit details as necessary files
+        ################################################
+        # Print out unit details as separate files
         # relative to TEST_RESULTS_DIR and test_run_id
+        ################################################
 
         test_details_file_path = unit_test_report_filepath(
             test_run_id=test_run_id,
