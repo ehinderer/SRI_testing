@@ -2,7 +2,7 @@
 FastAPI web service wrapper for SRI Testing harness
 (i.e. for reports to a Translator Runtime Status Dashboard)
 """
-from typing import Optional, List
+from typing import Optional, List, Dict
 from pydantic import BaseModel
 
 import uvicorn
@@ -128,11 +128,11 @@ async def run_tests(test_parameters: TestRunParameters) -> TestRunSession:
 
 class TestRunSummary(BaseModel):
     test_run_id: str
-    summary: Optional[str]
+    summary: Dict
 
 
 @app.get(
-    "/results/{test_run_id}",
+    "/summary/{test_run_id}",
     response_model=TestRunSummary,
     summary="Retrieve the summary of a specified SRI Testing run."
 )
@@ -146,10 +146,10 @@ async def get_summary(test_run_id: str) -> TestRunSummary:
     :return: TestRunSummary, with fields 'test_run_id' and 'summary', the latter being a
                              JSON indexed summary of available unit test results.
     """
-    summary: Optional[str] = OneHopTestHarness.get_summary(test_run_id)
+    summary: Optional[Dict] = OneHopTestHarness.get_summary(test_run_id)
 
     if summary is None:
-        summary = f"Test summary for testing run is not yet available?"
+        summary = {"status": "Test summary for testing run is not yet available?"}
 
     return TestRunSummary(
         test_run_id=test_run_id,
@@ -158,15 +158,11 @@ async def get_summary(test_run_id: str) -> TestRunSummary:
 
 
 class TestRunEdgeDetails(BaseModel):
-    test_run_id: str
-    component: str
-    resource_id: str
-    edge_num: str
-    details: str
+    details: Dict
 
 
 @app.get(
-    "/results/{test_run_id}/{component}/{resource_id}/{edge_num}",
+    "/details/{test_run_id}/{component}/{resource_id}/{edge_num}",
     response_model=TestRunEdgeDetails,
     summary="Retrieve the test result details for a specified SRI Testing Run input edge."
 )
@@ -207,15 +203,11 @@ async def get_details(test_run_id: str, component: str, resource_id: str, edge_n
 
     edge_details_file_path: str = get_edge_details_file_path(component, ara_id, kp_id, edge_num)
 
-    details: Optional[str] = OneHopTestHarness.get_details(test_run_id, edge_details_file_path)
+    details: Optional[Dict] = OneHopTestHarness.get_details(test_run_id, edge_details_file_path)
     if details is None:
-        details = f"Test details for edge in specified testing run are not (yet) available?"
+        details = {"status": "Test details for edge in specified testing run are not (yet) available?"}
 
     return TestRunEdgeDetails(
-        test_run_id=test_run_id,
-        component=component,
-        resource_id=resource_id,
-        edge_num=edge_num,
         details=details
     )
 

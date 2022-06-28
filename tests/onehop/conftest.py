@@ -5,6 +5,7 @@ from typing import Optional, Union, List, Set, Dict, Any
 from sys import stdout, stderr
 from os import path, walk, makedirs
 from collections import defaultdict
+from datetime import datetime
 
 from uuid import uuid4
 
@@ -21,7 +22,11 @@ from translator.registry import (
     get_the_registry_data,
     extract_component_test_metadata_from_registry
 )
-from translator.trapi import set_trapi_version, generate_edge_id
+from translator.trapi import (
+    set_trapi_version,
+    get_trapi_version,
+    generate_edge_id
+)
 
 from tests.onehop import util as oh_util
 from tests.onehop.util import (
@@ -54,6 +59,10 @@ def pytest_sessionfinish(session):
     session_results = get_session_results_dct(session)
 
     test_summary: Dict = dict()
+
+    current_time = datetime.now()
+    test_summary['timestamp'] = current_time.strftime("%d-%m-%Y, %H:%M:%S")
+
     case_details: Dict = dict()
 
     for unit_test_key, details in session_results.items():
@@ -99,7 +108,7 @@ def pytest_sessionfinish(session):
 
         ################################################
         # Print out unit details as separate files
-        # relative to TEST_RESULTS_DIR and test_run_id
+        # relative to TEST_RESULTS_DIR and 'test_run_id'
         ################################################
 
         if edge_details_file_path not in case_details:
@@ -280,6 +289,7 @@ def get_test_data_sources(source: str, component_type: str) -> Dict[str, Dict[st
 def load_test_data_source(
         source: str,
         metadata: Dict[str, Optional[str]],
+        trapi_version: Optional[str] = None,
         biolink_version: Optional[str] = None
 ) -> Optional[Dict]:
     """
@@ -287,6 +297,7 @@ def load_test_data_source(
 
     :param source: source string, URL if from "remote"; file path if local
     :param metadata: metadata associated with source
+    :param trapi_version: SemVer caller override of TRAPI release target for validation (Default: None)
     :param biolink_version: SemVer caller override of Biolink Model release target for validation (Default: None)
     :return: json test data with (some) metadata; 'None' if unavailable
     """
@@ -325,7 +336,10 @@ def load_test_data_source(
         metadata['api_name'] = api_name.replace(".json", "")
 
         # Possible CLI override of the metadata value of
-        # Biolink Model release used for data validation
+        # TRAPI and Biolink Model releases used for data validation
+        if trapi_version:
+            metadata['trapi_version'] = trapi_version
+
         if biolink_version:
             metadata['biolink_version'] = biolink_version
 
@@ -385,12 +399,13 @@ def get_kp_edge(resource_id: str, edge_idx: int) -> Optional[Dict[str, Any]]:
     return None
 
 
-def generate_trapi_kp_tests(metafunc, biolink_version):
+def generate_trapi_kp_tests(metafunc, trapi_version: str, biolink_version: str) -> List:
     """
     Generate set of TRAPI Knowledge Provider unit tests with test data edges.
 
-    :param metafunc
-    :param biolink_version
+    :param metafunc: Dict, diverse One Step Pytest metadata
+    :param trapi_version, str, TRAPI release set to be used in the validation
+    :param biolink_version, str, Biolink Model release set to be used in the validation
     """
     edges = []
     idlist = []
@@ -405,7 +420,7 @@ def generate_trapi_kp_tests(metafunc, biolink_version):
     for source, metadata in kp_metadata.items():
 
         # User CLI may override here the target Biolink Model version during KP test data preparation
-        kpjson = load_test_data_source(source, metadata, biolink_version)
+        kpjson = load_test_data_source(source, metadata, trapi_version, biolink_version)
 
         cache_resource_metadata(kpjson)
 
@@ -433,10 +448,6 @@ def generate_trapi_kp_tests(metafunc, biolink_version):
                 # sequence number, for later convenience
                 edge['idx'] = edge_i
 
-                # we track each test edge as belonging to a given user session
-                if test_run_id:
-                    edge['test_run_id'] = test_run_id
-
                 # We can already do some basic Biolink Model validation here of the
                 # S-P-O contents of the edge being input from the current triples file?
                 model_version, errors = \
@@ -449,9 +460,12 @@ def generate_trapi_kp_tests(metafunc, biolink_version):
                     edge['biolink_errors'] = model_version, errors
 
                 edge['location'] = kpjson['location']
-                edge['kp_api_name'] = kpjson['api_name']
 
                 edge['url'] = kpjson['url']
+
+                edge['kp_api_name'] = kpjson['api_name']
+
+                edge['trapi_version'] = kpjson['trapi_version']
                 edge['biolink_version'] = kpjson['biolink_version']
 
                 if 'infores' in kpjson:
@@ -534,13 +548,14 @@ def generate_trapi_kp_tests(metafunc, biolink_version):
 
 
 # Once the smartapi tests are up, we'll want to pass them in here as well
-def generate_trapi_ara_tests(metafunc, kp_edges, biolink_version):
+def generate_trapi_ara_tests(metafunc, kp_edges, trapi_version, biolink_version):
     """
     Generate set of TRAPI Autonomous Relay Agents (ARA) unit tests with KP test data edges.
 
-    :param metafunc
-    :param kp_edges
-    :param biolink_version
+    :param metafunc: Dict, diverse One Step Pytest metadata
+    :param kp_edges: List, list of knowledge provider test edges from knowledge providers associated
+    :param trapi_version, str, TRAPI release set to be used in the validation
+    :param biolink_version, str, Biolink Model release set to be used in the validation
     """
     kp_dict = defaultdict(list)
     for e in kp_edges:
@@ -556,7 +571,7 @@ def generate_trapi_ara_tests(metafunc, kp_edges, biolink_version):
     for source, metadata in ara_metadata.items():
 
         # User CLI may override here the target Biolink Model version during KP test data preparation
-        arajson = load_test_data_source(source, metadata, biolink_version)
+        arajson = load_test_data_source(source, metadata, trapi_version, biolink_version)
 
         cache_resource_metadata(arajson)
 
@@ -571,7 +586,11 @@ def generate_trapi_ara_tests(metafunc, kp_edges, biolink_version):
                 edge: dict = kp_edge.copy()
 
                 edge['url'] = arajson['url']
+
                 edge['ara_api_name'] = arajson['api_name']
+
+                edge['trapi_version'] = arajson['trapi_version']
+                edge['biolink_version'] = arajson['biolink_version']
 
                 if 'infores' in arajson:
                     edge['ara_source'] = f"infores:{arajson['infores']}"
@@ -618,7 +637,7 @@ def pytest_generate_tests(metafunc):
     # Bug or feature? The Biolink Model release may be overridden on the command line
     biolink_version = metafunc.config.getoption('Biolink_Version')
     logger.debug(f"pytest_generate_tests(): Biolink_Version == {biolink_version}")
-    trapi_kp_edges = generate_trapi_kp_tests(metafunc, biolink_version=biolink_version)
+    trapi_kp_edges = generate_trapi_kp_tests(metafunc, trapi_version=get_trapi_version(), biolink_version=biolink_version)
 
     if metafunc.definition.name == 'test_trapi_aras':
-        generate_trapi_ara_tests(metafunc, trapi_kp_edges, biolink_version=biolink_version)
+        generate_trapi_ara_tests(metafunc, trapi_kp_edges, trapi_version=get_trapi_version(), biolink_version=biolink_version)

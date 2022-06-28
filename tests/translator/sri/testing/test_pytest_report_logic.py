@@ -5,13 +5,13 @@ Note: the nature of these unit tests, even with sample data,
       means that they may take over five minutes to run each one.
 """
 from sys import stderr
-from typing import Optional
+from typing import Optional, Dict, List
 from time import sleep
 
-from json import loads
-
-from translator.sri.testing.report import OneHopTestHarness
-
+from translator.sri.testing.report import (
+    OneHopTestHarness,
+    get_edge_details_file_path
+)
 import logging
 logger = logging.getLogger()
 
@@ -33,7 +33,7 @@ def _report_outcome(
         if tries > MAX_TRIES:
             break
 
-        summary = OneHopTestHarness.get_summary(session_id)
+        summary: Optional[Dict] = OneHopTestHarness.get_summary(session_id)
 
         if summary:
             # got something back?!
@@ -48,17 +48,18 @@ def _report_outcome(
             break
 
     if expecting_report:
+
         assert summary, f"{test_name}() from {session_id} is missing an expected summary?"
         print(f"{test_name}() test run 'summary':{SPACER}{summary}{SPACER}", file=stderr)
 
-        # Hopefully, grab the first line as a valid sample unit test id?
-        test_list = loads(summary)
-        sample_unit_test_id = test_list[0]
-        details = OneHopTestHarness.get_details(session_id, sample_unit_test_id)
+        edge_details_file_path: str = get_edge_details_file_path("ARA", "Test_ARA", "Test_KP_2", "1")
+
+        details = OneHopTestHarness.get_details(session_id, edge_details_file_path)
+
         assert details, \
-            f"{test_name}() from {session_id} is missing an expected details for unit test '{sample_unit_test_id}'?"
+            f"{test_name}() from {session_id} is missing an expected details for unit test '{edge_details_file_path}'?"
         print(
-            f"{test_name}() test run 'details' for test '{sample_unit_test_id}':{SPACER}{details}{SPACER}",
+            f"{test_name}() test run 'details' for test '{edge_details_file_path}':{SPACER}{details}{SPACER}",
             file=stderr
         )
     else:

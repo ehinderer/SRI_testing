@@ -289,7 +289,7 @@ def execute_trapi_lookup(case, creator, rbag, test_report: TestReport):
     )
 
     # query use cases pertain to a particular TRAPI version
-    trapi_version = get_trapi_version()
+    trapi_version = case['trapi_version']  # get_trapi_version() - we now record TRAPI version within the 'case'
 
     test_report.test(
         is_valid_trapi(trapi_request, trapi_version=trapi_version),

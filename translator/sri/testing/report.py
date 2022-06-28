@@ -1,7 +1,11 @@
 """
 SRI Testing Report utility functions.
 """
+import json
+
 from os import makedirs
+from os.path import normpath
+
 from typing import Optional, Dict, Tuple
 
 import re
@@ -46,7 +50,6 @@ def parse_unit_test_name(unit_test_key: str) -> Tuple[str, str, str, int, str, s
     """
     Reformat (test run key) source identifier into a well-behaved test file name.
     :param unit_test_key: original full unit test label
-    :param status: test outcome (i.e. PASSED, FAILED, SKIPPED)
 
     :return: Tuple[ component, ara_id, kp_id, int(edge_num), test_id, edge_details_file_path]
     """
@@ -105,7 +108,7 @@ def unit_test_report_filepath(test_run_id: str, unit_test_file_path: str) -> str
     try:
         makedirs(f"{unit_test_dir_path}", exist_ok=True)
     except OSError as ose:
-        pass
+        logger.warning(f"unit_test_report_filepath() makedirs exception: {str(ose)}")
 
     unit_test_file_path = '/'.join(path_parts)
     unit_test_file_path = f"{unit_test_file_path}.json"
@@ -119,7 +122,9 @@ class TestRunReport:
         self._test_run_id = test_run_id
 
     def _output(self, report_type: str, report_file: str) -> Optional[str]:
-        report_file_path = f"test_results/{self._test_run_id}/{report_file}.json"
+
+        report_file_path = normpath(f"{ONEHOP_TEST_DIRECTORY}/test_results/{self._test_run_id}/{report_file}.json")
+
         report: Optional[str] = None
         try:
             with open(report_file_path, 'r') as report_file:
@@ -129,11 +134,19 @@ class TestRunReport:
 
         return report
 
-    def get_summary(self) -> Optional[str]:
-        return self._output(report_type="Summary", report_file="onehops_test_summary")
+    def get_summary(self) -> Optional[Dict]:
+        report: Optional[str] = self._output(report_type="Summary", report_file="test_summary")
+        summary: Optional[Dict] = None
+        if report:
+            summary = json.loads(report)
+        return summary
 
-    def get_details(self, edge_test_id: str) -> Optional[str]:
-        return self._output(report_type="Details", report_file=edge_test_id)
+    def get_details(self, edge_test_id: str) -> Optional[Dict]:
+        report = self._output(report_type="Details", report_file=edge_test_id)
+        details: Optional[Dict] = None
+        if report:
+            details = json.loads(report)
+        return details
 
 
 class OneHopTestHarness:
@@ -216,7 +229,7 @@ class OneHopTestHarness:
         self._test_run_id_2_testrun[test_run_id_string] = self
 
     @classmethod
-    def get_summary(cls, test_run_id: str) -> Optional[str]:
+    def get_summary(cls, test_run_id: str) -> Optional[Dict]:
         """
         Looks up the OneHopTestHarness for the specified 'test_run_id' then returns a summary report of unit tests.
 
@@ -229,7 +242,7 @@ class OneHopTestHarness:
         return TestRunReport(test_run_id).get_summary()
 
     @classmethod
-    def get_details(cls, test_run_id: str, edge_test_id: str) -> Optional[str]:
+    def get_details(cls, test_run_id: str, edge_test_id: str) -> Optional[Dict]:
         """
         Looks up the OneHopTestHarness for the specified 'test_run_id' then returns unit test details.
 
