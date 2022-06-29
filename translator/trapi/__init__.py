@@ -338,7 +338,7 @@ def execute_trapi_lookup(case, creator, rbag, test_report: TestReport):
     test_report.test(
         not errors,
         f"{error_msg_prefix} TRAPI response is not compliant to " +
-        f"Biolink Model release '{model_version}': {_output(errors)}?"
+        f"Biolink Model release '{model_version}': {_output(errors, flat=True)}?"
     )
 
     # Finally, check that the Results contained the object of the query

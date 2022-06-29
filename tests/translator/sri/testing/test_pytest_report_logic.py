@@ -10,7 +10,7 @@ from time import sleep
 
 from translator.sri.testing.report import (
     OneHopTestHarness,
-    get_edge_details_file_path
+    build_edge_details_file_path
 )
 import logging
 logger = logging.getLogger()
@@ -52,7 +52,7 @@ def _report_outcome(
         assert summary, f"{test_name}() from {session_id} is missing an expected summary?"
         print(f"{test_name}() test run 'summary':{SPACER}{summary}{SPACER}", file=stderr)
 
-        edge_details_file_path: str = get_edge_details_file_path("ARA", "Test_ARA", "Test_KP_2", "1")
+        edge_details_file_path: str = build_edge_details_file_path("ARA", "Test_ARA", "Test_KP_2", "1")
 
         details = OneHopTestHarness.get_details(session_id, edge_details_file_path)
 

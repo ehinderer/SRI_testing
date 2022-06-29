@@ -39,9 +39,9 @@ TEST_CASE_PATTERN = re.compile(
 )
 
 
-def get_edge_details_file_path(component: str, ara_id: Optional[str], kp_id: str, edge_num: str):
+def build_edge_details_file_path(component: str, ara_id: Optional[str], kp_id: str, edge_num: str):
     """
-    Returns the root file path to an edge details related file.
+    Returns the file path to an edge details related file.
 
     :param component:
     :param ara_id:
@@ -92,7 +92,7 @@ def parse_unit_test_name(unit_test_key: str) -> Tuple[str, str, str, int, str, s
                                 kp_id,
                                 int(edge_num),
                                 test_id,
-                                get_edge_details_file_path(component, ara_id, kp_id, edge_num)
+                                build_edge_details_file_path(component, ara_id, kp_id, edge_num)
                             )
 
     raise RuntimeError(f"parse_unit_test_name() '{unit_test_key}' has unknown format?")
@@ -124,95 +124,59 @@ def unit_test_report_filepath(test_run_id: str, unit_test_file_path: str) -> str
     return unit_test_file_path
 
 
-class TestRunReport:
+def _get_details_file_path(component: str, resource_id: str, edge_num: str) -> str:
+    """
+    Web-wrapped version of the translator.sri.testing.report.get_edge_details_file_path() method.
 
-    def __init__(self, test_run_id: str):
-        self._test_run_id = test_run_id
+    :param component:
+    :param resource_id:
+    :param edge_num:
+    :return:
+    """
+    rid_part: List[str] = resource_id.split("-")
+    if len(rid_part) > 1:
+        ara_id = rid_part[0]
+        kp_id = rid_part[1]
+    else:
+        ara_id = None
+        kp_id = rid_part[0]
 
-    def _absolute_report_file_path(self, report_file: str) -> str:
-        report_file_path = normpath(f"{ONEHOP_TEST_DIRECTORY}/test_results/{self._test_run_id}/{report_file}")
-        return report_file_path
+    edge_details_file_path: str = build_edge_details_file_path(component, ara_id, kp_id, edge_num)
 
-    def _get_details_file_path(self, component: str, resource_id: str, edge_num: str) -> str:
-        """
-        Web-wrapped version of the translator.sri.testing.report.get_edge_details_file_path() method.
+    return edge_details_file_path
 
-        :param component:
-        :param resource_id:
-        :param edge_num:
-        :return:
-        """
-        rid_part: List[str] = resource_id.split("-")
-        if len(rid_part) > 1:
-            ara_id = rid_part[0]
-            kp_id = rid_part[1]
-        else:
-            ara_id = None
-            kp_id = rid_part[0]
 
-        edge_details_file_path: str = self._absolute_report_file_path(
-            get_edge_details_file_path(component, ara_id, kp_id, edge_num)
-        )
+def _retrieve_document(report_type: str, report_file_path: str) -> Optional[str]:
 
-        return edge_details_file_path
-    
-    def _output(self, report_type: str, report_file: str) -> Optional[str]:
+    document: Optional[str] = None
+    try:
+        with open(report_file_path, 'r') as report_file:
+            document = report_file.read()
+    except OSError as ose:
+        logger.warning(f"{report_type} file '{report_file_path}' not (yet) accessible: {str(ose)}?")
 
-        report_file_path = self._absolute_report_file_path(report_file)
-
-        report: Optional[str] = None
-        try:
-            with open(report_file_path, 'r') as report_file:
-                report = report_file.read()
-        except OSError as ose:
-            logger.warning(f"{report_type} file '{report_file_path}' not (yet) accessible: {str(ose)}?")
-
-        return report
-
-    def get_summary(self) -> Optional[Dict]:
-        report: Optional[str] = self._output(report_type="Summary", report_file="test_summary.json")
-        summary: Optional[Dict] = None
-        if report:
-            summary = json.loads(report)
-        return summary
-
-    def get_details(self, component: str, resource_id: str, edge_num: str) -> Optional[Dict]:
-        edge_details_file_path: str = f"{self._get_details_file_path(component, resource_id, edge_num)}.json"
-        report = self._output(report_type="Details", report_file=edge_details_file_path)
-        details: Optional[Dict] = None
-        if report:
-            details = json.loads(report)
-        return details
-
-    def get_response_file_path(self, component, resource_id, edge_num, test_id) -> str:
-        response_file_path: str = \
-            f"{self._get_details_file_path(component, resource_id, edge_num)}-{test_id}-response.json"
-        return response_file_path
+    return document
 
 
 class OneHopTestHarness:
-    # Caching of processes indexed by test_run_id (UUID as string)
+
+    # Caching of processes, indexed by test_run_id (UUID as string)
     _test_run_id_2_testrun: Dict = dict()
 
-    def __init__(self, timeout: Optional[int] = DEFAULT_WORKER_TIMEOUT):
+    def __init__(self, uuid: Optional[str] = None, timeout: Optional[int] = DEFAULT_WORKER_TIMEOUT):
+        """
+        OneHopTestHarness constructor.
 
+        :param uuid: Optional[str], caller specified UUID urn, internally assigned if 'None'
+        :param timeout: Optional[int], worker process timeout in seconds (defaults to about 120 seconds
+        """
         # each test harness run has its own unique session identifier
-        self._test_run_id: UUID = uuid4()
+        self._test_run_id: UUID = uuid4() if uuid is None else UUID(f"urn:uuid:{uuid}")
 
+        # These will be set if and when the OneHopTestHarness is 'run'
         self._command_line: Optional[str] = None
         self._process: Optional[WorkerProcess] = None
-
-        # Deprecated internal variables
-        # self._result: Optional[str] = None
-        # self._report: Optional[SRITestReport] = None
-
         self._timeout: Optional[int] = timeout
-
-    def get_worker(self) -> Optional[WorkerProcess]:
-        return self._process
-
-    # def get_result(self) -> Optional[str]:
-    #     return self._result
 
     def get_test_run_id(self) -> Optional[str]:
         if self._test_run_id:
@@ -269,61 +233,81 @@ class OneHopTestHarness:
         self._process.run_command(self._command_line)
         self._test_run_id_2_testrun[test_run_id_string] = self
 
-    @classmethod
-    def get_summary(cls, test_run_id: str) -> Optional[Dict]:
+    def get_worker(self) -> Optional[WorkerProcess]:
+        return self._process
+
+    def _absolute_report_file_path(self, report_file_path: str) -> str:
+        absolute_file_path = normpath(f"{ONEHOP_TEST_DIRECTORY}/test_results/{self._test_run_id}/{report_file_path}")
+        return absolute_file_path
+
+    def get_summary(self) -> Optional[Dict]:
         """
-        Looks up the OneHopTestHarness for the specified 'test_run_id' then returns a summary report of unit tests.
+        If available, returns a test result summary for the most recent OneHopTestHarness run.
 
-        :param test_run_id: str, UUID test_run_id of the OneHopTestHarness running the test
-
-        :return: Optional[str], JSON indexed summary of available SRI Testing unit test results
+        :return: Optional[str], JSON structured document summary of unit test results. 'None' if not (yet) available.
         """
-        assert test_run_id, "Null or empty Test Run Identifier?"
+        report_file_path = self._absolute_report_file_path("test_summary.json")
 
-        return TestRunReport(test_run_id).get_summary()
+        document: Optional[str] = _retrieve_document(report_type="Summary", report_file_path=report_file_path)
 
-    @classmethod
-    def get_details(cls, test_run_id: str, component: str, resource_id: str, edge_num: str) -> Optional[Dict]:
+        summary: Optional[Dict] = None
+        if document:
+            summary = json.loads(document)
+
+        return summary
+
+    def get_details(
+            self,
+            component: str,
+            resource_id: str,
+            edge_num: str,
+    ) -> Optional[Dict]:
         """
-        Looks up the OneHopTestHarness for the specified 'test_run_id' then returns unit test details.
+        Returns test result details for given resource component and edge identities.
 
-        :param test_run_id: str, UUID test_run_id of the OneHopTestHarness running the test
-        :param test_run_id: test run identifier (as returned by /run_tests endpoint)
-        :param component: Translator component being tested: 'ARA' or 'KP'
-        :param resource_id: identifier of the resource being tested (may be single KP identifier (i.e. 'Some_KP') or a
-                            hyphen-delimited 2-Tuple composed of an ARA and an associated KP identifier
+        :param component: str, Translator component being tested: 'ARA' or 'KP'
+        :param resource_id: str, identifier of the resource being tested (may be single KP identifier (i.e. 'Some_KP')
+                            or a hyphen-delimited 2-Tuple composed of an ARA and an associated KP identifier
                             (i.e. 'Some_ARA-Some_KP') as found in the JSON hierarchy of the test run summary.
-        :param edge_num: target input 'edge_num' edge number, as found in edge leaf nodes of the JSON test run summary.
+        :param edge_num: str, target input 'edge_num' edge number, as indexed as an edge of the JSON test run summary.
 
-        :return: Optional[str], structured JSON report from the OneHops testing of target KPs & ARAs,
-                 or an exceptional error message, or None (if the details are not (yet) available)
+        :return: Optional[Dict], JSON structured document of test details for a specified test edge of a
+                                 KP or ARA resource, or 'None' if the details are not (yet) available.
         """
-        assert test_run_id, "Null or empty Session Identifier?"
-        assert component, "Null or empty Translator Component?"
-        assert resource_id, "Null or empty Resource Identifier?"
-        assert edge_num, "Null or empty Edge Number?"
+        edge_details_file_path: str = _get_details_file_path(component, resource_id, edge_num)
 
-        return TestRunReport(test_run_id).get_details(component, resource_id, edge_num)
+        report_file_path = self._absolute_report_file_path(f"{edge_details_file_path}.json")
 
-    @classmethod
-    def get_response(cls, test_run_id: str, edge_test_id: str, test_id: str) -> Optional[Dict]:
+        document: Optional[str] = _retrieve_document(report_type="Details", report_file_path=report_file_path)
+
+        details: Optional[Dict] = None
+        if document:
+            details = json.loads(document)
+
+        return details
+
+    def get_response_file_path(
+            self,
+            component: str,
+            resource_id: str,
+            edge_num: str,
+            test_id: str,
+    ) -> str:
         """
-        Looks up the OneHopTestHarness for the specified 'test_run_id' then returns unit test details.
+        Returns the TRAPI Response file path for given resource component, edge and unit test identities.
 
-        :param test_run_id: str, UUID test_run_id of the OneHopTestHarness running the test
-        :param edge_test_id: str, identifier of edge for which unit test details are requested,
-                                  which is a path something like '(ARA|KP)/({ara_id}/)?{kp_id}/{edge_num}'
+        :param component: str, Translator component being tested: 'ARA' or 'KP'
+        :param resource_id: str, identifier of the resource being tested (may be single KP identifier (i.e. 'Some_KP')
+                                 or a hyphen-delimited 2-Tuple composed of an ARA and an associated KP identifier
+                            (i.e. 'Some_ARA-Some_KP') as found in the JSON hierarchy of the test run summary.
+        :param edge_num: str, target input 'edge_num' edge number, as indexed as an edge of the JSON test run summary.
         :param test_id: str, target unit test identifier, one of the values noted in the
-                         edge leaf nodes of the JSON test run summary (e.g. 'by_subject', etc.).
+                             edge leaf nodes of the JSON test run summary (e.g. 'by_subject', etc.).
 
-        :return: Optional[str], structured JSON report from the OneHops testing of target KPs & ARAs,
-                 or an exceptional error message, or None (if the details are not (yet) available)
+        :return: str, TRAPI Response text data file path (generated, but not tested here for file existence)
         """
-        assert test_run_id, "Null or empty Test Run Identifier?"
-        assert edge_test_id, "Null or empty Edge Test Identifier?"
+        edge_details_file_path: str = _get_details_file_path(component, resource_id, edge_num)
 
-        return TestRunReport(test_run_id).get_details(edge_test_id)
+        response_file_path = self._absolute_report_file_path(f"{edge_details_file_path}-{test_id}-response.json")
 
-    @classmethod
-    def get_response_file_path(cls, test_run_id, component, resource_id, edge_num, test_id) -> str:
-        return TestRunReport(test_run_id).get_response_file_path(component, resource_id, edge_num, test_id)
+        return response_file_path

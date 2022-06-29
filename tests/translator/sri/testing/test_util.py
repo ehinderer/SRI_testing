@@ -7,7 +7,7 @@ import shutil
 from translator.sri.testing.report import (
     unit_test_report_filepath,
     parse_unit_test_name,
-    get_edge_details_file_path
+    build_edge_details_file_path
 )
 
 
@@ -31,7 +31,7 @@ from translator.sri.testing.report import (
     ]
 )
 def test_get_edge_details_file_path(query):
-    edge_details_file_path = get_edge_details_file_path(
+    edge_details_file_path = build_edge_details_file_path(
         component=query[0], ara_id=query[1], kp_id=query[2], edge_num=query[3]
     )
     assert edge_details_file_path == query[4]
