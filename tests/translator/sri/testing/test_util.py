@@ -78,13 +78,13 @@ def test_clean_up_unit_test_filename(query):
             "d6098879-d791-4c77-a300-f60d95f48ee1",
             "KP/Test_KP_1/Test_KP_1-2",
             "test_results/d6098879-d791-4c77-a300-f60d95f48ee1" +
-            "/KP/Test_KP_1/Test_KP_1-2.json"
+            "/KP/Test_KP_1/Test_KP_1-2"
         ),
     (
             "d6098879-d791-4c77-a300-f60d95f48ee1",
             "ARA/Test_ARA/Test_KP_1/Test_KP_1-3",
             "test_results/d6098879-d791-4c77-a300-f60d95f48ee1" +
-            "/ARA/Test_ARA/Test_KP_1/Test_KP_1-3.json"
+            "/ARA/Test_ARA/Test_KP_1/Test_KP_1-3"
         )
     ]
 )

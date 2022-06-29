@@ -64,6 +64,7 @@ def pytest_sessionfinish(session):
     test_summary['timestamp'] = current_time.strftime("%d-%m-%Y, %H:%M:%S")
 
     case_details: Dict = dict()
+    case_response: Dict = dict()
 
     for unit_test_key, details in session_results.items():
 
@@ -116,6 +117,7 @@ def pytest_sessionfinish(session):
             # TODO: this is a bit memory intensive...
             #      may need another strategy for capturing details
             case_details[edge_details_file_path] = dict()
+            case_response[edge_details_file_path] = dict()
 
             if 'case' in rb and 'case' not in case_details[edge_details_file_path]:
                 case_details[edge_details_file_path] = rb['case']
@@ -145,8 +147,13 @@ def pytest_sessionfinish(session):
                 test_details['request'] = "No 'request' generated for this unit test?"
 
             if 'response' in rb:
-                test_details['http_status_code'] = rb["response"]["status_code"]
-                test_details['response'] = rb['response']['response_json']
+
+                if test_id not in case_response[edge_details_file_path]:
+                    case_response[edge_details_file_path][test_id] = dict()
+
+                case_response[edge_details_file_path][test_id]['http_status_code'] = rb["response"]["status_code"]
+                case_response[edge_details_file_path][test_id]['response'] = rb['response']['response_json']
+
             else:
                 test_details['response'] = "No 'response' generated for this unit test?"
 
@@ -157,9 +164,15 @@ def pytest_sessionfinish(session):
             test_run_id=test_run_id,
             unit_test_file_path=edge_details_file_path
         )
-        with open(test_details_file_path, 'w') as details_file:
+
+        with open(f"{test_details_file_path}.json", 'w') as details_file:
             test_details = case_details[edge_details_file_path]
             json.dump(test_details, details_file, indent=4)
+
+        for test_id in case_response[edge_details_file_path]:
+            with open(f"{test_details_file_path}-{test_id}-response.json", 'w') as response_file:
+                response: Dict = case_response[edge_details_file_path][test_id]
+                json.dump(response, response_file, indent=4)
 
     # Write out the whole List[str] of unit test identifiers, into one JSON summary file
     summary_filepath = f"{test_run_root_path}/test_summary.json"
