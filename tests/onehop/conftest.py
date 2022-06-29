@@ -100,8 +100,8 @@ def pytest_sessionfinish(session):
         while edge_num >= len(case_summary):
             case_summary.append(dict())
 
-        if 'edge_num' not in case_summary[edge_num]:
-            case_summary[edge_num]['edge_num'] = edge_num
+        if 'idx' not in case_summary[edge_num]:
+            case_summary[edge_num]['idx'] = edge_num
 
         if test_id not in case_summary[edge_num]:
             # Top level summary reporting 'PASSED, FAILED, SKIPPED' for each unit test
@@ -151,6 +151,7 @@ def pytest_sessionfinish(session):
                 if test_id not in case_response[edge_details_file_path]:
                     case_response[edge_details_file_path][test_id] = dict()
 
+                case_response[edge_details_file_path][test_id]['unit_test_key'] = unit_test_key
                 case_response[edge_details_file_path][test_id]['http_status_code'] = rb["response"]["status_code"]
                 case_response[edge_details_file_path][test_id]['response'] = rb['response']['response_json']
 

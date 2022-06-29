@@ -8,7 +8,7 @@ from pydantic import BaseModel
 import uvicorn
 
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import FileResponse
+from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 
 from reasoner_validator.util import latest
@@ -219,6 +219,11 @@ async def get_details(test_run_id: str, component: str, resource_id: str, edge_n
         )
 
 
+def _streamed_file(file_path: str):
+    with open(file_path, mode="rb") as datafile:
+        yield from datafile
+
+
 @app.get(
     "/response/{test_run_id}/{component}/{resource_id}/{edge_num}/{test_id}",
     summary="Retrieve the TRAPI response JSON message for a specified SRI Testing unit test of a given input edge."
@@ -229,7 +234,7 @@ async def get_response(
         resource_id: str,
         edge_num: str,
         test_id: str
-) -> FileResponse:
+) -> StreamingResponse:
     """
     Return full TRAPI response message in a downloadable text file, if available, for a specified unit test of
     an edge, as identified test run defined by the following query path parameters:
@@ -251,7 +256,7 @@ async def get_response(
     :param test_id: str, target unit test identifier, one of the values noted in the
                          edge leaf nodes of the JSON test run summary (e.g. 'by_subject', etc.).
 
-    :return: FileResponse, downloadable text file of TRAPI response
+    :return: StreamingResponse, downloadable text file of TRAPI response
 
     :raise: HTTPException(404) if the requested TRAPI response JSON text data file is not (yet?) available.
     """
@@ -271,7 +276,8 @@ async def get_response(
     )
 
     try:
-        return FileResponse(path=response_file_path)
+        # formerly used FileResponse(path=response_file_path)
+        return StreamingResponse(_streamed_file(response_file_path), media_type="application/json")
     except RuntimeError:
         raise HTTPException(
             status_code=404,
