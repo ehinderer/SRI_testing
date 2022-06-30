@@ -267,8 +267,8 @@ async def get_response(
         test_id: str
 ) -> StreamingResponse:
     """
-    Return full TRAPI response message in a downloadable text file, if available, for a specified unit test of
-    an edge, as identified test run defined by the following query path parameters:
+    Return full TRAPI response message as a streamed downloadable text file, if available, for a specified unit test
+    of an edge, as identified test run defined by the following query path parameters:
 
     - **component**: Translator component being tested: 'ARA' or 'KP'
     - **resource_id**: identifier of the resource being tested (may be single KP identifier (i.e. 'Some_KP') or a

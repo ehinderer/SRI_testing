@@ -40,6 +40,8 @@ Go to  http://localhost/docs to see the service documentation and to use the sim
 
 The Reasoner Validator web service may be run inside a docker container, using Docker Compose.
 
+Assuming that you have installed both [Docker](https://docs.docker.com/get-docker/) and [Docker-Compose](https://docs.docker.com/compose/install/), then the following commands may be run:
+
 First, from the root directory of the project, build the local docker container
 
 ```shell
@@ -52,12 +54,16 @@ Then, run the service using **Docker Compose**:
 docker-compose up -d
 ```
 
-Once again, go to  http://localhost/docs to see the service documentation.
+Once again, go to  http://localhost/docs to see the service documentation.  Docker logs may be viewed in a streaming fashion by:
 
-To stop the service:
+```shell
+docker-compose logs -f
+```
+
+To stop the docker container web service:
 
 ```shell
 docker-compose down
 ```
 
-Of course, the above `docker-compose` commands may be customized by the user to suit their needs. Note that the docker implementation assumes the use of uvicorn (installed as a dependency).
+Of course, the above `docker-compose` commands may be overridden by the user to suit their needs. Note that the docker implementation assumes the use of uvicorn (installed as a dependency).
