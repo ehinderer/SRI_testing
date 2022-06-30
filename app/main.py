@@ -2,14 +2,20 @@
 FastAPI web service wrapper for SRI Testing harness
 (i.e. for reports to a Translator Runtime Status Dashboard)
 """
-from typing import Optional, Union, List, Dict
+from typing import Optional, Dict
 from pydantic import BaseModel
 
 import uvicorn
-from fastapi import FastAPI
+
+from fastapi import FastAPI, HTTPException
+from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
+
 from reasoner_validator.util import latest
-from app.util import OneHopTestHarness, DEFAULT_WORKER_TIMEOUT, SRITestReport
+from translator.sri.testing.report import (
+    OneHopTestHarness,
+    DEFAULT_WORKER_TIMEOUT
+)
 
 app = FastAPI()
 
@@ -23,6 +29,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
 #
 # We don't instantiate the full TRAPI models here but
 # just use an open-ended dictionary which should have
@@ -72,44 +80,240 @@ class TestRunParameters(BaseModel):
     log: Optional[str] = None
 
 
-@app.post("/run_tests")
-async def run_tests(test_parameters: TestRunParameters) -> Dict:
+class TestRunSession(BaseModel):
 
+    test_run_id: str
+
+    # TODO: user specified TRAPI version...
+    #       we should somehow try to report the
+    #       actual version used by the system
+    # "trapi_version": trapi_version,
+
+    # TODO: user specified Biolink Model version...
+    #       we should somehow try to report the
+    #       actual version used by the system
+    # "biolink_version": biolink_version
+
+
+@app.post(
+    "/run_tests",
+    response_model=TestRunSession,
+    summary="Initiate an SRI Testing Run"
+)
+async def run_tests(test_parameters: TestRunParameters) -> TestRunSession:
+    """
+    Initiate an SRI Testing Run with TestRunParameters:
+
+    - **trapi_version**: Optional[str]
+    - **biolink_version**: Optional[str]
+    - **timeout**: Optional[int]
+    - **log**: Optional[str]
+    \f
+    :param test_parameters:
+    :return: TestRunSession (just 'test_run_id' for now)
+    """
     trapi_version: Optional[str] = latest.get(test_parameters.trapi_version) if test_parameters.trapi_version else None
     biolink_version: Optional[str] = test_parameters.biolink_version
     log: Optional[str] = test_parameters.log
 
-    testrun = OneHopTestHarness(test_parameters.timeout)
-    session_id: str = testrun.run(
+    test_harness = OneHopTestHarness(timeout=test_parameters.timeout)
+
+    test_harness.run(
         trapi_version=trapi_version,
         biolink_version=biolink_version,
         log=log
     )
 
-    return {
-        "session_id": session_id,
-
-        # TODO: user specified TRAPI version...
-        #       we should somehow try to report the
-        #       actual version used by the system
-        # "trapi_version": trapi_version,
-
-        # TODO: user specified Biolink Model version...
-        #       we should somehow try to report the
-        #       actual version used by the system
-        # "biolink_version": biolink_version,
-    }
+    return TestRunSession(test_run_id=test_harness.get_test_run_id())
 
 
-@app.get("/report/{session_id}")
-async def get_report(session_id: str):
-    report: Optional[Union[str, SRITestReport]] = OneHopTestHarness.get_report(session_id)
-    if report is None:
-        report = f"Report not yet available?"
-    return {
-        "session_id": session_id,
-        "report": report
-    }
+class TestRunStatus(BaseModel):
+    test_run_id: str
+    percent_complete: int
+
+
+@app.get(
+    "/status/{test_run_id}",
+    response_model=TestRunStatus,
+    summary="Retrieve the summary of a specified SRI Testing run."
+)
+async def get_status(test_run_id: str) -> TestRunStatus:
+    """
+    Returns the percentage completion status of the current OneHopTestHarness test run.
+
+    \f
+    :param test_run_id: test_run_id: test run identifier (as returned by /run_tests endpoint).
+
+    :return: TestRunStatus, with fields 'test_run_id' and 'percent_complete', the latter being
+                             an integer 0..100 indicating the percentage completion of the test run.
+    """
+    assert test_run_id, "Null or empty Test Run Identifier?"
+
+    percent_complete: int = OneHopTestHarness(uuid=test_run_id).get_status()
+
+    return TestRunStatus(
+            test_run_id=test_run_id,
+            percent_complete=percent_complete
+    )
+
+
+class TestRunSummary(BaseModel):
+    test_run_id: str
+    summary: Dict
+
+
+@app.get(
+    "/summary/{test_run_id}",
+    response_model=TestRunSummary,
+    summary="Retrieve the summary of a completed specified OneHopTestHarness test run."
+)
+async def get_summary(test_run_id: str) -> TestRunSummary:
+    """
+    Returns a JSON summary report of results for a completed **test_run_id**-identified OneHopTestHarness test run.
+
+    \f
+    :param test_run_id: test_run_id: test run identifier (as returned by /run_tests endpoint).
+
+    :return: TestRunSummary, with fields 'test_run_id' and 'summary', the latter being a
+                             JSON document summary of available unit test results.
+    :raises: HTTPException(404) if the summary is not (yet?) available.
+    """
+    assert test_run_id, "Null or empty Test Run Identifier?"
+
+    summary: Optional[Dict] = OneHopTestHarness(uuid=test_run_id).get_summary()
+
+    if summary is not None:
+        return TestRunSummary(
+            test_run_id=test_run_id,
+            summary=summary
+        )
+    else:
+        raise HTTPException(status_code=404, detail=f"Summary for test run '{test_run_id}' is not (yet) available?")
+
+
+class TestRunEdgeDetails(BaseModel):
+    details: Dict
+
+
+@app.get(
+    "/details/{test_run_id}/{component}/{resource_id}/{edge_num}",
+    response_model=TestRunEdgeDetails,
+    summary="Retrieve the test result details for a specified SRI Testing Run input edge."
+)
+async def get_details(test_run_id: str, component: str, resource_id: str, edge_num: str) -> TestRunEdgeDetails:
+    """
+    Return edge details for a specified unit test in an
+     identified test run defined by the following query path parameters:
+
+    - **component**: Translator component being tested: 'ARA' or 'KP'.
+    - **resource_id**: identifier of the resource being tested, may be single KP identifier (i.e. 'Some_KP')
+                       or a hyphen-delimited 2-Tuple composed of an ARA and an associated KP identifier
+                       (i.e. 'Some_ARA-Some_KP') as found in the JSON hierarchy of the test run summary.
+    - **edge_num**: target input 'edge_num' edge number, as found in edge leaf nodes of the JSON test run summary.
+
+    \f
+    :param test_run_id: test run identifier (as returned by /run_tests endpoint).
+    :param component: Translator component being tested: 'ARA' or 'KP'.
+    :param resource_id: identifier of the resource being tested (may be single KP identifier (i.e. 'Some_KP') or a
+                        hyphen-delimited 2-Tuple composed of an ARA and an associated KP identifier
+                        (i.e. 'Some_ARA-Some_KP') as found in the JSON hierarchy of the test run summary.
+    :param edge_num: target input 'edge_num' edge number, as found in edge leaf nodes of the JSON test run summary.
+
+    :return: TestRunEdgeDetails, echoing input parameters alongside the requested 'details', the latter which is a
+                                 details JSON document for the specified unit test.
+
+    :raises: HTTPException(404) if the requested edge unit test details are not (yet?) available.
+    """
+    assert test_run_id, "Null or empty Test Run Identifier?"
+    assert component, "Null or empty Translator Component?"
+    assert resource_id, "Null or empty Resource Identifier?"
+    assert edge_num, "Null or empty Edge Number?"
+
+    details: Optional[Dict] = OneHopTestHarness(
+        uuid=test_run_id
+    ).get_details(
+        component=component,
+        resource_id=resource_id,
+        edge_num=edge_num
+    )
+
+    if details is not None:
+        return TestRunEdgeDetails(
+            details=details
+        )
+    else:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Details for edge {edge_num} of {component} '{resource_id}', " +
+                   f"from test run '{test_run_id}', are not (yet) available?"
+        )
+
+
+def _streamed_file(file_path: str):
+    with open(file_path, mode="rb") as datafile:
+        yield from datafile
+
+
+@app.get(
+    "/response/{test_run_id}/{component}/{resource_id}/{edge_num}/{test_id}",
+    summary="Retrieve the TRAPI response JSON message for a specified SRI Testing unit test of a given input edge."
+)
+async def get_response(
+        test_run_id: str,
+        component: str,
+        resource_id: str,
+        edge_num: str,
+        test_id: str
+) -> StreamingResponse:
+    """
+    Return full TRAPI response message in a downloadable text file, if available, for a specified unit test of
+    an edge, as identified test run defined by the following query path parameters:
+
+    - **component**: Translator component being tested: 'ARA' or 'KP'
+    - **resource_id**: identifier of the resource being tested (may be single KP identifier (i.e. 'Some_KP') or a
+                        hyphen-delimited 2-Tuple composed of an ARA and an associated KP identifier
+                        (i.e. 'Some_ARA-Some_KP') as found in the JSON hierarchy of the test run summary.
+    - **edge_num**: target input 'edge_num' edge number, as found in edge leaf nodes of the JSON test run summary.
+    - **test_id**: target unit test identifier, one of the values noted in the edge leaf nodes of the test run summary.
+
+    \f
+    :param test_run_id: str, test run identifier (as returned by /run_tests endpoint)
+    :param component: str, Translator component being tested: 'ARA' or 'KP'
+    :param resource_id: str, identifier of the resource being tested (may be single KP identifier (i.e. 'Some_KP') or a
+                        hyphen-delimited 2-Tuple composed of an ARA and an associated KP identifier
+                        (i.e. 'Some_ARA-Some_KP') as found in the JSON hierarchy of the test run summary.
+    :param edge_num: str, target input 'edge_num' edge number, as found in edge leaf nodes of the JSON test run summary.
+    :param test_id: str, target unit test identifier, one of the values noted in the
+                         edge leaf nodes of the JSON test run summary (e.g. 'by_subject', etc.).
+
+    :return: StreamingResponse, downloadable text file of TRAPI response
+
+    :raise: HTTPException(404) if the requested TRAPI response JSON text data file is not (yet?) available.
+    """
+    assert test_run_id, "Null or empty Test Run Identifier?"
+    assert component, "Null or empty Translator Component?"
+    assert resource_id, "Null or empty Resource Identifier?"
+    assert edge_num, "Null or empty Edge Number?"
+    assert test_id, "Null or empty Unit Test Identifier?"
+
+    response_file_path: str = OneHopTestHarness(
+        uuid=test_run_id
+    ).get_response_file_path(
+        component=component,
+        resource_id=resource_id,
+        edge_num=edge_num,
+        test_id=test_id
+    )
+
+    try:
+        # formerly used FileResponse(path=response_file_path)
+        return StreamingResponse(_streamed_file(response_file_path), media_type="application/json")
+    except RuntimeError:
+        raise HTTPException(
+            status_code=404,
+            detail=f"TRAPI Response JSON text file for unit test {test_id} for edge {edge_num} of "
+                   f"{component} '{resource_id}', from test run '{test_run_id}', is not (yet) available?"
+        )
 
 
 if __name__ == "__main__":

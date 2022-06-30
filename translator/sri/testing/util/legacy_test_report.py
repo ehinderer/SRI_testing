@@ -1,29 +1,16 @@
 """
-Utility module to support SRI Testing web service.
-
-The module launches the SRT Testing test harness using the Python 'multiprocessor' library.
-See https://docs.python.org/3/library/multiprocessing.html?highlight=multiprocessing for details.
+** Deprecated **
+PyTest parsing version of SRITestReport is a
+multi-level indexed Edge dictionary of
+captured error messages, plus an error summary.
 """
 from typing import Optional, Union, List, Dict, Tuple
-# from sys import stderr
-from os import path
-import time
-from uuid import UUID
-from json import dump
 import re
 
-from tests import TEST_RESULT_DIR
 from tests.onehop.conftest import get_kp_edge, get_component_by_resource
-from translator.sri.testing.processor import CMD_DELIMITER, WorkerProcess, WorkerProcessException
-from tests.onehop import ONEHOP_TEST_DIRECTORY
 
 import logging
 logger = logging.getLogger()
-
-#
-# Application-specific parameters
-#
-DEFAULT_WORKER_TIMEOUT = 120  # 2 minutes for small PyTests?
 
 SUMMARY_ENTRY_TAGS: List = ["FAILED", "PASSED", "SKIPPED"]
 
@@ -50,18 +37,12 @@ PERCENTAGE_COMPLETION_SUFFIX_PATTERN = re.compile(r"(\[\s*(?P<percent_complete>\
 
 PYTEST_SUMMARY_PATTERN = re.compile(
     r"^=+(\s(?P<failed>\d+)\sfailed,?)?(\s(?P<passed>\d+)\spassed,?)?"
-    r"(\s(?P<skipped>\d+)\sskipped,?)?(\s(?P<warning>\d+)\swarning)?\sin\s[0-9.]+.+$"
+    r"(\s(?P<skipped>\d+)\sskipped,?)?(\s(?P<warning>\d+)\swarning)?\sin\s[\d.]+.+$"
 )
 
 TEST_CASE_IDENTIFIER_PATTERN = re.compile(
     r"^(?P<resource_id>[^#]+)(#(?P<edge_num>\d+))?(-(?P<test_id>.+))?$"
 )
-
-
-"""
-TestReport is a multi-level indexed EdgeTestReport
-dictionary of captured error messages, plus an error summary.
-"""
 
 
 # Edge entry from a resource's test data,
@@ -86,7 +67,7 @@ class EdgeEntry:
                 # For simple text Edge metadata, the value here is a string from the
                 # original contents of the given Edge record from the input data file
                 str,
-                # if the above 'field name' is 'tests' then a 
+                # if the above 'field name' is 'tests' then a
                 # dictionary of test results (i.e. error messages)
                 # is provided here, indexed by unit test identifiers (e.g. by_subject)
                 # or by the generic 'input' designation of error source.
@@ -95,7 +76,7 @@ class EdgeEntry:
                     # or the generic pretest 'input' validation tag
                     str,
                     Dict[
-                        # error dictionary keys are in 
+                        # error dictionary keys are in
                         # ["PASSED", "FAILED", "SKIPPED"]
                         str,
                         # List of error messages (or empty list, if simply 'PASSED')
@@ -132,13 +113,13 @@ class EdgeEntry:
         edge_entry: Optional[EdgeEntry]
         if edge:
             edge_entry = EdgeEntry(
-                            idx=edge['idx'],  # actually, should be identical to edge_i
-                            subject_category=edge['subject_category'],
-                            object_category=edge['object_category'],
-                            predicate=edge['predicate'],
-                            subject_id=edge['subject_id'],
-                            object_id=edge['object_id']
-                        )
+                idx=edge['idx'],  # actually, should be identical to edge_i
+                subject_category=edge['subject_category'],
+                object_category=edge['object_category'],
+                predicate=edge['predicate'],
+                subject_id=edge['subject_id'],
+                object_id=edge['object_id']
+            )
         else:
             # TODO: this is a hack... probably shouldn't ever
             #       happen... except during unit testing, LOL
@@ -155,11 +136,11 @@ class EdgeEntry:
 
 
 class ResourceEntry:
-    
+
     def __init__(self, component: str, resource_id: str):
         assert component in ["KP", "ARA"]
         self.component: str = component
-        
+
         self.resource_id: str = resource_id
 
         # Ordered list of test data Edge entries with test reports,
@@ -211,7 +192,7 @@ class SRITestReport:
 
         self.report: Dict[
             # 1st level dictionary key is in ["KP", "ARA", "SUMMARY"]
-            str,  
+            str,
             Dict[  # Translator "component"  or report summary entry
                 # if dictionary key == "SUMMARY", then
                 #    2nd level dictionary keys are in ["PASSED", "FAILED", "SKIPPED"]
@@ -244,7 +225,7 @@ class SRITestReport:
         assert component and component in ["KP", "ARA"]
         if component not in self.report:
             self.report[component] = dict()
-            
+
         # Identifier of the Resource being tested (of the KP or ARA),
         # either the test_data_location URL, or a local test file name
         if resource_id not in self.report[component]:
@@ -252,7 +233,7 @@ class SRITestReport:
             # numerically index by their order of appearance
             # in the input data file being tested
             self.report[component][resource_id] = ResourceEntry(component, resource_id)
-            
+
         return self.report[component][resource_id]
 
     @staticmethod
@@ -511,150 +492,3 @@ class SRITestReport:
                         resource_entry: ResourceEntry = \
                             self.get_resource_entry(current_component, current_resource_id)
                         resource_entry.add_test_result(current_edge_number, current_test_id, current_outcome, line)
-
-
-class OneHopTestHarness:
-
-    # Caching of processes indexed by session_id (UUID as string)
-    _session_id_2_testrun: Dict = dict()
-    
-    def __init__(self, timeout: Optional[int] = DEFAULT_WORKER_TIMEOUT):
-        self._command_line: Optional[str] = None
-        self._process: Optional[WorkerProcess] = None
-        self._session_id: Optional[UUID] = None
-        self._result: Optional[str] = None
-        self._report: Optional[SRITestReport] = None
-        self._timeout: Optional[int] = timeout
-
-    def get_worker(self) -> Optional[WorkerProcess]:
-        return self._process
-
-    def get_result(self) -> Optional[str]:
-        return self._result
-
-    def get_session_id(self) -> Optional[str]:
-        if self._session_id:
-            return str(self._session_id)
-        else:
-            return None
-
-    def run(
-            self,
-            trapi_version: Optional[str] = None,
-            biolink_version: Optional[str] = None,
-            triple_source: Optional[str] = None,
-            ara_source:  Optional[str] = None,
-            one: bool = False,
-            log: Optional[str] = None
-    ) -> Optional[str]:
-        """
-        Run the SRT Testing test harness as a worker process.
-
-        :param trapi_version: Optional[str], TRAPI version assumed for test run (default: None)
-
-        :param biolink_version: Optional[str], Biolink Model version used in test run (default: None)
-
-        :param triple_source: Optional[str], 'REGISTRY', directory or file from which to retrieve triples
-                                             (Default: 'REGISTRY', which triggers the use of metadata, in KP entries
-                                              from the Translator SmartAPI Registry, to configure the tests).
-
-        :param ara_source: Optional[str], 'REGISTRY', directory or file from which to retrieve ARA Config.
-                                             (Default: 'REGISTRY', which triggers the use of metadata, in ARA entries
-                                             from the Translator SmartAPI Registry, to configure the tests).
-
-        :param one: bool, Only use first edge from each KP file (default: False if omitted).
-
-        :param log: Optional[str], desired Python logger level label (default: None, implying default logger)
-
-        :return: str, UUID session identifier for this testing run
-        """
-        session_id_string: Optional[str]
-
-        if self._session_id:
-            # Enforcing idempotency:
-            # this OneHopTestHarness run is already initialized
-            session_id_string = self.get_session_id()
-            if session_id_string in self._session_id_2_testrun:
-                logger.warning(
-                    "This OneHopTestHarness test run is already running! " +
-                    f"Try accessing the report with UUID '{session_id_string}'")
-            else:
-                logger.error(f"This OneHopTestHarness test run has an unmapped or expired UUID '{session_id_string}'")
-        else:
-            self._command_line = f"cd {ONEHOP_TEST_DIRECTORY} {CMD_DELIMITER} " + \
-                                 f"pytest --tb=line -vv"
-            self._command_line += f" --log-cli-level={log}" if log else ""
-            self._command_line += f" test_onehops.py"
-            self._command_line += f" --TRAPI_Version={trapi_version}" if trapi_version else ""
-            self._command_line += f" --Biolink_Version={biolink_version}" if biolink_version else ""
-            self._command_line += f" --triple_source={triple_source}" if triple_source else ""
-            self._command_line += f" --ARA_source={ara_source}" if ara_source else ""
-            self._command_line += " --one" if one else ""
-
-            logger.debug(f"OneHopTestHarness.run() command line: {self._command_line}")
-            self._process = WorkerProcess(self._timeout)
-            self._session_id = self._process.run_command(self._command_line)
-
-            session_id_string = self.get_session_id()
-            self._session_id_2_testrun[session_id_string] = self
-
-        return session_id_string
-    
-    def get_testrun_report(self) -> Optional[Union[List[str], Dict]]:
-        """
-        Generates and caches a OneHopTestHarness test report the first time this method is called.
-
-        :return: Optional[Union[str, TestReport]], structured Pytest report from the OneHopTest of
-                 target KPs & ARAs, or a single string global error message, or None (if still unavailable)
-        """
-        # ts stores the time in seconds
-        ts = time.time()
-        if not self._report:
-            if self._session_id:
-                try:
-                    self._result = self._process.get_output(self._session_id)
-                    if self._result:
-                        # Raw Pytest data and report output is cached locally with a timestamp
-                        sample_file_path = path.join(TEST_RESULT_DIR, f"raw_pytest_output{ts}.txt")
-                        with open(sample_file_path, "w") as sf:
-                            sf.write(self._result)
-
-                        self._report = SRITestReport()
-                        self._report.parse_result(self._result)
-
-                except WorkerProcessException as wpe:
-                    return [str(wpe)]
-            else:
-                if self._result:
-                    return [self._result]  # likely a simple raw error message from a global error
-                else:
-                    # totally opaque OneHopTestHarness test run failure?
-                    return [f"Worker process failed to execute command line '{self._command_line}'?"]
-        if self._report:
-            report = self._report.output()
-            sri_report_file_path = path.join(TEST_RESULT_DIR, f"sri_report_{ts}.json")
-            with open(sri_report_file_path, "w") as sr:
-                dump(report, sr, indent=4)
-            return report
-        else:
-            return None  # Report simply not yet available, but Pytest may still be running?
-    
-    @classmethod
-    def get_report(cls, session_id_str: str) -> Optional[Union[str, SRITestReport]]:
-        """
-        Looks up the OneHopTestHarness for the specified 'session_id_str'
-        then returns its (possibly just-in-time generated or cached) test report.
-
-        :param session_id_str: str, UUID session_id of the OneHopTestHarness running the test
-
-        :return: Optional[Union[str, TestReport]], structured Pytest report from the OneHopTest of
-                 target KPs & ARAs, or a single string global error message, or None (if still unavailable)
-        """
-        assert session_id_str  # should not be empty
-
-        if session_id_str not in cls._session_id_2_testrun:
-            return f"Unknown Worker Process 'session_id': {session_id_str}"
-        
-        testrun = cls._session_id_2_testrun[session_id_str]
-        
-        return testrun.get_testrun_report()

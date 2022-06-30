@@ -50,6 +50,15 @@ def create_one_hop_message(edge, look_up_subject=False):
 # results.  For example, when we look up a triple by subject, we should expect that the object entity
 # is bound to query node b.
 #
+# Existing Unit Tests:
+#
+# - by_subject
+# - inverse_by_new_subject
+# - by_object
+# - raise_subject_entity
+# - raise_object_by_subject
+# - raise_predicate_by_subject
+#
 #####################################################################################################
 _unit_tests: Dict = dict()
 

@@ -1,79 +1,184 @@
 """
 Configure one hop tests
 """
-from sys import stdout, stderr
-from os import path, makedirs, walk
-from re import sub
-import json
-import logging
-from collections import defaultdict
-from json import JSONDecodeError
 from typing import Optional, Union, List, Set, Dict, Any
+from sys import stdout, stderr
+from os import path, walk, makedirs
+from collections import defaultdict
+from datetime import datetime
+
+from uuid import uuid4
+
+import json
+
+import logging
 
 from pytest_harvest import get_session_results_dct
 
-from tests import TEST_RESULT_DIR
-from tests.onehop.util import get_unit_test_codes
 from reasoner_validator.biolink import check_biolink_model_compliance_of_input_edge
-from tests.onehop import util as oh_util
+
 from translator.registry import (
     get_remote_test_data_file,
     get_the_registry_data,
     extract_component_test_metadata_from_registry
 )
-from translator.trapi import set_trapi_version, generate_edge_id
+from translator.trapi import (
+    set_trapi_version,
+    get_trapi_version,
+    generate_edge_id
+)
+
+from tests.onehop import util as oh_util
+from tests.onehop.util import (
+    get_unit_test_codes
+)
+from translator.sri.testing.report import (
+    TEST_RESULTS_DIR,
+    unit_test_report_filepath,
+    parse_unit_test_name
+)
 
 logger = logging.getLogger(__name__)
-
-
-def clean_up_filename(source: str):
-    name = source.split('/')[-1][:-1]
-    name = name.strip("[]")
-    name = name.replace(".py::", "-")
-    name = sub(r"[:\[\]|#/]+", "-", name)
-    name = f"{name}.results"
-    logger.debug(f"_clean_up_filename: '{source}' to '{name}'")
-    return name
 
 
 def pytest_sessionfinish(session):
     """ Gather all results and save them to a csv.
     Works both on worker and master nodes, and also with xdist disabled"""
 
+    test_run_id: str
+    if "test_run_id" in session.config.option and session.config.option.test_run_id:
+        test_run_id = session.config.option.test_run_id
+    else:
+        # Generate a fake UUID test id for local runs
+        test_run_id = str(uuid4())
+
+    # subdirectory for local run output data
+    test_run_root_path: str = f"{TEST_RESULTS_DIR}/{test_run_id}"
+    makedirs(test_run_root_path)
+
     session_results = get_session_results_dct(session)
-    for t, v in session_results.items():
-        if v['status'] == 'failed':
-            # clean up the name for safe file system usage
-            rfname = clean_up_filename(t)
-            rb: Dict = v['fixtures']['results_bag']
-            rb = {key.strip("\r\n"): value for key, value in rb.items()}
-            # rb['location'] looks like "test_triples/KP/Exposures_Provider/CAM-KP_API.json"
-            if 'location' in rb:
-                lparts = rb['location'].split('/')
-                lparts[0] = 'results'
-                lparts[-1] = rfname
-                try:
-                    makedirs('/'.join(lparts[:-1]))
-                except OSError:
-                    pass
-                outname = '/'.join(lparts)
-            else:
-                outname = rfname
+
+    test_summary: Dict = dict()
+
+    current_time = datetime.now()
+    test_summary['timestamp'] = current_time.strftime("%d-%m-%Y, %H:%M:%S")
+
+    case_details: Dict = dict()
+    case_response: Dict = dict()
+
+    for unit_test_key, details in session_results.items():
+
+        rb: Dict = details['fixtures']['results_bag']
+
+        # sanity check: clean up MS Windoze EOL characters, when present in results_bag keys
+        rb = {key.strip("\r\n"): value for key, value in rb.items()}
+
+        # clean up the name for safe file system usage
+        component, ara_id, kp_id, edge_num, test_id, edge_details_file_path = parse_unit_test_name(
+            unit_test_key=unit_test_key
+        )
+
+        ##############################################################
+        # Summary file indexed by component, resources and edge cases
+        ##############################################################
+
+        if component not in test_summary:
+            test_summary[component] = dict()
+
+        case_summary: List[Dict]
+        if ara_id:
+            if ara_id not in test_summary[component]:
+                test_summary[component][ara_id] = dict()
+            if kp_id not in test_summary[component][ara_id]:
+                test_summary[component][ara_id][kp_id] = list()
+            case_summary = test_summary[component][ara_id][kp_id]
+        else:
+            if kp_id not in test_summary[component]:
+                test_summary[component][kp_id] = list()
+            case_summary = test_summary[component][kp_id]
+
+        while edge_num >= len(case_summary):
+            case_summary.append(dict())
+
+        if 'idx' not in case_summary[edge_num]:
+            case_summary[edge_num]['idx'] = edge_num
+
+        if test_id not in case_summary[edge_num]:
+            # Top level summary reporting 'PASSED, FAILED, SKIPPED' for each unit test
+            case_summary[edge_num][test_id] = details['status']
+
+        ################################################
+        # Print out unit details as separate files
+        # relative to TEST_RESULTS_DIR and 'test_run_id'
+        ################################################
+
+        if edge_details_file_path not in case_details:
+
+            # TODO: this is a bit memory intensive...
+            #      may need another strategy for capturing details
+            case_details[edge_details_file_path] = dict()
+            case_response[edge_details_file_path] = dict()
+
+            if 'case' in rb and 'case' not in case_details[edge_details_file_path]:
+                case_details[edge_details_file_path] = rb['case']
+
+            if 'results' not in case_details[edge_details_file_path]:
+                case_details[edge_details_file_path]['results'] = dict()
+
+        if test_id not in case_details[edge_details_file_path]['results']:
+            case_details[edge_details_file_path]['results'][test_id] = dict()
+
+        test_details = case_details[edge_details_file_path]['results'][test_id]
+
+        # Replicating 'PASSED, FAILED, SKIPPED' test status
+        # for each unit test, here in the detailed report
+        test_details['outcome'] = details['status']
+
+        # Print out errors - we assume they are only reported once for any given test?
+        if 'errors' in rb and len(rb['errors']) > 0:
+            test_details['errors'] = rb['errors']
+
+        # Capture more request/response details for test failures
+        if details['status'] == 'failed':
 
             if 'request' in rb:
-                with open(outname, 'w') as outf:
-                    outf.write(rb['location'])
-                    outf.write('\n')
-                    json.dump(rb['request'], outf, indent=4)
-                    outf.write(f'\nStatus Code: {rb["response"]["status_code"]}\n')
-                    json.dump(rb['response']['response_json'], outf, indent=4)
+                test_details['request'] = rb['request']
             else:
-                # This means that there was no generated request.
-                # But we don't need to make a big deal about it.
-                with open(outname+"_NOTEST", 'w') as outf:
-                    outf.write('Error generating results: No request generated?')
-                    if 'case' in rb:
-                        json.dump(rb['case'], outf, indent=4)
+                test_details['request'] = "No 'request' generated for this unit test?"
+
+            if 'response' in rb:
+
+                if test_id not in case_response[edge_details_file_path]:
+                    case_response[edge_details_file_path][test_id] = dict()
+
+                case_response[edge_details_file_path][test_id]['unit_test_key'] = unit_test_key
+                case_response[edge_details_file_path][test_id]['http_status_code'] = rb["response"]["status_code"]
+                case_response[edge_details_file_path][test_id]['response'] = rb['response']['response_json']
+
+            else:
+                test_details['response'] = "No 'response' generated for this unit test?"
+
+    for edge_details_file_path in case_details:
+        # Print out the test case details
+
+        test_details_file_path = unit_test_report_filepath(
+            test_run_id=test_run_id,
+            unit_test_file_path=edge_details_file_path
+        )
+
+        with open(f"{test_details_file_path}.json", 'w') as details_file:
+            test_details = case_details[edge_details_file_path]
+            json.dump(test_details, details_file, indent=4)
+
+        for test_id in case_response[edge_details_file_path]:
+            with open(f"{test_details_file_path}-{test_id}-response.json", 'w') as response_file:
+                response: Dict = case_response[edge_details_file_path][test_id]
+                json.dump(response, response_file, indent=4)
+
+    # Write out the whole List[str] of unit test identifiers, into one JSON summary file
+    summary_filepath = f"{test_run_root_path}/test_summary.json"
+    with open(summary_filepath, 'w') as summary_file:
+        json.dump(test_summary, summary_file, indent=4)
 
 
 def pytest_addoption(parser):
@@ -105,6 +210,11 @@ def pytest_addoption(parser):
         "--Biolink_Version", action="store", default=None,
         help='Biolink Model Version to use for the tests ' +
              '(Default: latest Biolink Model Toolkit default or REGISTRY metadata value).'
+    )
+    #  Mostly used when the SRI Testing harness is run by a web service
+    parser.addoption(
+        "--test_run_id", action="store", default="",
+        help='Optional Test Run Identifier for internal use to index test results.'
     )
 
 
@@ -193,6 +303,7 @@ def get_test_data_sources(source: str, component_type: str) -> Dict[str, Dict[st
 def load_test_data_source(
         source: str,
         metadata: Dict[str, Optional[str]],
+        trapi_version: Optional[str] = None,
         biolink_version: Optional[str] = None
 ) -> Optional[Dict]:
     """
@@ -200,6 +311,7 @@ def load_test_data_source(
 
     :param source: source string, URL if from "remote"; file path if local
     :param metadata: metadata associated with source
+    :param trapi_version: SemVer caller override of TRAPI release target for validation (Default: None)
     :param biolink_version: SemVer caller override of Biolink Model release target for validation (Default: None)
     :return: json test data with (some) metadata; 'None' if unavailable
     """
@@ -223,7 +335,7 @@ def load_test_data_source(
         with open(source, 'r') as local_file:
             try:
                 test_data = json.load(local_file)
-            except (JSONDecodeError, TypeError):
+            except (json.JSONDecodeError, TypeError):
                 logger.error(f"load_test_data_source(): input file '{source}': Invalid JSON")
 
     if test_data is not None:
@@ -238,7 +350,10 @@ def load_test_data_source(
         metadata['api_name'] = api_name.replace(".json", "")
 
         # Possible CLI override of the metadata value of
-        # Biolink Model release used for data validation
+        # TRAPI and Biolink Model releases used for data validation
+        if trapi_version:
+            metadata['trapi_version'] = trapi_version
+
         if biolink_version:
             metadata['biolink_version'] = biolink_version
 
@@ -298,15 +413,19 @@ def get_kp_edge(resource_id: str, edge_idx: int) -> Optional[Dict[str, Any]]:
     return None
 
 
-def generate_trapi_kp_tests(metafunc, biolink_version):
+def generate_trapi_kp_tests(metafunc, trapi_version: str, biolink_version: str) -> List:
     """
     Generate set of TRAPI Knowledge Provider unit tests with test data edges.
 
-    :param metafunc
-    :param biolink_version
+    :param metafunc: Dict, diverse One Step Pytest metadata
+    :param trapi_version, str, TRAPI release set to be used in the validation
+    :param biolink_version, str, Biolink Model release set to be used in the validation
     """
     edges = []
     idlist = []
+
+    # optional user session identifier for test (maybe be an empty string)
+    test_run_id = metafunc.config.getoption('test_run_id')
 
     triple_source = metafunc.config.getoption('triple_source')
 
@@ -315,7 +434,7 @@ def generate_trapi_kp_tests(metafunc, biolink_version):
     for source, metadata in kp_metadata.items():
 
         # User CLI may override here the target Biolink Model version during KP test data preparation
-        kpjson = load_test_data_source(source, metadata, biolink_version)
+        kpjson = load_test_data_source(source, metadata, trapi_version, biolink_version)
 
         cache_resource_metadata(kpjson)
 
@@ -355,9 +474,12 @@ def generate_trapi_kp_tests(metafunc, biolink_version):
                     edge['biolink_errors'] = model_version, errors
 
                 edge['location'] = kpjson['location']
-                edge['kp_api_name'] = kpjson['api_name']
 
                 edge['url'] = kpjson['url']
+
+                edge['kp_api_name'] = kpjson['api_name']
+
+                edge['trapi_version'] = kpjson['trapi_version']
                 edge['biolink_version'] = kpjson['biolink_version']
 
                 if 'infores' in kpjson:
@@ -440,13 +562,14 @@ def generate_trapi_kp_tests(metafunc, biolink_version):
 
 
 # Once the smartapi tests are up, we'll want to pass them in here as well
-def generate_trapi_ara_tests(metafunc, kp_edges, biolink_version):
+def generate_trapi_ara_tests(metafunc, kp_edges, trapi_version, biolink_version):
     """
     Generate set of TRAPI Autonomous Relay Agents (ARA) unit tests with KP test data edges.
 
-    :param metafunc
-    :param kp_edges
-    :param biolink_version
+    :param metafunc: Dict, diverse One Step Pytest metadata
+    :param kp_edges: List, list of knowledge provider test edges from knowledge providers associated
+    :param trapi_version, str, TRAPI release set to be used in the validation
+    :param biolink_version, str, Biolink Model release set to be used in the validation
     """
     kp_dict = defaultdict(list)
     for e in kp_edges:
@@ -462,7 +585,7 @@ def generate_trapi_ara_tests(metafunc, kp_edges, biolink_version):
     for source, metadata in ara_metadata.items():
 
         # User CLI may override here the target Biolink Model version during KP test data preparation
-        arajson = load_test_data_source(source, metadata, biolink_version)
+        arajson = load_test_data_source(source, metadata, trapi_version, biolink_version)
 
         cache_resource_metadata(arajson)
 
@@ -473,10 +596,15 @@ def generate_trapi_ara_tests(metafunc, kp_edges, biolink_version):
             kp = '_'.join(kp.split())
 
             for edge_i, kp_edge in enumerate(kp_dict[kp]):
+
                 edge: dict = kp_edge.copy()
 
                 edge['url'] = arajson['url']
+
                 edge['ara_api_name'] = arajson['api_name']
+
+                edge['trapi_version'] = arajson['trapi_version']
+                edge['biolink_version'] = arajson['biolink_version']
 
                 if 'infores' in arajson:
                     edge['ara_source'] = f"infores:{arajson['infores']}"
@@ -523,7 +651,7 @@ def pytest_generate_tests(metafunc):
     # Bug or feature? The Biolink Model release may be overridden on the command line
     biolink_version = metafunc.config.getoption('Biolink_Version')
     logger.debug(f"pytest_generate_tests(): Biolink_Version == {biolink_version}")
-    trapi_kp_edges = generate_trapi_kp_tests(metafunc, biolink_version=biolink_version)
+    trapi_kp_edges = generate_trapi_kp_tests(metafunc, trapi_version=get_trapi_version(), biolink_version=biolink_version)
 
     if metafunc.definition.name == 'test_trapi_aras':
-        generate_trapi_ara_tests(metafunc, trapi_kp_edges, biolink_version=biolink_version)
+        generate_trapi_ara_tests(metafunc, trapi_kp_edges, trapi_version=get_trapi_version(), biolink_version=biolink_version)

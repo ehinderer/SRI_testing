@@ -6,7 +6,8 @@ from typing import Optional, Dict, Tuple
 
 import pytest
 
-from translator.trapi import set_trapi_version, get_trapi_version, check_provenance, generate_test_error_msg_prefix
+from translator.trapi import set_trapi_version, get_trapi_version, check_provenance, generate_test_error_msg_prefix, \
+    TestReport
 
 logger = logging.getLogger(__name__)
 
@@ -70,6 +71,7 @@ def test_generate_test_error_msg_prefix(query):
 
 
 TEST_ARA_CASE_TEMPLATE = {
+    "idx" : 0,
     "url": "http://test_ara_endpoint",
     "ara_api_name": "test_ARA",
     "ara_source": "infores:test_ara",
@@ -104,7 +106,7 @@ def get_ara_test_case(changes: Optional[Dict[str, str]] = None):
                         }
                     },
                 },
-                "Knowledge graph has no edges?"
+                "knowledge graph has no edges?"
         ),
         (
                 # Query 1. No attributes key
@@ -246,7 +248,7 @@ def get_ara_test_case(changes: Optional[Dict[str, str]] = None):
                                     },
                                     {
                                         "attribute_type_id": "biolink:original_knowledge_source",
-                                        "value": "infores:test_kp"
+                                        "value": "infores:panther"
                                     }
                                 ]
                             }
@@ -269,7 +271,7 @@ def get_ara_test_case(changes: Optional[Dict[str, str]] = None):
                                     },
                                     {
                                         "attribute_type_id": "biolink:aggregator_knowledge_source",
-                                        "value": "infores:test_kp"
+                                        "value": "infores:panther"
                                     }
                                 ]
 
@@ -277,7 +279,7 @@ def get_ara_test_case(changes: Optional[Dict[str, str]] = None):
                         }
                     }
                 },
-                "has neither 'primary' nor 'original' Knowledge Provider knowledge source provenance?"
+                "has neither 'primary' nor 'original' knowledge source?"
         ),
         (
                 # Query 10. Is complete and should pass?
@@ -293,7 +295,7 @@ def get_ara_test_case(changes: Optional[Dict[str, str]] = None):
                                     },
                                     {
                                         "attribute_type_id": "biolink:aggregator_knowledge_source",
-                                        "value": "infores:test_kp"
+                                        "value": "infores:panther"
                                     },
                                     {
                                         "attribute_type_id": "biolink:primary_knowledge_source",
@@ -310,7 +312,9 @@ def get_ara_test_case(changes: Optional[Dict[str, str]] = None):
 )
 def test_check_provenance(query: Tuple):
     try:
-        check_provenance(query[0], query[1])
+        errors = list()
+        test_report = TestReport(errors)
+        check_provenance(query[0], query[1], test_report)
     except AssertionError as ae:
         assert query[2], "check_provenance() should pass!"
         assert str(ae).endswith(query[2]), "unexpected assertion error?"
