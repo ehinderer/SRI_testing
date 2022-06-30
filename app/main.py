@@ -127,6 +127,36 @@ async def run_tests(test_parameters: TestRunParameters) -> TestRunSession:
     return TestRunSession(test_run_id=test_harness.get_test_run_id())
 
 
+class TestRunStatus(BaseModel):
+    test_run_id: str
+    percent_complete: int
+
+
+@app.get(
+    "/status/{test_run_id}",
+    response_model=TestRunStatus,
+    summary="Retrieve the summary of a specified SRI Testing run."
+)
+async def get_status(test_run_id: str) -> TestRunStatus:
+    """
+    Returns the percentage completion status of the current OneHopTestHarness test run.
+
+    \f
+    :param test_run_id: test_run_id: test run identifier (as returned by /run_tests endpoint).
+
+    :return: TestRunStatus, with fields 'test_run_id' and 'percent_complete', the latter being
+                             an integer 0..100 indicating the percentage completion of the test run.
+    """
+    assert test_run_id, "Null or empty Test Run Identifier?"
+
+    percent_complete: int = OneHopTestHarness(uuid=test_run_id).get_status()
+
+    return TestRunStatus(
+            test_run_id=test_run_id,
+            percent_complete=percent_complete
+    )
+
+
 class TestRunSummary(BaseModel):
     test_run_id: str
     summary: Dict
@@ -135,11 +165,11 @@ class TestRunSummary(BaseModel):
 @app.get(
     "/summary/{test_run_id}",
     response_model=TestRunSummary,
-    summary="Retrieve the summary of a specified SRI Testing run."
+    summary="Retrieve the summary of a completed specified OneHopTestHarness test run."
 )
 async def get_summary(test_run_id: str) -> TestRunSummary:
     """
-    Returns a JSON summary report of test results for a given **test_run_id**.
+    Returns a JSON summary report of results for a completed **test_run_id**-identified OneHopTestHarness test run.
 
     \f
     :param test_run_id: test_run_id: test run identifier (as returned by /run_tests endpoint).

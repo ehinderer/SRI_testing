@@ -236,6 +236,16 @@ class OneHopTestHarness:
     def get_worker(self) -> Optional[WorkerProcess]:
         return self._process
 
+    def get_status(self) -> int:
+        """
+        If available, returns the percentage completion of the currently active OneHopTestHarness run.
+
+        :return: int, 0..100 indicating the percentage completion of the test run.
+        """
+        test_run: str = str(self._test_run_id)
+        # TODO: stub implementation
+        return 50
+
     def _absolute_report_file_path(self, report_file_path: str) -> str:
         absolute_file_path = normpath(f"{ONEHOP_TEST_DIRECTORY}/test_results/{self._test_run_id}/{report_file_path}")
         return absolute_file_path

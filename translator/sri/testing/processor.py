@@ -101,6 +101,8 @@ def _worker_process(lock: mp.Lock, queue: mp.Queue, command_line: str):
             # timeout=100,
         )
 
+        # TODO: somehow read the stdout stream to parse the PyTest %completion as a progress monitor
+
     except CalledProcessError as cpe:
         result = cpe
 
