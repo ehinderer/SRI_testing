@@ -1,7 +1,7 @@
 """
 SRI Testing Report utility functions.
 """
-import json
+import orjson
 
 from os import makedirs
 from os.path import normpath
@@ -262,7 +262,7 @@ class OneHopTestHarness:
 
         summary: Optional[Dict] = None
         if document:
-            summary = json.loads(document)
+            summary = orjson.loads(document)
 
         return summary
 
@@ -292,7 +292,7 @@ class OneHopTestHarness:
 
         details: Optional[Dict] = None
         if document:
-            details = json.loads(document)
+            details = orjson.loads(document)
 
         return details
 

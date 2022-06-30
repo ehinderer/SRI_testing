@@ -256,7 +256,8 @@ def _streamed_file(file_path: str):
 
 @app.get(
     "/response/{test_run_id}/{component}/{resource_id}/{edge_num}/{test_id}",
-    summary="Retrieve the TRAPI response JSON message for a specified SRI Testing unit test of a given input edge."
+    summary="Directly stream the TRAPI response JSON message for a " +
+            "specified SRI Testing unit test of a given input edge."
 )
 async def get_response(
         test_run_id: str,
