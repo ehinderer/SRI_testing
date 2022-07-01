@@ -11,7 +11,7 @@ from requests.exceptions import RequestException
 
 import logging
 
-from tests.translator.registry import MOCK_TRANSLATOR_SMARTAPI_REGISTRY_METADATA, MOCK_REGISTRY
+from tests.translator.registry import MOCK_REGISTRY, MOCK_TRANSLATOR_SMARTAPI_REGISTRY_METADATA
 
 logger = logging.getLogger(__name__)
 

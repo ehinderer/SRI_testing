@@ -97,6 +97,7 @@ class TestRunSession(BaseModel):
 
 @app.post(
     "/run_tests",
+    tags=['run'],
     response_model=TestRunSession,
     summary="Initiate an SRI Testing Run"
 )
@@ -127,6 +128,28 @@ async def run_tests(test_parameters: TestRunParameters) -> TestRunSession:
     return TestRunSession(test_run_id=test_harness.get_test_run_id())
 
 
+class TestRunList(BaseModel):
+    test_runs: List[str]
+
+
+@app.get(
+    "/list",
+    tags=['report'],
+    response_model=TestRunList,
+    summary="Retrieve the list of available (completed) test runs."
+)
+async def get_test_run_list() -> TestRunList:
+    """
+    Returns the catalog of completed OneHopTestHarness test runs.
+
+    \f
+    :return: TestRunList, list of (UUID) identifiers of completed OneHopTestHarness test runs.
+    """
+    test_runs: List[str] = OneHopTestHarness.get_test_run_list()
+
+    return TestRunList(test_runs=test_runs)
+
+
 class TestRunStatus(BaseModel):
     test_run_id: str
     percent_complete: int
@@ -134,6 +157,7 @@ class TestRunStatus(BaseModel):
 
 @app.get(
     "/status/{test_run_id}",
+    tags=['report'],
     response_model=TestRunStatus,
     summary="Retrieve the summary of a specified SRI Testing run."
 )
@@ -154,27 +178,6 @@ async def get_status(test_run_id: str) -> TestRunStatus:
     return TestRunStatus(test_run_id=test_run_id, percent_complete=percent_complete)
 
 
-class TestRunList(BaseModel):
-    test_runs: List[str]
-
-
-@app.get(
-    "/list",
-    response_model=TestRunList,
-    summary="Retrieve the list of available (completed) test runs."
-)
-async def get_test_run_list() -> TestRunList:
-    """
-    Returns the catalog of completed OneHopTestHarness test runs.
-
-    \f
-    :return: TestRunList, list of (UUID) identifiers of completed OneHopTestHarness test runs.
-    """
-    test_runs: List[str] = OneHopTestHarness.get_test_run_list()
-
-    return TestRunList(test_runs=test_runs)
-
-
 class TestRunSummary(BaseModel):
     test_run_id: str
     summary: Dict
@@ -182,6 +185,7 @@ class TestRunSummary(BaseModel):
 
 @app.get(
     "/summary/{test_run_id}",
+    tags=['report'],
     response_model=TestRunSummary,
     summary="Retrieve the summary of a completed specified OneHopTestHarness test run."
 )
@@ -212,6 +216,7 @@ class TestRunEdgeDetails(BaseModel):
 
 @app.get(
     "/details/{test_run_id}/{component}/{resource_id}/{edge_num}",
+    tags=['report'],
     response_model=TestRunEdgeDetails,
     summary="Retrieve the test result details for a specified SRI Testing Run input edge."
 )
@@ -269,6 +274,7 @@ def _streamed_file(file_path: str):
 
 @app.get(
     "/response/{test_run_id}/{component}/{resource_id}/{edge_num}/{test_id}",
+    tags=['report'],
     summary="Directly stream the TRAPI response JSON message for a " +
             "specified SRI Testing unit test of a given input edge."
 )
