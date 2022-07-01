@@ -1,14 +1,14 @@
 """
 SRI Testing Report utility functions.
 """
-import orjson
-
-from os import makedirs
-from os.path import normpath
-
 from typing import Optional, Dict, Tuple, List
 
+from os import makedirs, listdir
+from os.path import normpath
+
 import re
+
+import orjson
 
 from uuid import UUID, uuid4
 
@@ -235,6 +235,15 @@ class OneHopTestHarness:
 
     def get_worker(self) -> Optional[WorkerProcess]:
         return self._process
+
+    @classmethod
+    def get_test_run_list(cls) -> List[str]:
+        """
+        :return: list of test run identifiers of completed test runs
+        """
+        test_results_directory = normpath(f"{ONEHOP_TEST_DIRECTORY}/test_results")
+        test_run_list = listdir(test_results_directory)
+        return test_run_list
 
     def get_status(self) -> int:
         """

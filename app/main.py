@@ -2,7 +2,7 @@
 FastAPI web service wrapper for SRI Testing harness
 (i.e. for reports to a Translator Runtime Status Dashboard)
 """
-from typing import Optional, Dict
+from typing import Optional, Dict, List
 from pydantic import BaseModel
 
 import uvicorn
@@ -151,10 +151,28 @@ async def get_status(test_run_id: str) -> TestRunStatus:
 
     percent_complete: int = OneHopTestHarness(uuid=test_run_id).get_status()
 
-    return TestRunStatus(
-            test_run_id=test_run_id,
-            percent_complete=percent_complete
-    )
+    return TestRunStatus(test_run_id=test_run_id, percent_complete=percent_complete)
+
+
+class TestRunList(BaseModel):
+    test_runs: List[str]
+
+
+@app.get(
+    "/list",
+    response_model=TestRunList,
+    summary="Retrieve the list of available (completed) test runs."
+)
+async def get_test_run_list() -> TestRunList:
+    """
+    Returns the catalog of completed OneHopTestHarness test runs.
+
+    \f
+    :return: TestRunList, list of (UUID) identifiers of completed OneHopTestHarness test runs.
+    """
+    test_runs: List[str] = OneHopTestHarness.get_test_run_list()
+
+    return TestRunList(test_runs=test_runs)
 
 
 class TestRunSummary(BaseModel):
@@ -183,10 +201,7 @@ async def get_summary(test_run_id: str) -> TestRunSummary:
     summary: Optional[Dict] = OneHopTestHarness(uuid=test_run_id).get_summary()
 
     if summary is not None:
-        return TestRunSummary(
-            test_run_id=test_run_id,
-            summary=summary
-        )
+        return TestRunSummary(test_run_id=test_run_id, summary=summary)
     else:
         raise HTTPException(status_code=404, detail=f"Summary for test run '{test_run_id}' is not (yet) available?")
 
@@ -238,9 +253,7 @@ async def get_details(test_run_id: str, component: str, resource_id: str, edge_n
     )
 
     if details is not None:
-        return TestRunEdgeDetails(
-            details=details
-        )
+        return TestRunEdgeDetails(details=details)
     else:
         raise HTTPException(
             status_code=404,

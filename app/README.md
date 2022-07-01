@@ -40,7 +40,7 @@ Go to  http://localhost/docs to see the service documentation and to use the sim
 
 The Reasoner Validator web service may be run inside a docker container, using Docker Compose.
 
-Assuming that you have installed both [Docker](https://docs.docker.com/get-docker/) and [Docker-Compose](https://docs.docker.com/compose/install/), then the following commands may be run:
+Assuming that you have installed both [Docker (or rather, Docker Desktop)](https://docs.docker.com/get-docker/) and [Docker-Compose](https://docs.docker.com/compose/install/) (Note: Docker Desktop now conveniently installs both...), then the following commands may be run:
 
 First, from the root directory of the project, build the local docker container
 
