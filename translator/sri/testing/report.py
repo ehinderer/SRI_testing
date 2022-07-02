@@ -38,6 +38,8 @@ TEST_CASE_PATTERN = re.compile(
     r"^(?P<resource_id>[^#]+)(#(?P<edge_num>\d+))?(-(?P<test_id>.+))?$"
 )
 
+PERCENTAGE_COMPLETION_SUFFIX_PATTERN = re.compile(r"(\[\s*(?P<percent_complete>\d+)%])?$")
+
 
 def build_edge_details_file_path(component: str, ara_id: Optional[str], kp_id: str, edge_num: str):
     """
@@ -161,28 +163,43 @@ def _retrieve_document(report_type: str, report_file_path: str) -> Optional[str]
 class OneHopTestHarness:
 
     # Caching of processes, indexed by test_run_id (UUID as string)
-    _test_run_id_2_testrun: Dict = dict()
+    _test_run_id_2_worker_process: Dict[UUID, Dict] = dict()
 
-    def __init__(self, uuid: Optional[str] = None, timeout: Optional[int] = DEFAULT_WORKER_TIMEOUT):
+    def __init__(self, uuid: Optional[str] = None):
         """
         OneHopTestHarness constructor.
 
-        :param uuid: Optional[str], caller specified UUID urn, internally assigned if 'None'
-        :param timeout: Optional[int], worker process timeout in seconds (defaults to about 120 seconds
+        :param uuid: Optional[str], caller specified UUID urn, internally created if 'None'
         """
         # each test harness run has its own unique session identifier
-        self._test_run_id: UUID = uuid4() if uuid is None else UUID(f"urn:uuid:{uuid}")
-
-        # These will be set if and when the OneHopTestHarness is 'run'
+        self._test_run_id: UUID
         self._command_line: Optional[str] = None
         self._process: Optional[WorkerProcess] = None
-        self._timeout: Optional[int] = timeout
+        self._timeout: Optional[int] = DEFAULT_WORKER_TIMEOUT
+        if uuid is not None:
+            # should be an existing test run?
+            self._test_run_id = UUID(f"urn:uuid:{uuid}")
+            self._reload_run_parameters()
+        else:
+            # new test run? no run parameters to reload?
+            self._test_run_id: UUID = uuid4()
 
     def get_test_run_id(self) -> Optional[str]:
         if self._test_run_id:
             return str(self._test_run_id)
         else:
             return None
+
+    def progress_monitoring(self, line):
+        # propagate the line to the parent process, via the Queue?
+        # TODO: somehow read the stdout stream to parse the
+        #       PyTest %completion, as a progress monitor
+        pc = PERCENTAGE_COMPLETION_SUFFIX_PATTERN.search(line)
+        if pc and pc.group():
+            # TODO: eventually want to return this back to
+            #       the test run owner for progress monitoring
+            percentage_completion = pc["percent_complete"]
+            self._process._queue.put(f"%{percentage_completion}")  # or save to disk?
 
     def run(
             self,
@@ -191,7 +208,8 @@ class OneHopTestHarness:
             triple_source: Optional[str] = None,
             ara_source: Optional[str] = None,
             one: bool = False,
-            log: Optional[str] = None
+            log: Optional[str] = None,
+            timeout: Optional[int] = DEFAULT_WORKER_TIMEOUT
     ):
         """
         Run the SRT Testing test harness as a worker process.
@@ -212,15 +230,18 @@ class OneHopTestHarness:
 
         :param log: Optional[str], desired Python logger level label (default: None, implying default logger)
 
+        :param timeout: Optional[int], worker process timeout in seconds (defaults to about 120 seconds
+
         :return: None
         """
-        test_run_id_string: str = str(self._test_run_id)
+        # possible override of timeout here?
+        self._timeout = timeout if timeout else self._timeout
 
         self._command_line = f"cd {ONEHOP_TEST_DIRECTORY} {CMD_DELIMITER} " + \
                              f"pytest --tb=line -vv"
         self._command_line += f" --log-cli-level={log}" if log else ""
         self._command_line += f" test_onehops.py"
-        self._command_line += f" --test_run_id={test_run_id_string}"
+        self._command_line += f" --test_run_id={str(self._test_run_id)}"
         self._command_line += f" --TRAPI_Version={trapi_version}" if trapi_version else ""
         self._command_line += f" --Biolink_Version={biolink_version}" if biolink_version else ""
         self._command_line += f" --triple_source={triple_source}" if triple_source else ""
@@ -230,11 +251,24 @@ class OneHopTestHarness:
         logger.debug(f"OneHopTestHarness.run() command line: {self._command_line}")
 
         self._process = WorkerProcess(self._timeout)
+
         self._process.run_command(self._command_line)
-        self._test_run_id_2_testrun[test_run_id_string] = self
+
+        # Cache run parameters for later access as necessary
+        self._test_run_id_2_worker_process[self._test_run_id] = {
+            "command_line": self._command_line,
+            "worker_process": self._process,
+            "timeout": self._timeout
+        }
 
     def get_worker(self) -> Optional[WorkerProcess]:
         return self._process
+
+    def _reload_run_parameters(self):
+        if self._test_run_id in self._test_run_id_2_worker_process:
+            self._command_line = self._test_run_id_2_worker_process[self._test_run_id]["command_line"]
+            self._process = self._test_run_id_2_worker_process[self._test_run_id]["worker_process"]
+            self._timeout = self._test_run_id_2_worker_process[self._test_run_id]["timeout"]
 
     @classmethod
     def get_test_run_list(cls) -> List[str]:
@@ -249,10 +283,11 @@ class OneHopTestHarness:
         """
         If available, returns the percentage completion of the currently active OneHopTestHarness run.
 
-        :return: int, 0..100 indicating the percentage completion of the test run.
+        :return: int, 0..100 indicating the percentage completion of the test run., -1 if test run now running?
         """
         test_run: str = str(self._test_run_id)
         # TODO: stub implementation
+        self._process._queue.get(block=True, timeout=self._timeout)
         return 50
 
     def _absolute_report_file_path(self, report_file_path: str) -> str:

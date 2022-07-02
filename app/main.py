@@ -114,15 +114,17 @@ async def run_tests(test_parameters: TestRunParameters) -> TestRunSession:
     :return: TestRunSession (just 'test_run_id' for now)
     """
     trapi_version: Optional[str] = latest.get(test_parameters.trapi_version) if test_parameters.trapi_version else None
-    biolink_version: Optional[str] = test_parameters.biolink_version
+    biolink_version: Optional[str] = test_parameters.biolink_version if test_parameters.biolink_version else None
     log: Optional[str] = test_parameters.log
 
-    test_harness = OneHopTestHarness(timeout=test_parameters.timeout)
+    # Constructor initializes a fresh test run identifier with empty test run
+    test_harness = OneHopTestHarness()
 
     test_harness.run(
         trapi_version=trapi_version,
         biolink_version=biolink_version,
-        log=log
+        log=log,
+        timeout=test_parameters.timeout if test_parameters.timeout else DEFAULT_WORKER_TIMEOUT
     )
 
     return TestRunSession(test_run_id=test_harness.get_test_run_id())
