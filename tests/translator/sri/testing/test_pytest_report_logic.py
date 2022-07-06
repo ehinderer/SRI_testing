@@ -54,14 +54,21 @@ def _report_outcome(
 
         edge_details_file_path: str = build_edge_details_file_path("ARA", "Test_ARA", "Test_KP_2", "1")
 
-        details = OneHopTestHarness.get_details(session_id, edge_details_file_path)
+        details = OneHopTestHarness(session_id).get_details(
+            component="ARA",
+            resource_id="Test_ARA-Test_KP_2",
+            edge_num="1"
+        )
 
         assert details, \
-            f"{test_name}() from {session_id} is missing an expected details for unit test '{edge_details_file_path}'?"
+            f"{test_name}() from {session_id} is missing expected details for ARA tests of " + \
+            f"edge number '1' of resource 'Test_ARA-Test_KP_2' for test run {session_id}'?"
+
         print(
             f"{test_name}() test run 'details' for test '{edge_details_file_path}':{SPACER}{details}{SPACER}",
             file=stderr
         )
+
     else:
         assert not summary, f"{test_name}() has unexpected non-empty report with contents: {summary}?"
 
