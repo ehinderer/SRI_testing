@@ -1,11 +1,17 @@
 """
 Unit tests for the backend logic of the web services application
 """
+import sys
 from sys import stderr
 from typing import Optional, Callable
 import logging
 
-from translator.sri.testing.processor import CMD_DELIMITER, PWD_CMD, WorkerProcess
+from translator.sri.testing.processor import (
+    CMD_DELIMITER,
+    PWD_CMD,
+    PYTHON_PATH,
+    WorkerProcess
+)
 from tests.onehop import ONEHOP_TEST_DIRECTORY
 
 logger = logging.getLogger()
@@ -21,21 +27,27 @@ def _report_outcome(
     wp = WorkerProcess(timeout)
     wp.run_command(command_line)
     line: str
+
+    if expecting_output:
+        print(f"{test_name}() output: ...\n", file=stderr)
+
     for line in wp.get_output():
         if expecting_output:
             assert line, f"{test_name}() is missing Worker Process output?"
             msg = '\n'.join(line.split('\r\n'))
-            spacer = '\n' + '#'*80 + '\n'
-            print(f"{test_name}() worker process 'output':{spacer}{msg}{spacer}", file=stderr)
+            print(f"\t{msg}", file=stderr)
             if expected_output:
                 # Strip leading and training whitespace of the report for the comparison
                 assert line.strip() == expected_output
         else:
             assert not line, f"{test_name}() has unexpected non-empty Worker Process output: {line}?"
 
+    if expecting_output:
+        print("\n...Done!", file=stderr)
+
 
 def test_run_command():
-    _report_outcome("test_run_command", f"dir .* {CMD_DELIMITER} python --version")
+    _report_outcome("test_run_command", f"dir .* {CMD_DELIMITER} {PYTHON_PATH} --version")
 
 
 def test_cd_path():
@@ -54,7 +66,7 @@ def test_run_process_timeout():
     # the runtime of the specified command line
     _report_outcome(
         "test_run_process_timeout",
-        "python -c 'from time import sleep; sleep(2)'",
+        f'{PYTHON_PATH} -c "from time import sleep; sleep(2)"',
         timeout=1,
         expecting_output=False
     )
@@ -64,5 +76,5 @@ def test_run_process_timeout():
 def test_progress_monitoring():
     _report_outcome(
         "test_progress_monitoring",
-        "python -c 'for i in range(20): print(i)'"
+        f'{PYTHON_PATH} -c "for i in range(20): print(i)"'
     )

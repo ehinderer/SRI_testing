@@ -4,23 +4,21 @@ Utility module to support SRI Testing harness background processing
 The module launches the SRT Testing test harness using the Python 'multiprocessor' library.
 See https://docs.python.org/3/library/multiprocessing.html?highlight=multiprocessing for details.
 """
+import sys
 from sys import platform, stderr
 
 from multiprocessing import Process, Pipe
 from multiprocessing.context import BaseContext
 from multiprocessing.connection import Connection
 
-from typing import Optional, Union, Callable, Generator
+from typing import Optional, Generator
+
 import multiprocessing as mp
 from queue import Empty
 from subprocess import (
-    # run,
     Popen,
     PIPE,
-    STDOUT,
-    CompletedProcess,
-    CalledProcessError,
-    TimeoutExpired
+    STDOUT
 )
 import os
 import logging
@@ -32,14 +30,18 @@ if platform == "win32":
     # Windoze
     CMD_DELIMITER = "&&"
     PWD_CMD = "cd"
+    from pathlib import PureWindowsPath
+    PYTHON_PATH = PureWindowsPath(sys.executable).as_posix()
 elif platform in ["linux", "linux1", "linux2", "darwin"]:
     # *nix
     CMD_DELIMITER = ";"
     PWD_CMD = "pwd"
+    PYTHON_PATH = sys.executable
 else:
     print(f"Warning: other OS platform '{platform}' encountered?")
     CMD_DELIMITER = ";"
     PWD_CMD = "pwd"
+    PYTHON_PATH = sys.executable
 
 
 def _worker_process(
@@ -79,6 +81,7 @@ def _worker_process(
         # do the heavy lifting here
         with Popen(
                 args=command_line,
+                shell=True,
                 # env=env,
                 bufsize=1,
                 universal_newlines=True,
@@ -89,8 +92,7 @@ def _worker_process(
             for line in proc.stdout:
                 line = line.strip()
                 if line:
-                    # Simple-minded approach of shoving all the
-                    # child output lines into an interprocess pipe
+                    # Simple-minded approach of shoving all the child output lines into an interprocess pipe
                     pipe.send(line)
 
         return_code = proc.returncode
@@ -143,11 +145,10 @@ class WorkerProcess:
         try:
             # Sanity check: Work Process is a singleton?
             # TODO: may need to manage several worker processes, therefore, may need to use multiprocessing Pools? see
-            #   https://docs.python.org/3/library/multiprocessing.html?highlight=multiprocessing#module-multiprocessing
+            #    https://docs.python.org/3/library/multiprocessing.html?highlight=multiprocessing#module-multiprocessing
             assert not self._process
 
-            # We'll access the internal _worker_proces
-            # standard output/error stream, via a Pipe
+            # We'll access the internal _worker_process standard output/error stream using an interprocess Pipe
             self._parent_conn, child_conn = Pipe()
 
             self._process = self._ctx.Process(

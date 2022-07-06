@@ -283,7 +283,7 @@ class OneHopTestHarness:
         """
         If available, returns the percentage completion of the currently active OneHopTestHarness run.
 
-        :return: int, 0..100 indicating the percentage completion of the test run., -1 if test run now running?
+        :return: int, 0..100 indicating the percentage completion of the test run., -1 if test run not running?
         """
         test_run: str = str(self._test_run_id)
         # TODO: stub implementation

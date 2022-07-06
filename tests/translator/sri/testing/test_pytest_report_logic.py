@@ -33,7 +33,7 @@ def _report_outcome(
         if tries > MAX_TRIES:
             break
 
-        summary: Optional[Dict] = OneHopTestHarness.get_summary(session_id)
+        summary: Optional[Dict] = OneHopTestHarness(session_id).get_summary()
 
         if summary:
             # got something back?!
@@ -44,7 +44,7 @@ def _report_outcome(
             sleep(120)
         else:
             sleep(20)  # Should be long enough for a short timeout aborted test
-            summary = OneHopTestHarness.get_summary(session_id)
+            summary = OneHopTestHarness(session_id).get_summary()
             break
 
     if expecting_report:
@@ -149,11 +149,12 @@ def test_run_onehop_tests_from_registry_with_default_versioning():
 def test_run_onehop_tests_with_timeout():
     # 1 second timeout is much too short for this test to run
     # to completion, so a WorkerProcess timeout is triggered
-    onehop_test = OneHopTestHarness(timeout=1)
+    onehop_test = OneHopTestHarness()
     onehop_test.run(
         trapi_version="1.2",
         biolink_version="2.2.16",
-        one=True
+        one=True,
+        timeout=1
     )
     _report_outcome(
         "test_run_onehop_tests_with_timeout",
