@@ -5,14 +5,13 @@ Note: the nature of these unit tests, even with sample data,
       means that they may take over five minutes to run each one.
 """
 from sys import stderr
-from typing import Optional, Dict, List
+from typing import Optional, Dict
 from time import sleep
 
-from translator.sri.testing.report import (
-    OneHopTestHarness,
-    build_edge_details_file_path
-)
+from translator.sri.testing.report import OneHopTestHarness
+
 import logging
+
 logger = logging.getLogger()
 
 SPACER = '\n' + '#'*120 + '\n'
@@ -50,27 +49,36 @@ def _report_outcome(
     if expecting_report:
 
         assert summary, f"{test_name}() from {session_id} is missing an expected summary?"
-        print(f"{test_name}() test run 'summary':{SPACER}{summary}{SPACER}", file=stderr)
 
-        edge_details_file_path: str = build_edge_details_file_path("ARA", "Test_ARA", "Test_KP_2", "1")
+        print(f"{test_name}() test run 'summary':\n\t{summary}\n", file=stderr)
 
-        details = OneHopTestHarness(session_id).get_details(
-            component="ARA",
-            resource_id="Test_ARA-Test_KP_2",
-            edge_num="1"
-        )
+        details: Optional[str] = None
+        tries = 0
+        while not details:
+
+            tries += 1
+            if tries > MAX_TRIES:
+                break
+
+            details = OneHopTestHarness(session_id).get_details(
+                component="ARA",
+                resource_id="Test_ARA-Test_KP_2",
+                edge_num="1"
+            )
 
         assert details, \
-            f"{test_name}() from {session_id} is missing expected details for ARA tests of " + \
-            f"edge number '1' of resource 'Test_ARA-Test_KP_2' for test run {session_id}'?"
+            f"{test_name}() from test run '{session_id}' is missing expected details for " + \
+            f"ARA tests of edge number '1' of resource 'Test_ARA-Test_KP_2'?"
 
         print(
-            f"{test_name}() test run 'details' for test '{edge_details_file_path}':{SPACER}{details}{SPACER}",
+            f"{test_name}() test run '{session_id}' details for ARA tests of " +
+            f"edge number '1' of resource 'Test_ARA-Test_KP_2' for test run:\n\t{details}\n",
             file=stderr
         )
 
     else:
-        assert not summary, f"{test_name}() has unexpected non-empty report with contents: {summary}?"
+        assert not summary, \
+            f"{test_name}() test run '{session_id}' has unexpected non-empty report with contents: {summary}?"
 
 
 def test_run_local_onehop_tests_one_only():

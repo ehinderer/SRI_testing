@@ -10,6 +10,7 @@ from sys import platform, stderr
 from multiprocessing import Process, Pipe
 from multiprocessing.context import BaseContext
 from multiprocessing.connection import Connection
+from time import sleep
 
 from typing import Optional, Generator
 
@@ -106,9 +107,6 @@ def _worker_process(
     # propagate the result - successful or not - back to the caller
     queue.put(f"Worker Process Return Code: {return_code}\nStatus {return_status}")
 
-    # Job done, close the interprocess pipe?
-    pipe.close()
-
 
 class WorkerProcessException(Exception):
     pass
@@ -124,6 +122,7 @@ class WorkerProcess:
         """
         self._timeout: Optional[int] = timeout
         self._parent_conn: Optional[Connection] = None
+        self._child_conn: Optional[Connection] = None
         self._ctx: BaseContext = mp.get_context('spawn')
         self._queue = self._ctx.Queue()
         self._lock = self._ctx.Lock()
@@ -149,12 +148,12 @@ class WorkerProcess:
             assert not self._process
 
             # We'll access the internal _worker_process standard output/error stream using an interprocess Pipe
-            self._parent_conn, child_conn = Pipe()
+            self._parent_conn, self._child_conn = Pipe()
 
             self._process = self._ctx.Process(
                 target=_worker_process,
                 args=(
-                    child_conn,
+                    self._child_conn,
                     self._lock,
                     self._queue,
                     command_line
@@ -169,8 +168,10 @@ class WorkerProcess:
                     self._process_id = self._queue.get(block=True, timeout=self._timeout)
 
                 except Empty:
+
                     logger.debug("run_command() 'process_id' not available (yet) in the interprocess Queue?")
                     self._process_id = 0  # return a zero PID to signal 'Empty'?
+
                 pid_tries -= 1
 
             # for some reason, the worker process didn't send back a
@@ -188,14 +189,31 @@ class WorkerProcess:
             self._process = None
             self._process_id = 0
 
-    def get_output(self) -> Generator:
+    def get_output(self, timeout: float = 1.0) -> Generator:
         if self._parent_conn:
+            print("\n", file=stderr)
             while True:
                 try:
-                    if self._parent_conn.poll(1):
-                        yield self._parent_conn.recv()
-                except EOFError:
+                    if self._parent_conn.poll(timeout):
+                        line: str = self._parent_conn.recv()
+                        yield line
+                    else:
+                        # The Generator iteration is stopped if
+                        # the get_output polling timeout is hit
+                        return None
+                except (EOFError, BrokenPipeError) as exc:
+                    # The caller has to distinguish in
+                    # between polling timeouts and output EOF
+                    logger.debug(f"WorkerProcess.get_output(): {exc}")
                     return None
+        else:
+            # Caller also gets nothing if there is no active connection
+            return None
 
     def close(self):
-        self._process.join()
+        # Job done, the parent, not the child, sets the connections to None
+        # which closes the interprocess pipe, when ready?
+        self._parent_conn = None
+        self._child_conn = None
+        if self._process:
+            self._process.join()

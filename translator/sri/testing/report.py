@@ -174,6 +174,7 @@ class OneHopTestHarness:
         # each test harness run has its own unique session identifier
         self._test_run_id: UUID
         self._command_line: Optional[str] = None
+        self._percentage_completion: int = 0
         self._process: Optional[WorkerProcess] = None
         self._timeout: Optional[int] = DEFAULT_WORKER_TIMEOUT
         if uuid is not None:
@@ -189,17 +190,6 @@ class OneHopTestHarness:
             return str(self._test_run_id)
         else:
             return None
-
-    def progress_monitoring(self, line):
-        # propagate the line to the parent process, via the Queue?
-        # TODO: somehow read the stdout stream to parse the
-        #       PyTest %completion, as a progress monitor
-        pc = PERCENTAGE_COMPLETION_SUFFIX_PATTERN.search(line)
-        if pc and pc.group():
-            # TODO: eventually want to return this back to
-            #       the test run owner for progress monitoring
-            percentage_completion = pc["percent_complete"]
-            self._process._queue.put(f"%{percentage_completion}")  # or save to disk?
 
     def run(
             self,
@@ -285,10 +275,12 @@ class OneHopTestHarness:
 
         :return: int, 0..100 indicating the percentage completion of the test run., -1 if test run not running?
         """
-        test_run: str = str(self._test_run_id)
-        # TODO: stub implementation
-        self._process._queue.get(block=True, timeout=self._timeout)
-        return 50
+        for line in self._process.get_output(timeout=10):
+            pc = PERCENTAGE_COMPLETION_SUFFIX_PATTERN.search(line)
+            if pc and pc.group():
+                self._percentage_completion = int(pc["percent_complete"])
+
+        return self._percentage_completion
 
     def _absolute_report_file_path(self, report_file_path: str) -> str:
         absolute_file_path = normpath(f"{ONEHOP_TEST_DIRECTORY}/test_results/{self._test_run_id}/{report_file_path}")
