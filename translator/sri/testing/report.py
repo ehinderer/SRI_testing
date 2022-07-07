@@ -38,7 +38,7 @@ TEST_CASE_PATTERN = re.compile(
     r"^(?P<resource_id>[^#]+)(#(?P<edge_num>\d+))?(-(?P<test_id>.+))?$"
 )
 
-PERCENTAGE_COMPLETION_SUFFIX_PATTERN = re.compile(r"(\[\s*(?P<percent_complete>\d+)%])?$")
+PERCENTAGE_COMPLETION_SUFFIX_PATTERN = re.compile(r"(\[\s*(?P<percentage_completion>\d+)%])?$")
 
 
 def build_edge_details_file_path(component: str, ara_id: Optional[str], kp_id: str, edge_num: str):
@@ -174,7 +174,6 @@ class OneHopTestHarness:
         # each test harness run has its own unique session identifier
         self._test_run_id: UUID
         self._command_line: Optional[str] = None
-        self._percentage_completion: int = 0
         self._process: Optional[WorkerProcess] = None
         self._timeout: Optional[int] = DEFAULT_WORKER_TIMEOUT
         if uuid is not None:
@@ -248,17 +247,37 @@ class OneHopTestHarness:
         self._test_run_id_2_worker_process[self._test_run_id] = {
             "command_line": self._command_line,
             "worker_process": self._process,
-            "timeout": self._timeout
+            "timeout": self._timeout,
+            
+            # Percentage Completion needs to be updated later?
+            "percentage_completion": 0
         }
 
     def get_worker(self) -> Optional[WorkerProcess]:
         return self._process
 
+    def _set_percentage_completion(self, name: str, value: str):
+        if name == "percentage_completion" and \
+                self._test_run_id and \
+                self._test_run_id in self._test_run_id_2_worker_process and \
+                "percentage_completion" in self._test_run_id_2_worker_process[self._test_run_id]:
+            self._test_run_id_2_worker_process[self._test_run_id]["percentage_completion"] = value
+    
+    def _get_percentage_completion(self) -> int:
+        if self._test_run_id and \
+                self._test_run_id in self._test_run_id_2_worker_process and \
+                "percentage_completion" in self._test_run_id_2_worker_process[self._test_run_id]:
+            return self._test_run_id_2_worker_process[self._test_run_id]["percentage_completion"]
+        else:
+            return 0
+    
     def _reload_run_parameters(self):
         if self._test_run_id in self._test_run_id_2_worker_process:
-            self._command_line = self._test_run_id_2_worker_process[self._test_run_id]["command_line"]
-            self._process = self._test_run_id_2_worker_process[self._test_run_id]["worker_process"]
-            self._timeout = self._test_run_id_2_worker_process[self._test_run_id]["timeout"]
+            run_parameters: Dict = self._test_run_id_2_worker_process[self._test_run_id]
+            self._command_line = run_parameters["command_line"]
+            self._process = run_parameters["worker_process"]
+            self._timeout = run_parameters["timeout"]
+            self._percentage_completion = run_parameters["percentage_completion"]
 
     @classmethod
     def get_test_run_list(cls) -> List[str]:
@@ -275,12 +294,13 @@ class OneHopTestHarness:
 
         :return: int, 0..100 indicating the percentage completion of the test run., -1 if test run not running?
         """
-        for line in self._process.get_output(timeout=10):
-            pc = PERCENTAGE_COMPLETION_SUFFIX_PATTERN.search(line)
-            if pc and pc.group():
-                self._percentage_completion = int(pc["percent_complete"])
+        if self._get_percentage_completion() < 100:
+            for line in self._process.get_output(timeout=10):
+                pc = PERCENTAGE_COMPLETION_SUFFIX_PATTERN.search(line)
+                if pc and pc.group():
+                    self._set_percentage_completion(int(pc["percentage_completion"]))
 
-        return self._percentage_completion
+        return self._get_percentage_completion()
 
     def _absolute_report_file_path(self, report_file_path: str) -> str:
         absolute_file_path = normpath(f"{ONEHOP_TEST_DIRECTORY}/test_results/{self._test_run_id}/{report_file_path}")
