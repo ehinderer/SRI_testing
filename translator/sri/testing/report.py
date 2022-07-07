@@ -372,11 +372,14 @@ class OneHopTestHarness:
 
         return response_file_path
 
+    def _set_test_run_root_path(self):
+        # subdirectory for local run output data
+        self.test_run_root_path = f"{TEST_RESULTS_DIR}/{self._test_run_id}"
+        makedirs(self.test_run_root_path, exist_ok=True)
+
     def _get_test_run_root_path(self) -> str:
         if not self.test_run_root_path:
-            # subdirectory for local run output data
-            self.test_run_root_path: str = f"{TEST_RESULTS_DIR}/{self._test_run_id}"
-            makedirs(self.test_run_root_path)
+            self._set_test_run_root_path()
         return self.test_run_root_path
 
     def save_test_run_summary(self, test_summary: Dict):
@@ -437,9 +440,9 @@ class OneHopTestHarness:
         Persist TRAPI request input and response output JSON
         for all failed unit tests of a given test data edge.
 
-        :param test_details_file_path:
-        :param edge_details_file_path:
-        :param case_response:
+        :param test_details_file_path: 'file' path to the details for a single resource
+        :param edge_details_file_path: 'file' path to the details for a single edge
+        :param case_response: catalog of TRAPI request/response JSON from failed tests
         :return:
         """
         for test_id in case_response[edge_details_file_path]:
@@ -448,6 +451,8 @@ class OneHopTestHarness:
                 json.dump(response, response_file, indent=4)
 
     def save(self, test_summary: Dict, case_details: Dict, case_response: Dict):
+
+        self._set_test_run_root_path()
 
         for edge_details_file_path in case_details:
             # Print out the test case details
