@@ -5,9 +5,8 @@ import pytest
 import shutil
 
 from translator.sri.testing.report import (
-    unit_test_report_filepath,
     parse_unit_test_name,
-    build_edge_details_file_path
+    build_edge_details_file_path, OneHopTestHarness
 )
 
 
@@ -74,23 +73,13 @@ def test_clean_up_unit_test_filename(query):
 @pytest.mark.parametrize(
     "query",
     [
-        (
-            "d6098879-d791-4c77-a300-f60d95f48ee1",
             "KP/Test_KP_1/Test_KP_1-2",
-            "test_results/d6098879-d791-4c77-a300-f60d95f48ee1" +
-            "/KP/Test_KP_1/Test_KP_1-2"
-        ),
-    (
-            "d6098879-d791-4c77-a300-f60d95f48ee1",
-            "ARA/Test_ARA/Test_KP_1/Test_KP_1-3",
-            "test_results/d6098879-d791-4c77-a300-f60d95f48ee1" +
-            "/ARA/Test_ARA/Test_KP_1/Test_KP_1-3"
-        )
+            "ARA/Test_ARA/Test_KP_1/Test_KP_1-3"
     ]
 )
 def test_unit_test_report_filepath(query):
-    assert unit_test_report_filepath(
-        test_run_id=query[0],
-        unit_test_file_path=query[1]
-    ) == query[2]
+    test_run: OneHopTestHarness = OneHopTestHarness()
+    test_run_id: str = test_run.get_test_run_id()
+    expected_path: str = f"test_results/{test_run_id}/{query}"
+    assert test_run._unit_test_report_filepath(query) == expected_path
     shutil.rmtree("test_results", ignore_errors=True)

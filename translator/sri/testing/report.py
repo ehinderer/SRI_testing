@@ -5,12 +5,13 @@ from typing import Optional, Dict, Tuple, List
 
 from os import makedirs, listdir
 from os.path import normpath
-
+from datetime import datetime
 import re
 
 import orjson
 
-from uuid import UUID, uuid4
+# TODO: should orjson be used instead of json below?
+import json
 
 from translator.sri.testing.processor import CMD_DELIMITER, WorkerProcess
 from tests.onehop import ONEHOP_TEST_DIRECTORY
@@ -25,7 +26,8 @@ logger = logging.getLogger()
 DEFAULT_WORKER_TIMEOUT = 120  # 2 minutes for small PyTests?
 
 #
-# June 2022 - new reporting strategy, based on cached Pytest exported summary and details files
+# June/July 2022 - new reporting strategy, based on an exported
+# summary, edge details and unit test TRAPI JSON files
 #
 
 
@@ -100,32 +102,6 @@ def parse_unit_test_name(unit_test_key: str) -> Tuple[str, str, str, int, str, s
     raise RuntimeError(f"parse_unit_test_name() '{unit_test_key}' has unknown format?")
 
 
-def unit_test_report_filepath(test_run_id: str, unit_test_file_path: str) -> str:
-    """
-    Generate a report file path for a specific unit test result, compiled from descriptive components.
-
-    :param test_run_id: str, caller-defined test run ("session") identifier, e.g. UUID string or 'test_results'
-    :param unit_test_file_path: str, normalized unit test file path, something like
-                                     "KP/Test_KP_1/1/inverse_by_new_subject_FAILED.json"
-
-    :return: str, (posix) unit test file path to root name of report file path (*without* file extension)
-    """
-    assert test_run_id, f"unit_test_report_filepath() empty 'test_run_id'"
-    assert unit_test_file_path, f"unit_test_report_filepath() empty 'unit_test_file_path'"
-
-    path_parts = [TEST_RESULTS_DIR, test_run_id] + unit_test_file_path.split('/')
-
-    unit_test_dir_path = '/'.join(path_parts[:-1])
-    try:
-        makedirs(f"{unit_test_dir_path}", exist_ok=True)
-    except OSError as ose:
-        logger.warning(f"unit_test_report_filepath() makedirs exception: {str(ose)}")
-
-    unit_test_file_path = '/'.join(path_parts)
-
-    return unit_test_file_path
-
-
 def _get_details_file_path(component: str, resource_id: str, edge_num: str) -> str:
     """
     Web-wrapped version of the translator.sri.testing.report.get_edge_details_file_path() method.
@@ -162,27 +138,39 @@ def _retrieve_document(report_type: str, report_file_path: str) -> Optional[str]
 
 class OneHopTestHarness:
 
-    # Caching of processes, indexed by test_run_id (UUID as string)
-    _test_run_id_2_worker_process: Dict[UUID, Dict] = dict()
+    @staticmethod
+    def _generate_test_run_id() -> str:
+        return datetime.now().strftime("%Y-%b-%d_%Hhr%M")
 
-    def __init__(self, uuid: Optional[str] = None):
+    # Caching of processes, indexed by test_run_id (timestamp identifier as string)
+    _test_run_id_2_worker_process: Dict[str, Dict] = dict()
+
+    def __init__(self, test_run_id: Optional[str] = None):
         """
         OneHopTestHarness constructor.
 
-        :param uuid: Optional[str], caller specified UUID urn, internally created if 'None'
+        :param Optional[str]: Optional[str], known timestamp test run identifier; internally created if 'None'
         """
-        # each test harness run has its own unique session identifier
-        self._test_run_id: UUID
+        # each test harness run has its own unique timestamp identifier
+        self._test_run_id: str
+
         self._command_line: Optional[str] = None
         self._process: Optional[WorkerProcess] = None
         self._timeout: Optional[int] = DEFAULT_WORKER_TIMEOUT
-        if uuid is not None:
+        if test_run_id is not None:
             # should be an existing test run?
-            self._test_run_id = UUID(f"urn:uuid:{uuid}")
+            self._test_run_id = test_run_id
             self._reload_run_parameters()
         else:
             # new test run? no run parameters to reload?
-            self._test_run_id: UUID = uuid4()
+            self._test_run_id = self._generate_test_run_id()
+            self._test_run_id_2_worker_process[self._test_run_id] = {
+                "command_line": None,
+                "worker_process": None,
+                "timeout": self._timeout,
+                "percentage_completion": 0
+            }
+        self.test_run_root_path: Optional[str] = None
 
     def get_test_run_id(self) -> Optional[str]:
         if self._test_run_id:
@@ -256,20 +244,22 @@ class OneHopTestHarness:
     def get_worker(self) -> Optional[WorkerProcess]:
         return self._process
 
-    def _set_percentage_completion(self, name: str, value: str):
-        if name == "percentage_completion" and \
-                self._test_run_id and \
-                self._test_run_id in self._test_run_id_2_worker_process and \
-                "percentage_completion" in self._test_run_id_2_worker_process[self._test_run_id]:
+    def _set_percentage_completion(self, value: int):
+        if self._test_run_id in self._test_run_id_2_worker_process:
             self._test_run_id_2_worker_process[self._test_run_id]["percentage_completion"] = value
+        else:
+            raise RuntimeError(
+                f"_set_percentage_completion(): Unknown Worker Process for test run '{str(self._test_run_id)}'?"
+            )
     
     def _get_percentage_completion(self) -> int:
-        if self._test_run_id and \
-                self._test_run_id in self._test_run_id_2_worker_process and \
+        if self._test_run_id in self._test_run_id_2_worker_process and \
                 "percentage_completion" in self._test_run_id_2_worker_process[self._test_run_id]:
             return self._test_run_id_2_worker_process[self._test_run_id]["percentage_completion"]
         else:
-            return 0
+            raise RuntimeError(
+                f"_get_percentage_completion(): Unknown Worker Process for test run '{str(self._test_run_id)}'?"
+            )
     
     def _reload_run_parameters(self):
         if self._test_run_id in self._test_run_id_2_worker_process:
@@ -278,6 +268,10 @@ class OneHopTestHarness:
             self._process = run_parameters["worker_process"]
             self._timeout = run_parameters["timeout"]
             self._percentage_completion = run_parameters["percentage_completion"]
+        else:
+            raise RuntimeError(
+                f"_reload_run_parameters(): Unknown Worker Process for test run '{str(self._test_run_id)}'?"
+            )
 
     @classmethod
     def get_test_run_list(cls) -> List[str]:
@@ -377,3 +371,94 @@ class OneHopTestHarness:
         response_file_path = self._absolute_report_file_path(f"{edge_details_file_path}-{test_id}-response.json")
 
         return response_file_path
+
+    def _get_test_run_root_path(self) -> str:
+        if not self.test_run_root_path:
+            # subdirectory for local run output data
+            self.test_run_root_path: str = f"{TEST_RESULTS_DIR}/{self._test_run_id}"
+            makedirs(self.test_run_root_path)
+        return self.test_run_root_path
+
+    def save_test_run_summary(self, test_summary: Dict):
+        """
+        Persist summary of test run.
+
+        :param test_summary:
+        :return:
+        """
+        # Write out the whole List[str] of unit test identifiers, into one JSON summary file
+        summary_filepath = f"{self._get_test_run_root_path()}/test_summary.json"
+        with open(summary_filepath, 'w') as summary_file:
+            json.dump(test_summary, summary_file, indent=4)
+
+    def _unit_test_report_filepath(self, edge_details_file_path: str) -> str:
+        """
+        Generate a report file path for a specific unit test result, compiled from descriptive components.
+
+        :return: str, (posix) unit test file path to root name of report file path (*without* file extension)
+        """
+        path_parts = [TEST_RESULTS_DIR, self._test_run_id] + edge_details_file_path.split('/')
+
+        unit_test_dir_path = '/'.join(path_parts[:-1])
+        try:
+            makedirs(f"{unit_test_dir_path}", exist_ok=True)
+        except OSError as ose:
+            logger.warning(f"unit_test_report_filepath() makedirs exception: {str(ose)}")
+
+        unit_test_file_path = '/'.join(path_parts)
+
+        return unit_test_file_path
+
+    @staticmethod
+    def save_edge_details(
+            test_details_file_path: str,
+            edge_details_file_path: str,
+            case_details: Dict
+    ):
+        """
+        Persist test run details for a given test data edge.
+
+        :param test_details_file_path:
+        :param edge_details_file_path:
+        :param case_details:
+        :return:
+        """
+        with open(f"{test_details_file_path}.json", 'w') as details_file:
+            test_details = case_details[edge_details_file_path]
+            json.dump(test_details, details_file, indent=4)
+
+    @staticmethod
+    def save_unit_test_trapi_io(
+            test_details_file_path: str,
+            edge_details_file_path: str,
+            case_response: Dict
+    ):
+        """
+        Persist TRAPI request input and response output JSON
+        for all failed unit tests of a given test data edge.
+
+        :param test_details_file_path:
+        :param edge_details_file_path:
+        :param case_response:
+        :return:
+        """
+        for test_id in case_response[edge_details_file_path]:
+            with open(f"{test_details_file_path}-{test_id}-response.json", 'w') as response_file:
+                response: Dict = case_response[edge_details_file_path][test_id]
+                json.dump(response, response_file, indent=4)
+
+    def save(self, test_summary: Dict, case_details: Dict, case_response: Dict):
+
+        for edge_details_file_path in case_details:
+            # Print out the test case details
+
+            test_details_file_path = self._unit_test_report_filepath(edge_details_file_path)
+
+            # Save Details from a given edge test data use case
+            self.save_edge_details(test_details_file_path, edge_details_file_path, case_details)
+
+            # Save TRAPI Request/Response IO details for unit tests from a given edge test data use case
+            self.save_unit_test_trapi_io(test_details_file_path, edge_details_file_path, case_response)
+
+        # Save Test Run Summary
+        self.save_test_run_summary(test_summary)

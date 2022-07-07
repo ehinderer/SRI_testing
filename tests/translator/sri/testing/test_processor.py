@@ -102,7 +102,7 @@ def test_progress_monitoring():
         for line in wp.get_output():
             pc = PERCENTAGE_COMPLETION_SUFFIX_PATTERN.search(line)
             if pc and pc.group():
-                next_pc = pc["percent_complete"]
+                next_pc = pc["percentage_completion"]
 
         if next_pc:
             tries = 0

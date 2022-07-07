@@ -145,7 +145,7 @@ async def get_test_run_list() -> TestRunList:
     Returns the catalog of completed OneHopTestHarness test runs.
 
     \f
-    :return: TestRunList, list of (UUID) identifiers of completed OneHopTestHarness test runs.
+    :return: TestRunList, list of timestamp identifiers of completed OneHopTestHarness test runs.
     """
     test_runs: List[str] = OneHopTestHarness.get_test_run_list()
 

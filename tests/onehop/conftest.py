@@ -3,11 +3,8 @@ Configure one hop tests
 """
 from typing import Optional, Union, List, Set, Dict, Any
 from sys import stdout, stderr
-from os import path, walk, makedirs
+from os import path, walk
 from collections import defaultdict
-from datetime import datetime
-
-from uuid import uuid4
 
 import json
 
@@ -33,8 +30,7 @@ from tests.onehop.util import (
     get_unit_test_codes
 )
 from translator.sri.testing.report import (
-    TEST_RESULTS_DIR,
-    unit_test_report_filepath,
+    OneHopTestHarness,
     parse_unit_test_name
 )
 
@@ -43,25 +39,19 @@ logger = logging.getLogger(__name__)
 
 def pytest_sessionfinish(session):
     """ Gather all results and save them to a csv.
-    Works both on worker and master nodes, and also with xdist disabled"""
-
-    test_run_id: str
-    if "test_run_id" in session.config.option and session.config.option.test_run_id:
-        test_run_id = session.config.option.test_run_id
-    else:
-        # Generate a fake UUID test id for local runs
-        test_run_id = str(uuid4())
-
-    # subdirectory for local run output data
-    test_run_root_path: str = f"{TEST_RESULTS_DIR}/{test_run_id}"
-    makedirs(test_run_root_path)
+    Works both on worker and master nodes, and also with xdist disabled
+    """
+    # test_run_id may not be set (i.e. may be 'None'),
+    # in which case, a OneHopTestHarness test run
+    # object is, instantiated with a 'fake' test_run_id
+    test_run: OneHopTestHarness = OneHopTestHarness(
+        session.config.option.test_run_id
+        if "test_run_id" in session.config.option and session.config.option.test_run_id else None
+    )
 
     session_results = get_session_results_dct(session)
 
     test_summary: Dict = dict()
-
-    current_time = datetime.now()
-    test_summary['timestamp'] = current_time.strftime("%d-%m-%Y, %H:%M:%S")
 
     case_details: Dict = dict()
     case_response: Dict = dict()
@@ -107,10 +97,9 @@ def pytest_sessionfinish(session):
             # Top level summary reporting 'PASSED, FAILED, SKIPPED' for each unit test
             case_summary[edge_num][test_id] = details['status']
 
-        ################################################
-        # Print out unit details as separate files
-        # relative to TEST_RESULTS_DIR and 'test_run_id'
-        ################################################
+        ##############################
+        # Test details indexed by edge
+        ##############################
 
         if edge_details_file_path not in case_details:
 
@@ -158,27 +147,7 @@ def pytest_sessionfinish(session):
             else:
                 test_details['response'] = "No 'response' generated for this unit test?"
 
-    for edge_details_file_path in case_details:
-        # Print out the test case details
-
-        test_details_file_path = unit_test_report_filepath(
-            test_run_id=test_run_id,
-            unit_test_file_path=edge_details_file_path
-        )
-
-        with open(f"{test_details_file_path}.json", 'w') as details_file:
-            test_details = case_details[edge_details_file_path]
-            json.dump(test_details, details_file, indent=4)
-
-        for test_id in case_response[edge_details_file_path]:
-            with open(f"{test_details_file_path}-{test_id}-response.json", 'w') as response_file:
-                response: Dict = case_response[edge_details_file_path][test_id]
-                json.dump(response, response_file, indent=4)
-
-    # Write out the whole List[str] of unit test identifiers, into one JSON summary file
-    summary_filepath = f"{test_run_root_path}/test_summary.json"
-    with open(summary_filepath, 'w') as summary_file:
-        json.dump(test_summary, summary_file, indent=4)
+    test_run.save(test_summary, case_details, case_response)
 
 
 def pytest_addoption(parser):
@@ -651,7 +620,16 @@ def pytest_generate_tests(metafunc):
     # Bug or feature? The Biolink Model release may be overridden on the command line
     biolink_version = metafunc.config.getoption('Biolink_Version')
     logger.debug(f"pytest_generate_tests(): Biolink_Version == {biolink_version}")
-    trapi_kp_edges = generate_trapi_kp_tests(metafunc, trapi_version=get_trapi_version(), biolink_version=biolink_version)
+    trapi_kp_edges = generate_trapi_kp_tests(
+        metafunc,
+        trapi_version=get_trapi_version(),
+        biolink_version=biolink_version
+    )
 
     if metafunc.definition.name == 'test_trapi_aras':
-        generate_trapi_ara_tests(metafunc, trapi_kp_edges, trapi_version=get_trapi_version(), biolink_version=biolink_version)
+        generate_trapi_ara_tests(
+            metafunc,
+            trapi_kp_edges,
+            trapi_version=get_trapi_version(),
+            biolink_version=biolink_version
+        )
