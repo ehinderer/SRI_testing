@@ -10,7 +10,7 @@ Registry package
 #
 # Setting the following flag to 'True' triggers use of the
 # local 'mock' Registry data entries immediately below
-MOCK_REGISTRY: bool = True
+MOCK_REGISTRY: bool = False
 
 # This 'mock' registry entry relies a bit on ARAGORN (Ranking Agent)
 # and the RENCI Automat KP's, which may sometimes be offline?
