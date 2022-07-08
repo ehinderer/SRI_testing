@@ -17,9 +17,12 @@ from translator.sri.testing.processor import (
     WorkerProcess
 )
 from tests.onehop import ONEHOP_TEST_DIRECTORY
+
 from translator.sri.testing.report import PERCENTAGE_COMPLETION_SUFFIX_PATTERN
 
 logger = logging.getLogger()
+
+TEST_RESULTS_PATH = abspath(f"{dirname(__file__)}{sep}test_results")
 
 
 def _report_outcome(
@@ -30,7 +33,10 @@ def _report_outcome(
         expected_output: Optional[str] = None
 ):
     wp = WorkerProcess(timeout)
-    wp.run_command(command_line)
+    wp.run_command(
+        command_line=command_line,
+        log_file=f"{TEST_RESULTS_PATH}{sep}{test_name}.log"
+    )
     line: str
 
     if expecting_output:
@@ -87,7 +93,10 @@ def test_progress_monitoring():
 
     wp = WorkerProcess(1)
 
-    wp.run_command(f"{PYTHON_PATH} {MOCK_WORKER}")
+    wp.run_command(
+        command_line=f"{PYTHON_PATH} {MOCK_WORKER}",
+        log_file=f"{TEST_RESULTS_PATH}{sep}test_progress_monitoring.log"
+    )
 
     done: bool = False
     percentage_completion: str = "0"

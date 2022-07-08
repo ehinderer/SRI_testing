@@ -18,7 +18,8 @@ from queue import Empty
 from subprocess import (
     Popen,
     PIPE,
-    STDOUT
+    STDOUT,
+    DEVNULL
 )
 import os
 import logging
@@ -48,7 +49,8 @@ def _worker_process(
         pipe: mp.Pipe,
         lock: mp.Lock,
         queue: mp.Queue,
-        command_line: str
+        command_line: str,
+        log_file: Optional[str] = None
 ):
     """
     Wrapper for a background worker process which runs a specified command.
@@ -57,6 +59,8 @@ def _worker_process(
     :param lock: Lock, process lock used to synchronize background output
     :param queue: Queue, used for communication of worker process to caller
     :param command_line: str, the worker process command to execute
+    :param log_file: Optional[str], path to save process output (in parallel to pipe)
+
     :return: None (process state indirectly returned via Queue)
     """
     lock.acquire()
@@ -77,23 +81,30 @@ def _worker_process(
     # result: Union[CompletedProcess, CalledProcessError, TimeoutExpired]
     return_code: int
     return_status: str
+
+    if not log_file:
+        log_file = DEVNULL
+
     try:
-        # do the heavy lifting here
-        with Popen(
-                args=command_line,
-                shell=True,
-                # env=env,
-                bufsize=1,
-                universal_newlines=True,
-                stdout=PIPE,
-                stderr=STDOUT
-        ) as proc:
-            logger.debug(f"_worker_process(command_line={command_line}) log:\n")
-            for line in proc.stdout:
-                line = line.strip()
-                if line:
-                    # Simple-minded approach of shoving all the child output lines into an interprocess pipe
-                    pipe.send(line)
+        with open(log_file, "w") as log:
+            with Popen(
+                    args=command_line,
+                    shell=True,
+                    # env=env,
+                    bufsize=1,
+                    universal_newlines=True,
+                    stdout=PIPE,
+                    stderr=STDOUT
+            ) as proc:
+                for line in proc.stdout:
+                    # Echo 'line' to 'log_file' (may be /dev/null)
+                    log.write(line)
+
+                    line = line.strip()
+                    if line:
+                        # Simple-minded strategy of shoving all the
+                        # Worker Process output into an interprocess pipe
+                        pipe.send(line)
 
         return_code = proc.returncode
         return_status = "Worker Process Completed?"
@@ -129,11 +140,12 @@ class WorkerProcess:
         self._process_id: int = 0
         self._status: Optional[str] = None
 
-    def run_command(self, command_line: str):
+    def run_command(self, command_line: str, log_file: Optional[str] = None):
         """
         Run a provided command line string, as a background process.
 
         :param command_line: str, command line string to run as a shell command in a background worker process.
+        :param log_file: Optional[str], log file (path) to which to save a copy of worker process output lines.
 
         :return: None
         """
@@ -147,7 +159,8 @@ class WorkerProcess:
             #    https://docs.python.org/3/library/multiprocessing.html?highlight=multiprocessing#module-multiprocessing
             assert not self._process
 
-            # We'll access the internal _worker_process standard output/error stream using an interprocess Pipe
+            # Directly access the internal Worker Process task
+            # standard output/error, using an interprocess Pipe
             self._parent_conn, self._child_conn = Pipe()
 
             self._process = self._ctx.Process(
@@ -156,7 +169,8 @@ class WorkerProcess:
                     self._child_conn,
                     self._lock,
                     self._queue,
-                    command_line
+                    command_line,
+                    log_file
                 )
             )
 
