@@ -129,11 +129,12 @@ class WorkerProcessException(Exception):
 
 class WorkerProcess:
 
-    def __init__(self, timeout: Optional[int] = None):
+    def __init__(self, timeout: Optional[int] = None, log_file: Optional[str] = None):
         """
         Constructor for WorkerProcess.
         
         :param timeout: int, worker process data query access timeout (Default: None => queue data access is blocking?)
+        :param log_file: Optional[str], log file (path) to which to save a copy of worker process output lines.
         """
         self._timeout: Optional[int] = timeout
         self._parent_conn: Optional[Connection] = None
@@ -144,13 +145,13 @@ class WorkerProcess:
         self._process: Optional[Process] = None
         self._process_id: int = 0
         self._status: Optional[str] = None
+        self._log_file: Optional[str] = log_file
 
-    def run_command(self, command_line: str, log_file: Optional[str] = None):
+    def run_command(self, command_line: str):
         """
         Run a provided command line string, as a background process.
 
         :param command_line: str, command line string to run as a shell command in a background worker process.
-        :param log_file: Optional[str], log file (path) to which to save a copy of worker process output lines.
 
         :return: None
         """
@@ -175,7 +176,7 @@ class WorkerProcess:
                     self._lock,
                     self._queue,
                     command_line,
-                    log_file
+                    self._log_file
                 )
             )
 
