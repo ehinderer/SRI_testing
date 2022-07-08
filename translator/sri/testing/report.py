@@ -3,7 +3,7 @@ SRI Testing Report utility functions.
 """
 from typing import Optional, Dict, Tuple, List
 
-from os import makedirs, listdir
+from os import makedirs, listdir, sep
 from os.path import normpath
 from datetime import datetime
 import re
@@ -14,7 +14,8 @@ import orjson
 import json
 
 from translator.sri.testing.processor import CMD_DELIMITER, WorkerProcess
-from tests.onehop import ONEHOP_TEST_DIRECTORY
+
+from tests.onehop import ONEHOP_TEST_DIRECTORY, TEST_RESULTS_DIR
 
 import logging
 
@@ -30,9 +31,6 @@ DEFAULT_WORKER_TIMEOUT = 120  # 2 minutes for small PyTests?
 # June/July 2022 - new reporting strategy, based on an exported
 # summary, edge details and unit test TRAPI JSON files
 #
-
-
-TEST_RESULTS_DIR = "test_results"
 
 UNIT_TEST_NAME_PATTERN = re.compile(
     r"^test_onehops.py:(\d+)?:(test_trapi_(?P<component>kp|ara)s|\s)(\[(?P<case>[^]]+)])"
@@ -396,7 +394,7 @@ class OneHopTestHarness:
 
     def _set_test_run_root_path(self):
         # subdirectory for local run output data
-        self.test_run_root_path = f"{TEST_RESULTS_DIR}/{self._test_run_id}"
+        self.test_run_root_path = f"{TEST_RESULTS_DIR}{sep}{self._test_run_id}"
         makedirs(self.test_run_root_path, exist_ok=True)
 
     def _get_test_run_root_path(self) -> str:
@@ -424,13 +422,13 @@ class OneHopTestHarness:
         """
         path_parts = [TEST_RESULTS_DIR, self._test_run_id] + edge_details_file_path.split('/')
 
-        unit_test_dir_path = '/'.join(path_parts[:-1])
+        unit_test_dir_path = sep.join(path_parts[:-1])
         try:
             makedirs(f"{unit_test_dir_path}", exist_ok=True)
         except OSError as ose:
             logger.warning(f"unit_test_report_filepath() makedirs exception: {str(ose)}")
 
-        unit_test_file_path = '/'.join(path_parts)
+        unit_test_file_path = sep.join(path_parts)
 
         return unit_test_file_path
 
