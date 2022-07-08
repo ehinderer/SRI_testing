@@ -11,7 +11,7 @@ from multiprocessing import Process, Pipe
 from multiprocessing.context import BaseContext
 from multiprocessing.connection import Connection
 
-from typing import Optional, Generator
+from typing import Optional, Generator, IO
 
 import multiprocessing as mp
 from queue import Empty
@@ -78,33 +78,34 @@ def _worker_process(
     # the caller, as a point of reference
     queue.put(process_id)
 
-    # result: Union[CompletedProcess, CalledProcessError, TimeoutExpired]
     return_code: int
     return_status: str
 
-    if not log_file:
-        log_file = DEVNULL
+    log: Optional[IO] = None
+    if log_file:
+        log = open(log_file, "w")
 
     try:
-        with open(log_file, "w") as log:
-            with Popen(
-                    args=command_line,
-                    shell=True,
-                    # env=env,
-                    bufsize=1,
-                    universal_newlines=True,
-                    stdout=PIPE,
-                    stderr=STDOUT
-            ) as proc:
-                for line in proc.stdout:
-                    # Echo 'line' to 'log_file' (may be /dev/null)
+
+        with Popen(
+                args=command_line,
+                shell=True,
+                # env=env,
+                bufsize=1,
+                universal_newlines=True,
+                stdout=PIPE,
+                stderr=STDOUT
+        ) as proc:
+            for line in proc.stdout:
+                # Echo 'line' to 'log_file' (may be /dev/null)
+                if log:
                     log.write(line)
 
-                    line = line.strip()
-                    if line:
-                        # Simple-minded strategy of shoving all the
-                        # Worker Process output into an interprocess pipe
-                        pipe.send(line)
+                line = line.strip()
+                if line:
+                    # Simple-minded strategy of shoving all the
+                    # Worker Process output into an interprocess pipe
+                    pipe.send(line)
 
         return_code = proc.returncode
         return_status = "Worker Process Completed?"
@@ -114,8 +115,12 @@ def _worker_process(
         return_code = 1
         return_status = f"Worker Process Exception: {str(rte)}?"
 
+    finally:
+        if log:
+            log.close()
+
     # propagate the result - successful or not - back to the caller
-    queue.put(f"{WorkerProcess.COMPLETED}: Return Code: {return_code}\nStatus {return_status}")
+    queue.put(f"{WorkerProcess.COMPLETED} - Return Code: {return_code}\nStatus {return_status}")
 
 
 class WorkerProcessException(Exception):

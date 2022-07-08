@@ -127,3 +127,10 @@ def test_progress_monitoring():
             done = True
 
     print("test_progress_monitoring() test completed", file=stderr)
+
+
+def test_dev_null_log():
+    print("\n", file=stderr)
+    wp = WorkerProcess(1)
+    wp.run_command(command_line=f"{PYTHON_PATH} {MOCK_WORKER}")
+    print("\ntest_dev_null_log() created no log file under 'test_results', ya?", file=stderr)
