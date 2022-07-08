@@ -7,11 +7,19 @@ from pydantic import BaseModel
 
 import uvicorn
 
+import logging
+
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 
-from reasoner_validator.util import latest
+from reasoner_validator.util import (
+    latest,
+    SemVer,
+    SemVerError,
+    SemVerUnderspecified
+)
+
 from translator.sri.testing.report import (
     OneHopTestHarness,
     DEFAULT_WORKER_TIMEOUT
@@ -94,6 +102,20 @@ class TestRunSession(BaseModel):
     #       actual version used by the system
     # "biolink_version": biolink_version
 
+    errors: Optional[List[str]] = None
+
+
+def _is_valid_version(version_string: str):
+    try:
+        SemVer.from_string(version_string)
+    except SemVerUnderspecified:
+        # it's ok that it's underspecified?
+        pass
+    except SemVerError:
+        return False
+
+    return True
+
 
 @app.post(
     "/run_tests",
@@ -113,9 +135,32 @@ async def run_tests(test_parameters: TestRunParameters) -> TestRunSession:
     :param test_parameters:
     :return: TestRunSession (just 'test_run_id' for now)
     """
-    trapi_version: Optional[str] = latest.get(test_parameters.trapi_version) if test_parameters.trapi_version else None
-    biolink_version: Optional[str] = test_parameters.biolink_version if test_parameters.biolink_version else None
-    log: Optional[str] = test_parameters.log
+    errors: List[str] = list()
+
+    trapi_version: Optional[str] = None
+    if test_parameters.trapi_version:
+        trapi_version = test_parameters.trapi_version
+        if not _is_valid_version(trapi_version):
+            errors.append(f"'trapi_version' parameter '{trapi_version}' is not a valid SemVer string!")
+        else:
+            trapi_version = latest.get(test_parameters.trapi_version)
+
+    biolink_version: Optional[str] = None
+    if test_parameters.biolink_version:
+        biolink_version = test_parameters.biolink_version
+        if not _is_valid_version(biolink_version):
+            errors.append(f"'biolink_version' parameter '{biolink_version}' is not a valid SemVer string!")
+
+    log: Optional[str] = None
+    if test_parameters.log:
+        log = test_parameters.log
+        try:
+            logging.getLogger().setLevel(log)
+        except (ValueError, TypeError):
+            errors.append(f"'log' parameter '{log}' is not a valid Logging level!")
+
+    if errors:
+        return TestRunSession(test_run_id="Invalid Parameters - test run not started...", errors=errors)
 
     # Constructor initializes a fresh test run identifier with empty test run
     test_harness = OneHopTestHarness()
@@ -128,28 +173,6 @@ async def run_tests(test_parameters: TestRunParameters) -> TestRunSession:
     )
 
     return TestRunSession(test_run_id=test_harness.get_test_run_id())
-
-
-class TestRunList(BaseModel):
-    test_runs: List[str]
-
-
-@app.get(
-    "/list",
-    tags=['report'],
-    response_model=TestRunList,
-    summary="Retrieve the list of available (completed) test runs."
-)
-async def get_test_run_list() -> TestRunList:
-    """
-    Returns the catalog of completed OneHopTestHarness test runs.
-
-    \f
-    :return: TestRunList, list of timestamp identifiers of completed OneHopTestHarness test runs.
-    """
-    test_runs: List[str] = OneHopTestHarness.get_test_run_list()
-
-    return TestRunList(test_runs=test_runs)
 
 
 class TestRunStatus(BaseModel):
@@ -175,9 +198,31 @@ async def get_status(test_run_id: str) -> TestRunStatus:
     """
     assert test_run_id, "Null or empty Test Run Identifier?"
 
-    percent_complete: int = OneHopTestHarness(uuid=test_run_id).get_status()
+    percent_complete: int = OneHopTestHarness(test_run_id=test_run_id).get_status()
 
     return TestRunStatus(test_run_id=test_run_id, percent_complete=percent_complete)
+
+
+class TestRunList(BaseModel):
+    test_runs: List[str]
+
+
+@app.get(
+    "/list",
+    tags=['report'],
+    response_model=TestRunList,
+    summary="Retrieve the list of completed test runs."
+)
+async def get_test_run_list() -> TestRunList:
+    """
+    Returns the catalog of completed OneHopTestHarness test runs.
+
+    \f
+    :return: TestRunList, list of timestamp identifiers of completed OneHopTestHarness test runs.
+    """
+    test_runs: List[str] = OneHopTestHarness.get_completed_test_runs()
+
+    return TestRunList(test_runs=test_runs)
 
 
 class TestRunSummary(BaseModel):
@@ -204,7 +249,7 @@ async def get_summary(test_run_id: str) -> TestRunSummary:
     """
     assert test_run_id, "Null or empty Test Run Identifier?"
 
-    summary: Optional[Dict] = OneHopTestHarness(uuid=test_run_id).get_summary()
+    summary: Optional[Dict] = OneHopTestHarness(test_run_id=test_run_id).get_summary()
 
     if summary is not None:
         return TestRunSummary(test_run_id=test_run_id, summary=summary)
@@ -251,9 +296,7 @@ async def get_details(test_run_id: str, component: str, resource_id: str, edge_n
     assert resource_id, "Null or empty Resource Identifier?"
     assert edge_num, "Null or empty Edge Number?"
 
-    details: Optional[Dict] = OneHopTestHarness(
-        uuid=test_run_id
-    ).get_details(
+    details: Optional[Dict] = OneHopTestHarness(test_run_id=test_run_id).get_details(
         component=component,
         resource_id=resource_id,
         edge_num=edge_num
@@ -318,9 +361,7 @@ async def get_response(
     assert edge_num, "Null or empty Edge Number?"
     assert test_id, "Null or empty Unit Test Identifier?"
 
-    response_file_path: str = OneHopTestHarness(
-        uuid=test_run_id
-    ).get_response_file_path(
+    response_file_path: str = OneHopTestHarness(test_run_id=test_run_id).get_response_file_path(
         component=component,
         resource_id=resource_id,
         edge_num=edge_num,
