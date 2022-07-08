@@ -291,7 +291,7 @@ class OneHopTestHarness:
         :return: int, 0..100 indicating the percentage completion of the test run., -1 if test run not running?
         """
         if self._get_percentage_completion() < 100:
-            for line in self._process.get_output(timeout=1):
+            for line in self._process.get_output(timeout=5):
                 logger.debug(f"Pytest output: {line}")
                 pc = PERCENTAGE_COMPLETION_SUFFIX_PATTERN.search(line)
                 if pc and pc.group():

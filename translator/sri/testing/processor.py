@@ -179,6 +179,9 @@ class WorkerProcess:
             if not self._process_id:
                 raise RuntimeError("Worker process startup time-out?")
 
+            # TODO: perhaps I need to initiate a lightweight background thread *here*, to monitor the PIPE for
+            #       Worker Process progress, instead of relying on access to PIPE output in the /status endpoint?
+
         except Exception as ex:
 
             logger.warning(f"run_command() command: '{command_line}' raised an exception: {str(ex)}?")
