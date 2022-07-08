@@ -227,7 +227,9 @@ class OneHopTestHarness:
 
         self._process = WorkerProcess(self._timeout)
 
-        self._process.run_command(self._command_line)
+        log_filepath = f"{self._get_test_run_root_path()}/pytest.log"
+
+        self._process.run_command(command_line=self._command_line, log_file=log_filepath)
 
         # Cache run parameters for later access as necessary
         self._test_run_id_2_worker_process[self._test_run_id] = {
