@@ -10,7 +10,6 @@ from sys import platform, stderr
 from multiprocessing import Process, Pipe
 from multiprocessing.context import BaseContext
 from multiprocessing.connection import Connection
-from time import sleep
 
 from typing import Optional, Generator
 
@@ -105,7 +104,7 @@ def _worker_process(
         return_status = f"Worker Process Exception: {str(rte)}?"
 
     # propagate the result - successful or not - back to the caller
-    queue.put(f"Worker Process Return Code: {return_code}\nStatus {return_status}")
+    queue.put(f"{WorkerProcess.COMPLETED}: Return Code: {return_code}\nStatus {return_status}")
 
 
 class WorkerProcessException(Exception):
@@ -128,6 +127,7 @@ class WorkerProcess:
         self._lock = self._ctx.Lock()
         self._process: Optional[Process] = None
         self._process_id: int = 0
+        self._status: Optional[str] = None
 
     def run_command(self, command_line: str):
         """
@@ -209,6 +209,27 @@ class WorkerProcess:
         else:
             # Caller also gets nothing if there is no active connection
             return None
+
+    NOT_RUNNING: str = "Worker Process Not Running"
+    COMPLETED: str = "Worker Process Completed"
+    RUNNING: str = "Worker Process Running"
+
+    def status(self) -> str:
+
+        if not self._status or self._status == self.RUNNING:
+
+            # ... otherwise, check the process queue for a final message...
+            try:
+                self._status = self._queue.get(block=True, timeout=1)
+            except Empty:
+                # ... (hopefully) still running...
+                self._status = self.RUNNING
+
+            # Hacker assumption: that a missing process is one deemed "completed"
+            if not (self._process or not self._process.is_alive() or self._process_id):
+                self._status = self.NOT_RUNNING
+
+        return self._status
 
     def close(self):
         # Job done, the parent, not the child, sets the connections to None
