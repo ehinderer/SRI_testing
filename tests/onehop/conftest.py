@@ -72,6 +72,8 @@ def pytest_sessionfinish(session):
         # Summary file indexed by component, resources and edge cases
         ##############################################################
 
+        # TODO: if MongoDb is used, then perhaps the RAM dictionary can be avoided by directly storing
+        #       the given component outputs in named collections or root JSON documents?
         if component not in test_summary:
             test_summary[component] = dict()
 
@@ -100,11 +102,10 @@ def pytest_sessionfinish(session):
         ##############################
         # Test details indexed by edge
         ##############################
-
         if edge_details_file_path not in case_details:
 
-            # TODO: this is a bit memory intensive...
-            #      may need another strategy for capturing details
+            # TODO: this is a bit memory intensive... may need a
+            #       better strategy for saving some of the details?
             case_details[edge_details_file_path] = dict()
             case_response[edge_details_file_path] = dict()
 
@@ -131,12 +132,14 @@ def pytest_sessionfinish(session):
         if details['status'] == 'failed':
 
             if 'request' in rb:
+                # TODO: maybe the 'request' document could be persisted separately JIT, to avoid using too much RAM?
                 test_details['request'] = rb['request']
             else:
                 test_details['request'] = "No 'request' generated for this unit test?"
 
             if 'response' in rb:
 
+                # TODO: the TRAPI response can be very large... maybe better not to persist in RAM unless necessary?
                 if test_id not in case_response[edge_details_file_path]:
                     case_response[edge_details_file_path][test_id] = dict()
 
@@ -147,6 +150,9 @@ def pytest_sessionfinish(session):
             else:
                 test_details['response'] = "No 'response' generated for this unit test?"
 
+    # TODO: saving everything at once at the end looks clean in code but is not RAM efficient,
+    #       since case_details and case_response tend to get very bloated? Insofar feasible,
+    #       'just-in-time' persistence of the case details and case responses would be better...
     test_run.save(test_summary, case_details, case_response)
 
 

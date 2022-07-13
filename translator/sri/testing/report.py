@@ -19,6 +19,8 @@ from tests.onehop import ONEHOP_TEST_DIRECTORY, TEST_RESULTS_DIR
 
 import logging
 
+from translator.sri.testing.report_db import TestReportDatabase
+
 logger = logging.getLogger()
 logger.setLevel("DEBUG")
 
@@ -144,14 +146,21 @@ class OneHopTestHarness:
     # Caching of processes, indexed by test_run_id (timestamp identifier as string)
     _test_run_id_2_worker_process: Dict[str, Dict] = dict()
 
-    def __init__(self, test_run_id: Optional[str] = None):
+    def __init__(
+            self,
+            test_run_id: Optional[str] = None,
+            database: Optional[TestReportDatabase] = None
+    ):
         """
         OneHopTestHarness constructor.
 
-        :param Optional[str]: Optional[str], known timestamp test run identifier; internally created if 'None'
+        :param test_run_id: Optional[str], known timestamp test run identifier; internally created if 'None'
+        :param database: Optional[TestReportDatabase], testing reporting database handle
+                        (default: None,  reports just saved to local hard drive)
         """
         # each test harness run has its own unique timestamp identifier
         self._test_run_id: str
+        self._test_report_database: Optional[TestReportDatabase] = database
 
         self._command_line: Optional[str] = None
         self._process: Optional[WorkerProcess] = None
@@ -167,6 +176,7 @@ class OneHopTestHarness:
             self._test_run_id_2_worker_process[self._test_run_id] = {}
 
         self.test_run_root_path: Optional[str] = None
+
 
     def get_test_run_id(self) -> Optional[str]:
         if self._test_run_id:
@@ -393,6 +403,7 @@ class OneHopTestHarness:
         return test_run_list
 
     def _set_test_run_root_path(self):
+        # TODO: adapt this code for TestReportDatabase() MongoDb
         # subdirectory for local run output data
         self.test_run_root_path = f"{TEST_RESULTS_DIR}{sep}{self._test_run_id}"
         makedirs(self.test_run_root_path, exist_ok=True)
@@ -410,9 +421,12 @@ class OneHopTestHarness:
         :return:
         """
         # Write out the whole List[str] of unit test identifiers, into one JSON summary file
-        summary_filepath = f"{self._get_test_run_root_path()}/test_summary.json"
-        with open(summary_filepath, 'w') as summary_file:
-            json.dump(test_summary, summary_file, indent=4)
+        if self._test_report_database is not None:
+            # Persist test run summary to MongoDb
+            pass
+        else:
+            with open(f"{self._get_test_run_root_path()}/test_summary.json", 'w') as summary_file:
+                json.dump(test_summary, summary_file, indent=4)
 
     def _unit_test_report_filepath(self, edge_details_file_path: str) -> str:
         """
@@ -432,8 +446,8 @@ class OneHopTestHarness:
 
         return unit_test_file_path
 
-    @staticmethod
     def save_edge_details(
+            self,
             test_details_file_path: str,
             edge_details_file_path: str,
             case_details: Dict
@@ -446,12 +460,16 @@ class OneHopTestHarness:
         :param case_details:
         :return:
         """
-        with open(f"{test_details_file_path}.json", 'w') as details_file:
-            test_details = case_details[edge_details_file_path]
-            json.dump(test_details, details_file, indent=4)
+        test_details = case_details[edge_details_file_path]
+        if self._test_report_database is not None:
+            # Persist test run edge details JSON document to MongoDb
+            pass
+        else:
+            with open(f"{test_details_file_path}.json", 'w') as details_file:
+                json.dump(test_details, details_file, indent=4)
 
-    @staticmethod
     def save_unit_test_trapi_io(
+            self,
             test_details_file_path: str,
             edge_details_file_path: str,
             case_response: Dict
@@ -466,12 +484,24 @@ class OneHopTestHarness:
         :return:
         """
         for test_id in case_response[edge_details_file_path]:
-            with open(f"{test_details_file_path}-{test_id}-response.json", 'w') as response_file:
-                response: Dict = case_response[edge_details_file_path][test_id]
-                json.dump(response, response_file, indent=4)
+            response: Dict = case_response[edge_details_file_path][test_id]
+            if self._test_report_database is not None:
+                # Persist unit test TRAPI I/O document to MongoDb
+                pass
+            else:
+                with open(f"{test_details_file_path}-{test_id}-response.json", 'w') as response_file:
+                    json.dump(response, response_file, indent=4)
 
     def save(self, test_summary: Dict, case_details: Dict, case_response: Dict):
+        """
+        Save the current results (including summary) of the OneHopTestHarness test run.
 
+        :param test_summary: Dict, summary unit tests for all test runs
+        :param case_details: Dict, catalog of test results for each test edge of a resource
+        :param case_response: Dict, (selective) TRAPI response objects for failed unit tests of specific edges
+        """
+        
+        # TODO: adapt code to TestReportDatabase MongoDb persistence?
         self._set_test_run_root_path()
 
         for edge_details_file_path in case_details:
