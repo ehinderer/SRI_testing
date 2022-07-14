@@ -2,7 +2,7 @@
 FastAPI web service wrapper for SRI Testing harness
 (i.e. for reports to a Translator Runtime Status Dashboard)
 """
-from typing import Optional, Dict, List
+from typing import Optional, Dict, List, Generator
 from pydantic import BaseModel
 
 import uvicorn
@@ -312,11 +312,6 @@ async def get_details(test_run_id: str, component: str, resource_id: str, edge_n
         )
 
 
-def _streamed_file(file_path: str):
-    with open(file_path, mode="rb") as datafile:
-        yield from datafile
-
-
 @app.get(
     "/response/{test_run_id}/{component}/{resource_id}/{edge_num}/{test_id}",
     tags=['report'],
@@ -361,16 +356,17 @@ async def get_response(
     assert edge_num, "Null or empty Edge Number?"
     assert test_id, "Null or empty Unit Test Identifier?"
 
-    response_file_path: str = OneHopTestHarness(test_run_id=test_run_id).get_response_file_path(
-        component=component,
-        resource_id=resource_id,
-        edge_num=edge_num,
-        test_id=test_id
-    )
-
     try:
-        # formerly used FileResponse(path=response_file_path)
-        return StreamingResponse(_streamed_file(response_file_path), media_type="application/json")
+        content_generator: Generator = OneHopTestHarness(test_run_id=test_run_id).get_streamed_response_file(
+                component=component,
+                resource_id=resource_id,
+                edge_num=edge_num,
+                test_id=test_id
+            )
+        return StreamingResponse(
+            content=content_generator,
+            media_type="application/json"
+        )
     except RuntimeError:
         raise HTTPException(
             status_code=404,

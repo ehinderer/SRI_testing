@@ -1,7 +1,7 @@
 """
 SRI Testing Report utility functions.
 """
-from typing import Optional, Dict, Tuple, List
+from typing import Optional, Dict, Tuple, List, Generator
 
 from os import makedirs, listdir, sep
 from os.path import normpath
@@ -125,18 +125,6 @@ def _get_details_file_path(component: str, resource_id: str, edge_num: str) -> s
     return edge_details_file_path
 
 
-def _retrieve_document(report_type: str, report_file_path: str) -> Optional[str]:
-
-    document: Optional[str] = None
-    try:
-        with open(report_file_path, 'r') as report_file:
-            document = report_file.read()
-    except OSError as ose:
-        logger.warning(f"{report_type} file '{report_file_path}' not (yet) accessible: {str(ose)}?")
-
-    return document
-
-
 class OneHopTestHarness:
 
     @staticmethod
@@ -160,6 +148,9 @@ class OneHopTestHarness:
         """
         # each test harness run has its own unique timestamp identifier
         self._test_run_id: str
+
+        # For now, we provide for both file based and MongoDb based test result archives.
+        # If 'self._test_report_database' is set with an instance of TestReportDatabase, then MongoDb is assumed
         self._test_report_database: Optional[TestReportDatabase] = database
 
         self._command_line: Optional[str] = None
@@ -176,7 +167,6 @@ class OneHopTestHarness:
             self._test_run_id_2_worker_process[self._test_run_id] = {}
 
         self.test_run_root_path: Optional[str] = None
-
 
     def get_test_run_id(self) -> Optional[str]:
         if self._test_run_id:
@@ -233,6 +223,7 @@ class OneHopTestHarness:
 
         logger.debug(f"OneHopTestHarness.run() command line: {self._command_line}")
 
+        # TODO: can we somehow adapt log capture for TestReportDatabase() to MongoDb?
         log_filepath = f"{self._get_test_run_root_path()}/pytest.log"
 
         self._process = WorkerProcess(self._timeout, log_file=log_filepath)
@@ -316,6 +307,26 @@ class OneHopTestHarness:
         absolute_file_path = normpath(f"{ONEHOP_TEST_DIRECTORY}/test_results/{self._test_run_id}/{report_file_path}")
         return absolute_file_path
 
+    def has_test_report_db(self) -> bool:
+        """
+        :return: True if a (MongoDb) test report database is being used to track test results; False otherwise
+        """
+        return self._test_report_database is not None
+
+    def _retrieve_document(self, report_type: str, report_file_path: str) -> Optional[str]:
+
+        document: Optional[str] = None
+        if self.has_test_report_db():
+            pass
+        else:
+            try:
+                with open(report_file_path, 'r') as report_file:
+                    document = report_file.read()
+            except OSError as ose:
+                logger.warning(f"{report_type} file '{report_file_path}' not (yet) accessible: {str(ose)}?")
+
+        return document
+
     def get_summary(self) -> Optional[Dict]:
         """
         If available, returns a test result summary for the most recent OneHopTestHarness run.
@@ -324,7 +335,7 @@ class OneHopTestHarness:
         """
         report_file_path = self._absolute_report_file_path("test_summary.json")
 
-        document: Optional[str] = _retrieve_document(report_type="Summary", report_file_path=report_file_path)
+        document: Optional[str] = self._retrieve_document(report_type="Summary", report_file_path=report_file_path)
 
         summary: Optional[Dict] = None
         if document:
@@ -354,7 +365,7 @@ class OneHopTestHarness:
 
         report_file_path = self._absolute_report_file_path(f"{edge_details_file_path}.json")
 
-        document: Optional[str] = _retrieve_document(report_type="Details", report_file_path=report_file_path)
+        document: Optional[str] = self._retrieve_document(report_type="Details", report_file_path=report_file_path)
 
         details: Optional[Dict] = None
         if document:
@@ -362,13 +373,13 @@ class OneHopTestHarness:
 
         return details
 
-    def get_response_file_path(
+    def get_streamed_response_file(
             self,
             component: str,
             resource_id: str,
             edge_num: str,
             test_id: str,
-    ) -> str:
+    ) -> Generator:
         """
         Returns the TRAPI Response file path for given resource component, edge and unit test identities.
 
@@ -385,12 +396,17 @@ class OneHopTestHarness:
         edge_details_file_path: str = _get_details_file_path(component, resource_id, edge_num)
 
         response_file_path = self._absolute_report_file_path(f"{edge_details_file_path}-{test_id}-response.json")
-
-        return response_file_path
+        if self.has_test_report_db():
+            pass
+        else:
+            try:
+                with open(response_file_path, mode="rb") as datafile:
+                    yield from datafile
+            except OSError as ose:
+                logger.warning(f"{response_file_path}' not (yet) accessible: {str(ose)}?")
 
     ###########################################################################################
     # File System based implementation of Test Run Archive
-    # TODO: Might be better to store them in a (NoSQL, Document-based) database (e.g. MongoDb?)
     ###########################################################################################
 
     @classmethod
@@ -403,10 +419,11 @@ class OneHopTestHarness:
         return test_run_list
 
     def _set_test_run_root_path(self):
-        # TODO: adapt this code for TestReportDatabase() MongoDb
         # subdirectory for local run output data
         self.test_run_root_path = f"{TEST_RESULTS_DIR}{sep}{self._test_run_id}"
-        makedirs(self.test_run_root_path, exist_ok=True)
+        if not self.has_test_report_db():
+            # file directory based reporting creates a test_run_id tagged directory for test results
+            makedirs(self.test_run_root_path, exist_ok=True)
 
     def _get_test_run_root_path(self) -> str:
         if not self.test_run_root_path:
@@ -421,7 +438,7 @@ class OneHopTestHarness:
         :return:
         """
         # Write out the whole List[str] of unit test identifiers, into one JSON summary file
-        if self._test_report_database is not None:
+        if self.has_test_report_db():
             # Persist test run summary to MongoDb
             pass
         else:
@@ -461,7 +478,7 @@ class OneHopTestHarness:
         :return:
         """
         test_details = case_details[edge_details_file_path]
-        if self._test_report_database is not None:
+        if self.has_test_report_db():
             # Persist test run edge details JSON document to MongoDb
             pass
         else:
@@ -485,7 +502,7 @@ class OneHopTestHarness:
         """
         for test_id in case_response[edge_details_file_path]:
             response: Dict = case_response[edge_details_file_path][test_id]
-            if self._test_report_database is not None:
+            if self.has_test_report_db():
                 # Persist unit test TRAPI I/O document to MongoDb
                 pass
             else:
@@ -500,8 +517,6 @@ class OneHopTestHarness:
         :param case_details: Dict, catalog of test results for each test edge of a resource
         :param case_response: Dict, (selective) TRAPI response objects for failed unit tests of specific edges
         """
-        
-        # TODO: adapt code to TestReportDatabase MongoDb persistence?
         self._set_test_run_root_path()
 
         for edge_details_file_path in case_details:
