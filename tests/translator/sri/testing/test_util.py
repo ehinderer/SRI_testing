@@ -81,5 +81,5 @@ def test_unit_test_report_filepath(query):
     test_run: OneHopTestHarness = OneHopTestHarness()
     test_run_id: str = test_run.get_test_run_id()
     expected_path: str = f"test_results/{test_run_id}/{query}"
-    assert test_run._unit_test_report_filepath(query) == expected_path
+    assert test_run.unit_test_report_filepath(query) == expected_path
     shutil.rmtree("test_results", ignore_errors=True)

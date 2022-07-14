@@ -224,7 +224,7 @@ class OneHopTestHarness:
         logger.debug(f"OneHopTestHarness.run() command line: {self._command_line}")
 
         # TODO: can we somehow adapt log capture for TestReportDatabase() to MongoDb?
-        log_filepath = f"{self._get_test_run_root_path()}/pytest.log"
+        log_filepath = f"{self.get_test_run_root_path()}/pytest.log"
 
         self._process = WorkerProcess(self._timeout, log_file=log_filepath)
 
@@ -409,6 +409,22 @@ class OneHopTestHarness:
     # File System based implementation of Test Run Archive
     ###########################################################################################
 
+    def save_json_document(self, document: Dict, document_path: str):
+        """
+        Saves an indexed document either to a test report database or the filing system.
+
+        :param document: Dict, Python object to persist as a JSON document
+        :param document_path: str, indexing path for the document being saved
+        :return:
+        """
+        if self.has_test_report_db():
+            # Persist test run edge details JSON document to MongoDb
+            pass
+        else:
+            # we add the file extension '.json' for file system based documents
+            with open(f"{document_path}.json", 'w') as document_file:
+                json.dump(document, document_file, indent=4)
+
     @classmethod
     def get_completed_test_runs(cls) -> List[str]:
         """
@@ -418,34 +434,19 @@ class OneHopTestHarness:
         test_run_list = listdir(test_results_directory)
         return test_run_list
 
-    def _set_test_run_root_path(self):
-        # subdirectory for local run output data
+    def set_test_run_root_path(self):
+        # collection bin for specified test run output data
         self.test_run_root_path = f"{TEST_RESULTS_DIR}{sep}{self._test_run_id}"
         if not self.has_test_report_db():
             # file directory based reporting creates a test_run_id tagged directory for test results
             makedirs(self.test_run_root_path, exist_ok=True)
 
-    def _get_test_run_root_path(self) -> str:
+    def get_test_run_root_path(self) -> str:
         if not self.test_run_root_path:
-            self._set_test_run_root_path()
+            self.set_test_run_root_path()
         return self.test_run_root_path
 
-    def save_test_run_summary(self, test_summary: Dict):
-        """
-        Persist summary of test run.
-
-        :param test_summary:
-        :return:
-        """
-        # Write out the whole List[str] of unit test identifiers, into one JSON summary file
-        if self.has_test_report_db():
-            # Persist test run summary to MongoDb
-            pass
-        else:
-            with open(f"{self._get_test_run_root_path()}/test_summary.json", 'w') as summary_file:
-                json.dump(test_summary, summary_file, indent=4)
-
-    def _unit_test_report_filepath(self, edge_details_file_path: str) -> str:
+    def unit_test_report_filepath(self, edge_details_file_path: str) -> str:
         """
         Generate a report file path for a specific unit test result, compiled from descriptive components.
 
@@ -463,52 +464,6 @@ class OneHopTestHarness:
 
         return unit_test_file_path
 
-    def save_edge_details(
-            self,
-            test_details_file_path: str,
-            edge_details_file_path: str,
-            case_details: Dict
-    ):
-        """
-        Persist test run details for a given test data edge.
-
-        :param test_details_file_path:
-        :param edge_details_file_path:
-        :param case_details:
-        :return:
-        """
-        test_details = case_details[edge_details_file_path]
-        if self.has_test_report_db():
-            # Persist test run edge details JSON document to MongoDb
-            pass
-        else:
-            with open(f"{test_details_file_path}.json", 'w') as details_file:
-                json.dump(test_details, details_file, indent=4)
-
-    def save_unit_test_trapi_io(
-            self,
-            test_details_file_path: str,
-            edge_details_file_path: str,
-            case_response: Dict
-    ):
-        """
-        Persist TRAPI request input and response output JSON
-        for all failed unit tests of a given test data edge.
-
-        :param test_details_file_path: 'file' path to the details for a single resource
-        :param edge_details_file_path: 'file' path to the details for a single edge
-        :param case_response: catalog of TRAPI request/response JSON from failed tests
-        :return:
-        """
-        for test_id in case_response[edge_details_file_path]:
-            response: Dict = case_response[edge_details_file_path][test_id]
-            if self.has_test_report_db():
-                # Persist unit test TRAPI I/O document to MongoDb
-                pass
-            else:
-                with open(f"{test_details_file_path}-{test_id}-response.json", 'w') as response_file:
-                    json.dump(response, response_file, indent=4)
-
     def save(self, test_summary: Dict, case_details: Dict, case_response: Dict):
         """
         Save the current results (including summary) of the OneHopTestHarness test run.
@@ -517,18 +472,12 @@ class OneHopTestHarness:
         :param case_details: Dict, catalog of test results for each test edge of a resource
         :param case_response: Dict, (selective) TRAPI response objects for failed unit tests of specific edges
         """
-        self._set_test_run_root_path()
 
         for edge_details_file_path in case_details:
             # Print out the test case details
 
-            test_details_file_path = self._unit_test_report_filepath(edge_details_file_path)
+            test_details_file_path = self.unit_test_report_filepath(edge_details_file_path)
 
             # Save Details from a given edge test data use case
-            self.save_edge_details(test_details_file_path, edge_details_file_path, case_details)
-
-            # Save TRAPI Request/Response IO details for unit tests from a given edge test data use case
-            self.save_unit_test_trapi_io(test_details_file_path, edge_details_file_path, case_response)
-
-        # Save Test Run Summary
-        self.save_test_run_summary(test_summary)
+            test_details = case_details[edge_details_file_path]
+            self.save_json_document(document=test_details, document_path=test_details_file_path)

@@ -49,12 +49,12 @@ def pytest_sessionfinish(session):
         if "test_run_id" in session.config.option and session.config.option.test_run_id else None
     )
 
+    test_run.set_test_run_root_path()
+
     session_results = get_session_results_dct(session)
 
     test_summary: Dict = dict()
-
     case_details: Dict = dict()
-    case_response: Dict = dict()
 
     for unit_test_key, details in session_results.items():
 
@@ -67,6 +67,8 @@ def pytest_sessionfinish(session):
         component, ara_id, kp_id, edge_num, test_id, edge_details_file_path = parse_unit_test_name(
             unit_test_key=unit_test_key
         )
+
+        test_details_file_path = test_run.unit_test_report_filepath(edge_details_file_path)
 
         ##############################################################
         # Summary file indexed by component, resources and edge cases
@@ -107,7 +109,6 @@ def pytest_sessionfinish(session):
             # TODO: this is a bit memory intensive... may need a
             #       better strategy for saving some of the details?
             case_details[edge_details_file_path] = dict()
-            case_response[edge_details_file_path] = dict()
 
             if 'case' in rb and 'case' not in case_details[edge_details_file_path]:
                 case_details[edge_details_file_path] = rb['case']
@@ -132,28 +133,44 @@ def pytest_sessionfinish(session):
         if details['status'] == 'failed':
 
             if 'request' in rb:
-                # TODO: maybe the 'request' document could be persisted separately JIT, to avoid using too much RAM?
+                # TODO: maybe the 'request' document could be persisted
+                #       separately JIT, to avoid using too much RAM?
                 test_details['request'] = rb['request']
             else:
                 test_details['request'] = "No 'request' generated for this unit test?"
 
             if 'response' in rb:
+                case_response: Dict = dict()
+                case_response['unit_test_key'] = unit_test_key
+                case_response['http_status_code'] = rb["response"]["status_code"]
+                case_response['response'] = rb['response']['response_json']
 
-                # TODO: the TRAPI response can be very large... maybe better not to persist in RAM unless necessary?
-                if test_id not in case_response[edge_details_file_path]:
-                    case_response[edge_details_file_path][test_id] = dict()
-
-                case_response[edge_details_file_path][test_id]['unit_test_key'] = unit_test_key
-                case_response[edge_details_file_path][test_id]['http_status_code'] = rb["response"]["status_code"]
-                case_response[edge_details_file_path][test_id]['response'] = rb['response']['response_json']
+                response_path = f"{test_details_file_path}-{test_id}-response"
+                test_run.save_json_document(document=case_response, document_path=response_path)
 
             else:
                 test_details['response'] = "No 'response' generated for this unit test?"
 
-    # TODO: saving everything at once at the end looks clean in code but is not RAM efficient,
-    #       since case_details and case_response tend to get very bloated? Insofar feasible,
-    #       'just-in-time' persistence of the case details and case responses would be better...
-    test_run.save(test_summary, case_details, case_response)
+        # TODO: in principle, with a database, we could now simply update
+        #       the 'test_details' document here, updated with the
+        #       just encountered test result, rather than cache it in RAM
+        #       then defer writing it out later below, once it is complete?
+
+    # Print out the cached details of each edge test case
+    # TODO: it would be nice to avoid compiling the case_details
+    #       dictionary in RAM, for later saving, but this currently seems
+    #       *almost* unavoidable, for the aggregated details file document?
+    #       By "almost", one means that a document already written out could
+    #       be reread into memory then updated, but if one is doing this,
+    #       then why not use a database?
+    for edge_details_file_path in case_details:
+        test_details_file_path = test_run.unit_test_report_filepath(edge_details_file_path)
+        test_details = case_details[edge_details_file_path]
+        test_run.save_json_document(document=test_details, document_path=test_details_file_path)
+
+    # Save Test Run Summary
+    summary_path = f"{test_run.get_test_run_root_path()}/test_summary"
+    test_run.save_json_document(document=test_summary, document_path=summary_path)
 
 
 def pytest_addoption(parser):
