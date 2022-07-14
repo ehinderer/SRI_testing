@@ -13,9 +13,20 @@ This suite tests the ability to retrieve given triples, which we know exist, fro
 
 ## How the Testing Harness Works
 
+The overall strategy of the SRI Testing Harness is explained in a [slide presentation here](https://docs.google.com/presentation/d/1p9n-UjMNlhWCyQrbI2GonsQKXz0PFdi4-ydDcrF5_tc).
+
 The tests are dynamically generated from sample data Subject-Predicate-Object ("S-P-O") statement triples for each KP with test data currently recorded in JSON files located within the folder `test_triples/KP`.  
 
 The KP files contain sample data for each triple that the KP can provide.  Each triple noted therein is used to build a set of distinct types of unit tests (see the [One Hop utility module](util.py) for the specific code dynamically generating each specific TRAPI query test message within the unit test set for that triple).  The following specific unit tests are currently available:
+
+- by subject
+- inverse by new subject
+- by object
+- raise subject entity
+- raise object by subject
+- raise predicate by subject
+
+See the [aforementioned slide presentation](https://docs.google.com/presentation/d/1p9n-UjMNlhWCyQrbI2GonsQKXz0PFdi4-ydDcrF5_tc) for specific details about each unit test.
 
 Instances of ARA being tested are configured for testing their expected outputs using the list of KPs noted in their corresponding JSON configuration files located within `test_triples/ARA`.
 
