@@ -5,8 +5,9 @@ import pytest
 import shutil
 
 from translator.sri.testing.report import (
+    OneHopTestHarness,
     parse_unit_test_name,
-    build_edge_details_file_path, OneHopTestHarness
+    build_edge_details_document_key
 )
 
 
@@ -30,7 +31,7 @@ from translator.sri.testing.report import (
     ]
 )
 def test_get_edge_details_file_path(query):
-    edge_details_file_path = build_edge_details_file_path(
+    edge_details_file_path = build_edge_details_document_key(
         component=query[0], ara_id=query[1], kp_id=query[2], edge_num=query[3]
     )
     assert edge_details_file_path == query[4]

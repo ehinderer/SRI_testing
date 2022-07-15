@@ -3,7 +3,6 @@ from os import environ
 from urllib.parse import quote_plus
 
 from pymongo import MongoClient
-from pymongo.errors import ConnectionFailure
 from pymongo.collection import Collection
 from pymongo.database import Database
 
@@ -47,7 +46,7 @@ class TestReportDatabase:
         self._db_client.admin.command('ping')  # will through pymongo.errors.ConnectionFailure if the connection fails
 
         self._sri_testing_db: Database = self._db_client.sri_testing
-        self._test_results_collection: Collection = self._sri_testing_db.test_results
+        self._current_collection: Collection = self._sri_testing_db.test_results
 
     def get_client(self):
         return self._db_client
@@ -55,5 +54,17 @@ class TestReportDatabase:
     def get_database(self):
         return self._sri_testing_db
 
-    def get_collection(self):
-        return self._test_results_collection
+    def set_current_collection(self, name: str):
+        """
+        Each test run as its own MongoDb 'Collection' named after its test_run_id
+        :param name: str, the name of the Collection to be used as the current collection
+        :return: None
+        """
+        assert name  # should not be an empty string
+        self._current_collection = self._sri_testing_db[name]
+
+    def get_current_collection(self) -> Collection:
+        """
+        :return: current pymongo.collection.Collection for report results
+        """
+        return self._current_collection

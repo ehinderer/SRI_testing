@@ -17,10 +17,10 @@ from translator.sri.testing.processor import CMD_DELIMITER, WorkerProcess
 
 from tests.onehop import ONEHOP_TEST_DIRECTORY, TEST_RESULTS_DIR
 
-import logging
-
 from translator.sri.testing.report_db import TestReportDatabase
+from pymongo.collection import Collection
 
+import logging
 logger = logging.getLogger()
 logger.setLevel("DEBUG")
 
@@ -44,20 +44,20 @@ TEST_CASE_PATTERN = re.compile(
 PERCENTAGE_COMPLETION_SUFFIX_PATTERN = re.compile(r"(\[\s*(?P<percentage_completion>\d+)%])?$")
 
 
-def build_edge_details_file_path(component: str, ara_id: Optional[str], kp_id: str, edge_num: str):
+def build_edge_details_document_key(component: str, ara_id: Optional[str], kp_id: str, edge_num: str) -> str:
     """
-    Returns the file path to an edge details related file.
+    Returns a key identifier ('path') to an edge details related document.
 
     :param component:
     :param ara_id:
     :param kp_id:
     :param edge_num:
-    :return:
+    :return: str, document key
     """
-    file_path: str = component
-    file_path += f"/{ara_id}" if ara_id else ""
-    file_path += f"/{kp_id}/{kp_id}-{edge_num}"
-    return file_path
+    document_key: str = component
+    document_key += f"/{ara_id}" if ara_id else ""
+    document_key += f"/{kp_id}/{kp_id}-{edge_num}"
+    return document_key
 
 
 def parse_unit_test_name(unit_test_key: str) -> Tuple[str, str, str, int, str, str]:
@@ -97,13 +97,13 @@ def parse_unit_test_name(unit_test_key: str) -> Tuple[str, str, str, int, str, s
                                 kp_id,
                                 int(edge_num),
                                 test_id,
-                                build_edge_details_file_path(component, ara_id, kp_id, edge_num)
+                                build_edge_details_document_key(component, ara_id, kp_id, edge_num)
                             )
 
     raise RuntimeError(f"parse_unit_test_name() '{unit_test_key}' has unknown format?")
 
 
-def _get_details_file_path(component: str, resource_id: str, edge_num: str) -> str:
+def _get_details_document_key(component: str, resource_id: str, edge_num: str) -> str:
     """
     Web-wrapped version of the translator.sri.testing.report.get_edge_details_file_path() method.
 
@@ -120,7 +120,7 @@ def _get_details_file_path(component: str, resource_id: str, edge_num: str) -> s
         ara_id = None
         kp_id = rid_part[0]
 
-    edge_details_file_path: str = build_edge_details_file_path(component, ara_id, kp_id, edge_num)
+    edge_details_file_path: str = build_edge_details_document_key(component, ara_id, kp_id, edge_num)
 
     return edge_details_file_path
 
@@ -173,6 +173,28 @@ class OneHopTestHarness:
             return str(self._test_run_id)
         else:
             return None
+
+    def set_test_results_location(self):
+        """
+        Sets up the test result location (either a database 'collection' or local test run root directory path)
+        :return: None
+        """
+        self.test_run_root_path = f"{TEST_RESULTS_DIR}{sep}{self._test_run_id}"
+
+        # File system based reporting creates a 'test_run_id' named directory for test results
+        # This folder may contain the full test results unless a test report database is used
+        # in which case, only a Pytest log may be present?
+        makedirs(self.test_run_root_path, exist_ok=True)
+
+        if self.has_test_report_db():
+            # (MongoDb) Database based 'OneHop' test run reporting
+            # simply uses the test_run_id as the collection name
+            self._test_report_database.set_current_collection(self._test_run_id)
+
+    def get_test_run_root_path(self) -> str:
+        if not self.test_run_root_path:
+            self.set_test_results_location()
+        return self.test_run_root_path
 
     def run(
             self,
@@ -303,6 +325,56 @@ class OneHopTestHarness:
 
         return self._get_percentage_completion()
 
+    @classmethod
+    def get_completed_test_runs(cls) -> List[str]:
+        """
+        :return: list of test run identifiers of completed test runs
+        """
+        test_results_directory = normpath(f"{ONEHOP_TEST_DIRECTORY}/test_results")
+        test_run_list = listdir(test_results_directory)
+        return test_run_list
+
+    def unit_test_report_filepath(self, edge_details_file_path: str) -> str:
+        """
+        Generate a report file path for a specific unit test result, compiled from descriptive components.
+
+        :return: str, (posix) unit test file path to root name of report file path (*without* file extension)
+        """
+        path_parts = [TEST_RESULTS_DIR, self._test_run_id] + edge_details_file_path.split('/')
+
+        unit_test_dir_path = sep.join(path_parts[:-1])
+        try:
+            makedirs(f"{unit_test_dir_path}", exist_ok=True)
+        except OSError as ose:
+            logger.warning(f"unit_test_report_filepath() makedirs exception: {str(ose)}")
+
+        unit_test_file_path = sep.join(path_parts)
+
+        return unit_test_file_path
+
+    def save_json_document(self, document: Dict, document_key: str):
+        """
+        Saves an indexed document either to a test report database or the filing system.
+
+        :param document: Dict, Python object to persist as a JSON document
+        :param document_key: str, indexing path for the document being saved
+        :return:
+        """
+        if self.has_test_report_db():
+            # Persist index test run result JSON document suitably indexed by
+            # the document_key, into the (wrapped MongoDb) TestReportDatabase
+            document["document_key"] = document_key
+            db: TestReportDatabase = self._test_report_database
+            assert db
+            test_results: Collection = db.get_current_collection()
+            assert test_results
+            test_results.insert_one(document)
+        else:
+            # we add the file extension '.json' for file system based documents
+            test_result_path = self.unit_test_report_filepath(document_key)
+            with open(f"{test_result_path}.json", 'w') as document_file:
+                json.dump(document, document_file, indent=4)
+
     def _absolute_report_file_path(self, report_file_path: str) -> str:
         absolute_file_path = normpath(f"{ONEHOP_TEST_DIRECTORY}/test_results/{self._test_run_id}/{report_file_path}")
         return absolute_file_path
@@ -313,17 +385,31 @@ class OneHopTestHarness:
         """
         return self._test_report_database is not None
 
-    def _retrieve_document(self, report_type: str, report_file_path: str) -> Optional[str]:
+    def retrieve_document(self, report_type: str, document_key: str) -> Optional[Dict]:
+        """
+        Retrieves a document either from the TestReportDatabase or the local filing system.
 
-        document: Optional[str] = None
+        :param report_type: str, label of report type
+        :param document_key: key ('path') to the document
+        :return: Dict, JSON document as Python object
+        """
+        assert document_key
+        document: Optional[Dict] = None
         if self.has_test_report_db():
-            pass
+            db: TestReportDatabase = self._test_report_database
+            assert db
+            test_results: Collection = db.get_current_collection()
+            assert test_results
+            document = test_results.find_one({'document_key': document_key}, fields={'_id': False})
         else:
+            document_key = self._absolute_report_file_path(document_key)
             try:
-                with open(report_file_path, 'r') as report_file:
-                    document = report_file.read()
+                with open(f"{document_key}.json", 'r') as report_file:
+                    contents = report_file.read()
+                if contents:
+                    document = orjson.loads(contents)
             except OSError as ose:
-                logger.warning(f"{report_type} file '{report_file_path}' not (yet) accessible: {str(ose)}?")
+                logger.warning(f"{report_type} file '{document_key}' not (yet) accessible: {str(ose)}?")
 
         return document
 
@@ -333,14 +419,7 @@ class OneHopTestHarness:
 
         :return: Optional[str], JSON structured document summary of unit test results. 'None' if not (yet) available.
         """
-        report_file_path = self._absolute_report_file_path("test_summary.json")
-
-        document: Optional[str] = self._retrieve_document(report_type="Summary", report_file_path=report_file_path)
-
-        summary: Optional[Dict] = None
-        if document:
-            summary = orjson.loads(document)
-
+        summary: Optional[Dict] = self.retrieve_document(report_type="Summary", document_key="test_summary")
         return summary
 
     def get_details(
@@ -361,16 +440,8 @@ class OneHopTestHarness:
         :return: Optional[Dict], JSON structured document of test details for a specified test edge of a
                                  KP or ARA resource, or 'None' if the details are not (yet) available.
         """
-        edge_details_file_path: str = _get_details_file_path(component, resource_id, edge_num)
-
-        report_file_path = self._absolute_report_file_path(f"{edge_details_file_path}.json")
-
-        document: Optional[str] = self._retrieve_document(report_type="Details", report_file_path=report_file_path)
-
-        details: Optional[Dict] = None
-        if document:
-            details = orjson.loads(document)
-
+        document_key: str = _get_details_document_key(component, resource_id, edge_num)
+        details: Optional[Dict] = self.retrieve_document(report_type="Details", document_key=document_key)
         return details
 
     def get_streamed_response_file(
@@ -393,91 +464,13 @@ class OneHopTestHarness:
 
         :return: str, TRAPI Response text data file path (generated, but not tested here for file existence)
         """
-        edge_details_file_path: str = _get_details_file_path(component, resource_id, edge_num)
-
-        response_file_path = self._absolute_report_file_path(f"{edge_details_file_path}-{test_id}-response.json")
+        document_key: str = _get_details_document_key(component, resource_id, edge_num)
         if self.has_test_report_db():
             pass
         else:
+            response_file_path = self._absolute_report_file_path(f"{document_key}-{test_id}.json")
             try:
                 with open(response_file_path, mode="rb") as datafile:
                     yield from datafile
             except OSError as ose:
                 logger.warning(f"{response_file_path}' not (yet) accessible: {str(ose)}?")
-
-    ###########################################################################################
-    # File System based implementation of Test Run Archive
-    ###########################################################################################
-
-    def save_json_document(self, document: Dict, document_path: str):
-        """
-        Saves an indexed document either to a test report database or the filing system.
-
-        :param document: Dict, Python object to persist as a JSON document
-        :param document_path: str, indexing path for the document being saved
-        :return:
-        """
-        if self.has_test_report_db():
-            # Persist test run edge details JSON document to MongoDb
-            pass
-        else:
-            # we add the file extension '.json' for file system based documents
-            with open(f"{document_path}.json", 'w') as document_file:
-                json.dump(document, document_file, indent=4)
-
-    @classmethod
-    def get_completed_test_runs(cls) -> List[str]:
-        """
-        :return: list of test run identifiers of completed test runs
-        """
-        test_results_directory = normpath(f"{ONEHOP_TEST_DIRECTORY}/test_results")
-        test_run_list = listdir(test_results_directory)
-        return test_run_list
-
-    def set_test_run_root_path(self):
-        # collection bin for specified test run output data
-        self.test_run_root_path = f"{TEST_RESULTS_DIR}{sep}{self._test_run_id}"
-        if not self.has_test_report_db():
-            # file directory based reporting creates a test_run_id tagged directory for test results
-            makedirs(self.test_run_root_path, exist_ok=True)
-
-    def get_test_run_root_path(self) -> str:
-        if not self.test_run_root_path:
-            self.set_test_run_root_path()
-        return self.test_run_root_path
-
-    def unit_test_report_filepath(self, edge_details_file_path: str) -> str:
-        """
-        Generate a report file path for a specific unit test result, compiled from descriptive components.
-
-        :return: str, (posix) unit test file path to root name of report file path (*without* file extension)
-        """
-        path_parts = [TEST_RESULTS_DIR, self._test_run_id] + edge_details_file_path.split('/')
-
-        unit_test_dir_path = sep.join(path_parts[:-1])
-        try:
-            makedirs(f"{unit_test_dir_path}", exist_ok=True)
-        except OSError as ose:
-            logger.warning(f"unit_test_report_filepath() makedirs exception: {str(ose)}")
-
-        unit_test_file_path = sep.join(path_parts)
-
-        return unit_test_file_path
-
-    def save(self, test_summary: Dict, case_details: Dict, case_response: Dict):
-        """
-        Save the current results (including summary) of the OneHopTestHarness test run.
-
-        :param test_summary: Dict, summary unit tests for all test runs
-        :param case_details: Dict, catalog of test results for each test edge of a resource
-        :param case_response: Dict, (selective) TRAPI response objects for failed unit tests of specific edges
-        """
-
-        for edge_details_file_path in case_details:
-            # Print out the test case details
-
-            test_details_file_path = self.unit_test_report_filepath(edge_details_file_path)
-
-            # Save Details from a given edge test data use case
-            test_details = case_details[edge_details_file_path]
-            self.save_json_document(document=test_details, document_path=test_details_file_path)
