@@ -90,7 +90,6 @@ def _worker_process(
         with Popen(
                 args=command_line,
                 shell=True,
-                # env=env,
                 bufsize=1,
                 universal_newlines=True,
                 stdout=PIPE,

@@ -8,7 +8,7 @@ from sys import stderr
 from typing import Optional, Dict
 from time import sleep
 
-from translator.sri.testing.report import OneHopTestHarness
+from translator.sri.testing.onehops_test_runner import OneHopTestHarness
 
 import logging
 

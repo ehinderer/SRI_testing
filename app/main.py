@@ -20,10 +20,11 @@ from reasoner_validator.util import (
     SemVerUnderspecified
 )
 
-from translator.sri.testing.report import (
+from translator.sri.testing.onehops_test_runner import (
     OneHopTestHarness,
     DEFAULT_WORKER_TIMEOUT
 )
+from translator.sri.testing.report_db import TestReportDatabase, FileReportDatabase
 
 app = FastAPI()
 
@@ -38,12 +39,19 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+#############################################################
+# Here we configure and bind our TestReportDatabase
+# to the OneHopTestHarness (use a FileReportDatabase for now)
+#############################################################
+test_report_database: TestReportDatabase = FileReportDatabase()
+OneHopTestHarness.set_test_report_database(test_report_database)
 
-#
+
+###########################################################
 # We don't instantiate the full TRAPI models here but
 # just use an open-ended dictionary which should have
 # query_graph, knowledge_graph and results JSON tag-values
-#
+###########################################################
 class TestRunParameters(BaseModel):
 
     # TODO: we ignore the other SRI Testing parameters
@@ -357,12 +365,14 @@ async def get_response(
     assert test_id, "Null or empty Unit Test Identifier?"
 
     try:
-        content_generator: Generator = OneHopTestHarness(test_run_id=test_run_id).get_streamed_response_file(
-                component=component,
-                resource_id=resource_id,
-                edge_num=edge_num,
-                test_id=test_id
-            )
+        content_generator: Generator = OneHopTestHarness(
+            test_run_id=test_run_id
+        ).get_streamed_response_file(
+            component=component,
+            resource_id=resource_id,
+            edge_num=edge_num,
+            test_id=test_id
+        )
         return StreamingResponse(
             content=content_generator,
             media_type="application/json"

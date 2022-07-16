@@ -4,7 +4,7 @@ Unit tests for OneHop unit test processing functions
 import pytest
 import shutil
 
-from translator.sri.testing.report import (
+from translator.sri.testing.onehops_test_runner import (
     OneHopTestHarness,
     parse_unit_test_name,
     build_edge_details_document_key

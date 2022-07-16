@@ -2,23 +2,16 @@
 SRI Testing Report utility functions.
 """
 from typing import Optional, Dict, Tuple, List, Generator
-
-from os import makedirs, listdir, sep
-from os.path import normpath
+from os.path import sep
 from datetime import datetime
+
 import re
-
-import orjson
-
-# TODO: should orjson be used instead of json below?
-import json
 
 from translator.sri.testing.processor import CMD_DELIMITER, WorkerProcess
 
-from tests.onehop import ONEHOP_TEST_DIRECTORY, TEST_RESULTS_DIR
+from tests.onehop import ONEHOP_TEST_DIRECTORY
 
 from translator.sri.testing.report_db import TestReportDatabase
-from pymongo.collection import Collection
 
 import logging
 logger = logging.getLogger()
@@ -127,31 +120,41 @@ def _get_details_document_key(component: str, resource_id: str, edge_num: str) -
 
 class OneHopTestHarness:
 
+    # Caching of processes, indexed by test_run_id (timestamp identifier as string)
+    _test_run_id_2_worker_process: Dict[str, Dict] = dict()
+
+    _test_report_database: Optional[TestReportDatabase] = None
+
+    @classmethod
+    def set_test_report_database(cls, database: TestReportDatabase):
+        """
+        Registers a TestReportDatabase with the OneHopTestHarness class
+        :param database: TestReportDatabase, testing reporting database handle
+        """
+        cls._test_report_database = database
+
+    @classmethod
+    def get_report_database(cls) -> Optional[TestReportDatabase]:
+        """
+        :return: Optional[TestReportDatabase], testing reporting database handle
+        """
+        return cls._test_report_database
+
     @staticmethod
     def _generate_test_run_id() -> str:
         return datetime.now().strftime("%Y-%b-%d_%Hhr%M")
 
-    # Caching of processes, indexed by test_run_id (timestamp identifier as string)
-    _test_run_id_2_worker_process: Dict[str, Dict] = dict()
-
-    def __init__(
-            self,
-            test_run_id: Optional[str] = None,
-            database: Optional[TestReportDatabase] = None
-    ):
+    def __init__(self, test_run_id: Optional[str] = None):
         """
         OneHopTestHarness constructor.
 
         :param test_run_id: Optional[str], known timestamp test run identifier; internally created if 'None'
-        :param database: Optional[TestReportDatabase], testing reporting database handle
-                        (default: None,  reports just saved to local hard drive)
+
         """
+        assert self._test_report_database, "OneHopTestHarness(): class-level TestReportDatabase should be set!"
+
         # each test harness run has its own unique timestamp identifier
         self._test_run_id: str
-
-        # For now, we provide for both file based and MongoDb based test result archives.
-        # If 'self._test_report_database' is set with an instance of TestReportDatabase, then MongoDb is assumed
-        self._test_report_database: Optional[TestReportDatabase] = database
 
         self._command_line: Optional[str] = None
         self._process: Optional[WorkerProcess] = None
@@ -166,35 +169,14 @@ class OneHopTestHarness:
             self._test_run_id = self._generate_test_run_id()
             self._test_run_id_2_worker_process[self._test_run_id] = {}
 
-        self.test_run_root_path: Optional[str] = None
+        # TODO: can we somehow adapt log capture for TestReportDatabase() to MongoDb?
+        self._log_file_path: Optional[str] = f"{self.get_report_database().get_test_run_root_path()}{sep}pytest.log"
 
     def get_test_run_id(self) -> Optional[str]:
-        if self._test_run_id:
-            return str(self._test_run_id)
-        else:
-            return None
+        return self._test_run_id
 
-    def set_test_results_location(self):
-        """
-        Sets up the test result location (either a database 'collection' or local test run root directory path)
-        :return: None
-        """
-        self.test_run_root_path = f"{TEST_RESULTS_DIR}{sep}{self._test_run_id}"
-
-        # File system based reporting creates a 'test_run_id' named directory for test results
-        # This folder may contain the full test results unless a test report database is used
-        # in which case, only a Pytest log may be present?
-        makedirs(self.test_run_root_path, exist_ok=True)
-
-        if self.has_test_report_db():
-            # (MongoDb) Database based 'OneHop' test run reporting
-            # simply uses the test_run_id as the collection name
-            self._test_report_database.set_current_collection(self._test_run_id)
-
-    def get_test_run_root_path(self) -> str:
-        if not self.test_run_root_path:
-            self.set_test_results_location()
-        return self.test_run_root_path
+    def get_log_file_path(self):
+        return self._log_file_path
 
     def run(
             self,
@@ -245,14 +227,12 @@ class OneHopTestHarness:
 
         logger.debug(f"OneHopTestHarness.run() command line: {self._command_line}")
 
-        # TODO: can we somehow adapt log capture for TestReportDatabase() to MongoDb?
-        log_filepath = f"{self.get_test_run_root_path()}/pytest.log"
-
-        self._process = WorkerProcess(self._timeout, log_file=log_filepath)
+        self._process = WorkerProcess(self._timeout, log_file=self.get_log_file_path())
 
         self._process.run_command(self._command_line)
 
         # Cache run parameters for later access as necessary
+        # TODO: what about the TestReportDatabase(?)
         self._test_run_id_2_worker_process[self._test_run_id] = {
             "command_line": self._command_line,
             "worker_process": self._process,
@@ -280,6 +260,7 @@ class OneHopTestHarness:
             return 100
     
     def _reload_run_parameters(self):
+        # TODO: do we also need to reconnect to the TestReportDatabase here?
         if self._test_run_id in self._test_run_id_2_worker_process:
             run_parameters: Dict = self._test_run_id_2_worker_process[self._test_run_id]
             self._command_line = run_parameters["command_line"]
@@ -330,88 +311,10 @@ class OneHopTestHarness:
         """
         :return: list of test run identifiers of completed test runs
         """
-        test_results_directory = normpath(f"{ONEHOP_TEST_DIRECTORY}/test_results")
-        test_run_list = listdir(test_results_directory)
+        # TODO: for now, the test report database only has collections
+        #       of test results, so this simple-minded delegated call should work?
+        test_run_list = cls.get_report_database().get_collections()
         return test_run_list
-
-    def unit_test_report_filepath(self, edge_details_file_path: str) -> str:
-        """
-        Generate a report file path for a specific unit test result, compiled from descriptive components.
-
-        :return: str, (posix) unit test file path to root name of report file path (*without* file extension)
-        """
-        path_parts = [TEST_RESULTS_DIR, self._test_run_id] + edge_details_file_path.split('/')
-
-        unit_test_dir_path = sep.join(path_parts[:-1])
-        try:
-            makedirs(f"{unit_test_dir_path}", exist_ok=True)
-        except OSError as ose:
-            logger.warning(f"unit_test_report_filepath() makedirs exception: {str(ose)}")
-
-        unit_test_file_path = sep.join(path_parts)
-
-        return unit_test_file_path
-
-    def save_json_document(self, document: Dict, document_key: str):
-        """
-        Saves an indexed document either to a test report database or the filing system.
-
-        :param document: Dict, Python object to persist as a JSON document
-        :param document_key: str, indexing path for the document being saved
-        :return:
-        """
-        if self.has_test_report_db():
-            # Persist index test run result JSON document suitably indexed by
-            # the document_key, into the (wrapped MongoDb) TestReportDatabase
-            document["document_key"] = document_key
-            db: TestReportDatabase = self._test_report_database
-            assert db
-            test_results: Collection = db.get_current_collection()
-            assert test_results
-            test_results.insert_one(document)
-        else:
-            # we add the file extension '.json' for file system based documents
-            test_result_path = self.unit_test_report_filepath(document_key)
-            with open(f"{test_result_path}.json", 'w') as document_file:
-                json.dump(document, document_file, indent=4)
-
-    def _absolute_report_file_path(self, report_file_path: str) -> str:
-        absolute_file_path = normpath(f"{ONEHOP_TEST_DIRECTORY}/test_results/{self._test_run_id}/{report_file_path}")
-        return absolute_file_path
-
-    def has_test_report_db(self) -> bool:
-        """
-        :return: True if a (MongoDb) test report database is being used to track test results; False otherwise
-        """
-        return self._test_report_database is not None
-
-    def retrieve_document(self, report_type: str, document_key: str) -> Optional[Dict]:
-        """
-        Retrieves a document either from the TestReportDatabase or the local filing system.
-
-        :param report_type: str, label of report type
-        :param document_key: key ('path') to the document
-        :return: Dict, JSON document as Python object
-        """
-        assert document_key
-        document: Optional[Dict] = None
-        if self.has_test_report_db():
-            db: TestReportDatabase = self._test_report_database
-            assert db
-            test_results: Collection = db.get_current_collection()
-            assert test_results
-            document = test_results.find_one({'document_key': document_key}, fields={'_id': False})
-        else:
-            document_key = self._absolute_report_file_path(document_key)
-            try:
-                with open(f"{document_key}.json", 'r') as report_file:
-                    contents = report_file.read()
-                if contents:
-                    document = orjson.loads(contents)
-            except OSError as ose:
-                logger.warning(f"{report_type} file '{document_key}' not (yet) accessible: {str(ose)}?")
-
-        return document
 
     def get_summary(self) -> Optional[Dict]:
         """
@@ -419,7 +322,9 @@ class OneHopTestHarness:
 
         :return: Optional[str], JSON structured document summary of unit test results. 'None' if not (yet) available.
         """
-        summary: Optional[Dict] = self.retrieve_document(report_type="Summary", document_key="test_summary")
+        summary: Optional[Dict] = self.get_report_database().retrieve_document(
+            report_type="Summary", document_key="test_summary"
+        )
         return summary
 
     def get_details(
@@ -441,7 +346,9 @@ class OneHopTestHarness:
                                  KP or ARA resource, or 'None' if the details are not (yet) available.
         """
         document_key: str = _get_details_document_key(component, resource_id, edge_num)
-        details: Optional[Dict] = self.retrieve_document(report_type="Details", document_key=document_key)
+        details: Optional[Dict] = self.get_report_database().retrieve_document(
+            report_type="Details", document_key=document_key
+        )
         return details
 
     def get_streamed_response_file(
@@ -465,12 +372,6 @@ class OneHopTestHarness:
         :return: str, TRAPI Response text data file path (generated, but not tested here for file existence)
         """
         document_key: str = _get_details_document_key(component, resource_id, edge_num)
-        if self.has_test_report_db():
-            pass
-        else:
-            response_file_path = self._absolute_report_file_path(f"{document_key}-{test_id}.json")
-            try:
-                with open(response_file_path, mode="rb") as datafile:
-                    yield from datafile
-            except OSError as ose:
-                logger.warning(f"{response_file_path}' not (yet) accessible: {str(ose)}?")
+        return self.get_report_database().stream_document(
+            report_type="Details", document_key=f"{document_key}-{test_id}"
+        )

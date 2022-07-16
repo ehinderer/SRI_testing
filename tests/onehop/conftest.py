@@ -29,7 +29,7 @@ from tests.onehop import util as oh_util
 from tests.onehop.util import (
     get_unit_test_codes
 )
-from translator.sri.testing.report import (
+from translator.sri.testing.onehops_test_runner import (
     OneHopTestHarness,
     parse_unit_test_name
 )
@@ -49,7 +49,7 @@ def pytest_sessionfinish(session):
         if "test_run_id" in session.config.option and session.config.option.test_run_id else None
     )
 
-    test_run.set_test_results_location()
+    test_run.get_report_database().set_current_report(test_run.get_test_run_id())
 
     session_results = get_session_results_dct(session)
 
@@ -67,8 +67,6 @@ def pytest_sessionfinish(session):
         component, ara_id, kp_id, edge_num, test_id, edge_details_key = parse_unit_test_name(
             unit_test_key=unit_test_key
         )
-
-        # test_details_file_path = test_run.unit_test_report_filepath(edge_details_key)
 
         ##############################################################
         # Summary file indexed by component, resources and edge cases
@@ -146,7 +144,11 @@ def pytest_sessionfinish(session):
                 case_response['response'] = rb['response']['response_json']
 
                 response_document_key = f"{edge_details_key}-{test_id}"
-                test_run.save_json_document(document=case_response, document_key=response_document_key)
+                test_run.get_report_database().save_json_document(
+                    document=case_response,
+                    document_key=response_document_key,
+                    is_big=True
+                )
 
             else:
                 test_details['response'] = "No 'response' generated for this unit test?"
@@ -163,10 +165,14 @@ def pytest_sessionfinish(session):
     #
     # Print out the cached details of each edge test case
     for edge_details_key in case_details:
-        test_run.save_json_document(document=case_details[edge_details_key], document_key=edge_details_key)
+        test_run.get_report_database().save_json_document(
+            document=case_details[edge_details_key], document_key=edge_details_key
+        )
 
     # Save Test Run Summary
-    test_run.save_json_document(document=test_summary, document_key="test_summary")
+    test_run.get_report_database().save_json_document(
+        document=test_summary, document_key="test_summary"
+    )
 
 
 def pytest_addoption(parser):
