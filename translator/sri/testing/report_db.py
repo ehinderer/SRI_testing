@@ -28,9 +28,7 @@ class TestReportDatabase:
 
     def set_current_report(self, identifier: str):
         """
-        Sets the current the report location.
-
-        :return: None
+        Sets the TestReportDatabase to the current the report by identifier.
         """
         assert identifier
 
@@ -44,6 +42,13 @@ class TestReportDatabase:
 
     def get_test_run_root_path(self) -> str:
         return self.test_run_root_path
+
+    @classmethod
+    def get_available_reports(cls) -> List[str]:
+        """
+        :return: list of identifiers of available reports.
+        """
+        raise NotImplementedError("Abstract method - implement in child subclass!")
 
     def save_json_document(self, document: Dict, document_key: str, is_big: bool = False):
         """
@@ -92,9 +97,9 @@ class FileReportDatabase(TestReportDatabase):
         return unit_test_file_path
 
     @classmethod
-    def get_collections(cls) -> List[str]:
+    def get_available_reports(cls) -> List[str]:
         """
-        :return: list of test run identifiers of completed test runs
+        :return: list of identifiers of available reports.
         """
         # TODO: maybe if a MongoDb is used at the back end, then this handler requires revision?
         test_results_directory = normpath(f"{ONEHOP_TEST_DIRECTORY}/test_results")
@@ -222,15 +227,15 @@ class MongoReportDatabase(TestReportDatabase):
         return self._current_collection
 
     @classmethod
-    def get_collections(cls) -> List[str]:
+    def get_available_reports(cls) -> List[str]:
         """
-        :return: list of test run identifiers of completed test runs
+        :return: list of identifiers of available reports.
         """
         raise NotImplementedError
 
     def set_current_report(self, identifier: str):
         """
-        Sets up the test result location (either a database 'collection' or local test run root directory path)
+        Sets up the current report as a MongoDb 'collection'.
         :return: None
         """
         TestReportDatabase.set_current_report(self, identifier=identifier)

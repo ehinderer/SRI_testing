@@ -313,7 +313,7 @@ class OneHopTestHarness:
         """
         # TODO: for now, the test report database only has collections
         #       of test results, so this simple-minded delegated call should work?
-        test_run_list = cls.get_report_database().get_collections()
+        test_run_list = cls.get_report_database().get_available_reports()
         return test_run_list
 
     def get_summary(self) -> Optional[Dict]:

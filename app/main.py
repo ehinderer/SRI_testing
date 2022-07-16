@@ -40,7 +40,7 @@ app.add_middleware(
 )
 
 #############################################################
-# Here we configure and bind our TestReportDatabase
+# Here we globally configure and bind a TestReportDatabase
 # to the OneHopTestHarness (use a FileReportDatabase for now)
 #############################################################
 test_report_database: TestReportDatabase = FileReportDatabase()
