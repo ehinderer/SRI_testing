@@ -22,7 +22,7 @@ The request body consists of JSON data structure with two top level tag:
 
 ## Running the Web Service Directly
 
-The service may be run directly as a python module. It is suggested that a virtual environment first be created (using virtualenv, conda, within your IDE, or equivalent).  Then, certain Python dependencies need to be installed, as follows:
+The service may be run directly as a python module. It is suggested that a virtual environment first be created (using virtualenv, conda, within your IDE, or equivalent).  Then, certain additional SRI Testing project Python dependencies need to be installed, as follows:
 
 ```shell
 pip install -r requirements-service.txt
@@ -38,7 +38,7 @@ Go to  http://localhost/docs to see the service documentation and to use the sim
 
 ## Running the Web Service within Docker
 
-The Reasoner Validator web service may be run inside a docker container, using Docker Compose.
+The SRI Testing web service may be run inside a docker container, using Docker Compose.
 
 Assuming that you have installed both [Docker (or rather, Docker Desktop)](https://docs.docker.com/get-docker/) and [Docker-Compose](https://docs.docker.com/compose/install/) (Note: Docker Desktop now conveniently installs both...), then the following commands may be run:
 

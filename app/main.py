@@ -24,7 +24,6 @@ from translator.sri.testing.onehops_test_runner import (
     OneHopTestHarness,
     DEFAULT_WORKER_TIMEOUT
 )
-from translator.sri.testing.report_db import TestReportDatabase, FileReportDatabase
 
 app = FastAPI()
 
@@ -38,13 +37,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-#############################################################
-# Here we globally configure and bind a TestReportDatabase
-# to the OneHopTestHarness (use a FileReportDatabase for now)
-#############################################################
-test_report_database: TestReportDatabase = FileReportDatabase()
-OneHopTestHarness.set_test_report_database(test_report_database)
 
 
 ###########################################################

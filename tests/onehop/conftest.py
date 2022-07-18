@@ -49,7 +49,7 @@ def pytest_sessionfinish(session):
         if "test_run_id" in session.config.option and session.config.option.test_run_id else None
     )
 
-    test_run.get_report_database().set_current_report(test_run.get_test_run_id())
+    test_run.get_report_database().initialize_report(test_run.get_test_run_id())
 
     session_results = get_session_results_dct(session)
 
@@ -173,6 +173,9 @@ def pytest_sessionfinish(session):
     test_run.get_report_database().save_json_document(
         document=test_summary, document_key="test_summary"
     )
+
+    # Finished reporting to database?... clear the current report id
+    test_run.get_report_database().clear_current_report()
 
 
 def pytest_addoption(parser):

@@ -11,7 +11,7 @@ from translator.sri.testing.processor import CMD_DELIMITER, WorkerProcess
 
 from tests.onehop import ONEHOP_TEST_DIRECTORY
 
-from translator.sri.testing.report_db import TestReportDatabase
+from translator.sri.testing.report_db import TestReportDatabase, FileReportDatabase
 
 import logging
 logger = logging.getLogger()
@@ -151,11 +151,6 @@ class OneHopTestHarness:
         :param test_run_id: Optional[str], known timestamp test run identifier; internally created if 'None'
 
         """
-        assert self._test_report_database, "OneHopTestHarness(): class-level TestReportDatabase should be set!"
-
-        # each test harness run has its own unique timestamp identifier
-        self._test_run_id: str
-
         self._command_line: Optional[str] = None
         self._process: Optional[WorkerProcess] = None
         self._timeout: Optional[int] = DEFAULT_WORKER_TIMEOUT
@@ -168,6 +163,8 @@ class OneHopTestHarness:
             # new (or 'local') test run? no run parameters to reload?
             self._test_run_id = self._generate_test_run_id()
             self._test_run_id_2_worker_process[self._test_run_id] = {}
+
+        self._test_report_database.set_current_report(identifier=self._test_run_id)
 
         # TODO: can we somehow adapt log capture for TestReportDatabase() to MongoDb?
         self._log_file_path: Optional[str] = f"{self.get_report_database().get_test_run_root_path()}{sep}pytest.log"
@@ -313,8 +310,7 @@ class OneHopTestHarness:
         """
         # TODO: for now, the test report database only has collections
         #       of test results, so this simple-minded delegated call should work?
-        test_run_list = cls.get_report_database().get_available_reports()
-        return test_run_list
+        return cls.get_report_database().get_available_reports()
 
     def get_summary(self) -> Optional[Dict]:
         """
@@ -375,3 +371,11 @@ class OneHopTestHarness:
         return self.get_report_database().stream_document(
             report_type="Details", document_key=f"{document_key}-{test_id}"
         )
+
+
+##################################################################
+# Here we globally configure and bind a TestReportDatabase
+# to the OneHopTestHarness (default to FileReportDatabase for now)
+##################################################################
+test_report_database: TestReportDatabase = FileReportDatabase()
+OneHopTestHarness.set_test_report_database(test_report_database)
