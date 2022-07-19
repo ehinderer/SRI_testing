@@ -167,8 +167,9 @@ class OneHopTestHarness:
         # Retrieve the associated test run report object
         self._test_report = self._test_report_database.get_test_report(identifier=self._test_run_id)
 
-        # TODO: can we somehow adapt log capture for TestReportDatabase() to MongoDb?
-        self._log_file_path: Optional[str] = f"{ self._test_report.get_root_path()}{sep}pytest.log"
+        # TODO: can we somehow adapt log capture for TestReportDatabase() to be stored in
+        #       MongoDb as a GridFS document, when a MongoTestDatabase() is used?
+        self._log_file_path: Optional[str] = f"{self._test_report.get_root_path()}{sep}pytest.log"
 
     def get_test_run_id(self) -> Optional[str]:
         return self._test_run_id
