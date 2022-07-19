@@ -11,7 +11,7 @@ from translator.sri.testing.processor import CMD_DELIMITER, WorkerProcess
 
 from tests.onehop import ONEHOP_TEST_DIRECTORY
 
-from translator.sri.testing.report_db import TestReportDatabase, FileReportDatabase, TestReport
+from translator.sri.testing.report_db import TestReportDatabase, FileReportDatabase
 
 import logging
 logger = logging.getLogger()

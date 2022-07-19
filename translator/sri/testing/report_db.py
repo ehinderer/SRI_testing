@@ -1,3 +1,4 @@
+import shutil
 from os import environ, makedirs, listdir
 from os.path import sep, normpath
 from typing import Dict, Optional, List, Generator
@@ -47,6 +48,12 @@ class TestReportDatabase:
     def get_test_report(self, identifier: str) -> TestReport:
         """
         :return: TestReport of the appropriate kind for the given type of TestReportDatabase
+        """
+        raise NotImplementedError("Abstract method - implement in child subclass!")
+
+    def delete_test_report(self, report: TestReport):
+        """
+        :param report: TestReport, to be deleted
         """
         raise NotImplementedError("Abstract method - implement in child subclass!")
 
@@ -115,6 +122,13 @@ class FileReportDatabase(TestReportDatabase):
         makedirs(report.get_root_path(), exist_ok=True)
 
         return report
+
+    def delete_test_report(self, report: TestReport):
+        """
+        :param report: TestReport to be deleted
+        """
+        test_report_directory = normpath(report.get_root_path())
+        shutil.rmtree(test_report_directory)
 
     @classmethod
     def get_available_reports(cls) -> List[str]:
@@ -248,7 +262,7 @@ class MongoReportDatabase(TestReportDatabase):
         self._sri_testing_db: Database = self._db_client.sri_testing
         self._current_collection: Optional[Collection] = self._sri_testing_db.test_results
 
-    def _get_current_collection(self) -> Collection:
+    def get_current_collection(self) -> Collection:
         """
         :return: current pymongo.collection.Collection for report results
         """
@@ -259,16 +273,22 @@ class MongoReportDatabase(TestReportDatabase):
 
         # MongoDb based reporting needs to create a
         # 'identifier' tagged collection for test results
-        self._current_collection = self._sri_testing_db[identifier]
+        self._current_collection = self._sri_testing_db[report.get_identifier()]
 
         return report
 
-    @classmethod
-    def get_available_reports(cls) -> List[str]:
+    def delete_test_report(self, report: TestReport):
+        """
+        :param report: TestReport to be deleted
+        """
+        self._sri_testing_db.drop_collection(report.get_identifier())
+
+    def get_available_reports(self) -> List[str]:
         """
         :return: list of identifiers of available reports.
         """
-        raise NotImplementedError
+        non_system_collection_filter: Dict = {"name": {"$regex": r"^(?!system\.)"}}
+        return self._sri_testing_db.list_collection_names(filter=non_system_collection_filter)
 
     def save_json_document(
             self,
@@ -324,4 +344,4 @@ class MongoReportDatabase(TestReportDatabase):
         :return: Generator, generator of streamed JSON document text
         """
         # TODO: for reasons of file size scalability, we probably need to stream with MongoDb GridFS here
-        raise NotImplementedError
+        raise NotImplementedError("Implement me!")
