@@ -3,7 +3,7 @@ SRI Testing Report utility functions.
 """
 from typing import Optional, Dict, Tuple, List
 
-from os import makedirs, listdir
+from os import makedirs, listdir, sep
 from os.path import normpath
 from datetime import datetime
 import re
@@ -14,11 +14,13 @@ import orjson
 import json
 
 from translator.sri.testing.processor import CMD_DELIMITER, WorkerProcess
-from tests.onehop import ONEHOP_TEST_DIRECTORY
+
+from tests.onehop import ONEHOP_TEST_DIRECTORY, TEST_RESULTS_DIR
 
 import logging
 
 logger = logging.getLogger()
+logger.setLevel("DEBUG")
 
 #
 # Application-specific parameters
@@ -29,9 +31,6 @@ DEFAULT_WORKER_TIMEOUT = 120  # 2 minutes for small PyTests?
 # June/July 2022 - new reporting strategy, based on an exported
 # summary, edge details and unit test TRAPI JSON files
 #
-
-
-TEST_RESULTS_DIR = "test_results"
 
 UNIT_TEST_NAME_PATTERN = re.compile(
     r"^test_onehops.py:(\d+)?:(test_trapi_(?P<component>kp|ara)s|\s)(\[(?P<case>[^]]+)])"
@@ -157,19 +156,16 @@ class OneHopTestHarness:
         self._command_line: Optional[str] = None
         self._process: Optional[WorkerProcess] = None
         self._timeout: Optional[int] = DEFAULT_WORKER_TIMEOUT
+        self._test_run_completed: bool = False
         if test_run_id is not None:
             # should be an existing test run?
             self._test_run_id = test_run_id
             self._reload_run_parameters()
         else:
-            # new test run? no run parameters to reload?
+            # new (or 'local') test run? no run parameters to reload?
             self._test_run_id = self._generate_test_run_id()
-            self._test_run_id_2_worker_process[self._test_run_id] = {
-                "command_line": None,
-                "worker_process": None,
-                "timeout": self._timeout,
-                "percentage_completion": 0
-            }
+            self._test_run_id_2_worker_process[self._test_run_id] = {}
+
         self.test_run_root_path: Optional[str] = None
 
     def get_test_run_id(self) -> Optional[str]:
@@ -227,7 +223,9 @@ class OneHopTestHarness:
 
         logger.debug(f"OneHopTestHarness.run() command line: {self._command_line}")
 
-        self._process = WorkerProcess(self._timeout)
+        log_filepath = f"{self._get_test_run_root_path()}/pytest.log"
+
+        self._process = WorkerProcess(self._timeout, log_file=log_filepath)
 
         self._process.run_command(self._command_line)
 
@@ -236,9 +234,8 @@ class OneHopTestHarness:
             "command_line": self._command_line,
             "worker_process": self._process,
             "timeout": self._timeout,
-            
-            # Percentage Completion needs to be updated later?
-            "percentage_completion": 0
+            "percentage_completion": 0,  # Percentage Completion needs to be updated later?
+            "test_run_completed": False
         }
 
     def get_worker(self) -> Optional[WorkerProcess]:
@@ -253,13 +250,11 @@ class OneHopTestHarness:
             )
     
     def _get_percentage_completion(self) -> int:
-        if self._test_run_id in self._test_run_id_2_worker_process and \
-                "percentage_completion" in self._test_run_id_2_worker_process[self._test_run_id]:
+        if self._test_run_id in self._test_run_id_2_worker_process:
             return self._test_run_id_2_worker_process[self._test_run_id]["percentage_completion"]
         else:
-            raise RuntimeError(
-                f"_get_percentage_completion(): Unknown Worker Process for test run '{str(self._test_run_id)}'?"
-            )
+            logger.debug(f"_get_percentage_completion(): no Worker Process parameters for {self._test_run_id}")
+            return 100
     
     def _reload_run_parameters(self):
         if self._test_run_id in self._test_run_id_2_worker_process:
@@ -268,19 +263,26 @@ class OneHopTestHarness:
             self._process = run_parameters["worker_process"]
             self._timeout = run_parameters["timeout"]
             self._percentage_completion = run_parameters["percentage_completion"]
+            self._test_run_completed = run_parameters["test_run_completed"]
         else:
-            raise RuntimeError(
-                f"_reload_run_parameters(): Unknown Worker Process for test run '{str(self._test_run_id)}'?"
-            )
+            # Test run probably completed already
+            logger.debug(f"_reload_run_parameters(): no Worker Process parameters for {self._test_run_id}")
+            self._percentage_completion = 100
+            self._test_run_completed = True
 
-    @classmethod
-    def get_test_run_list(cls) -> List[str]:
-        """
-        :return: list of test run identifiers of completed test runs
-        """
-        test_results_directory = normpath(f"{ONEHOP_TEST_DIRECTORY}/test_results")
-        test_run_list = listdir(test_results_directory)
-        return test_run_list
+    def test_run_complete(self) -> bool:
+        if not self._test_run_completed:
+            # If there is an active WorkerProcess...
+            if self._process:
+                # ... then poll the Queue for task completion
+                status: str = self._process.status()
+                if status.startswith(WorkerProcess.COMPLETED) or \
+                        status.startswith(WorkerProcess.NOT_RUNNING):
+                    self._test_run_completed = True
+                    if status.startswith(WorkerProcess.COMPLETED):
+                        logger.debug(status)
+
+        return self._test_run_completed
 
     def get_status(self) -> int:
         """
@@ -289,10 +291,14 @@ class OneHopTestHarness:
         :return: int, 0..100 indicating the percentage completion of the test run., -1 if test run not running?
         """
         if self._get_percentage_completion() < 100:
-            for line in self._process.get_output(timeout=10):
+            for line in self._process.get_output(timeout=5):
+                logger.debug(f"Pytest output: {line}")
                 pc = PERCENTAGE_COMPLETION_SUFFIX_PATTERN.search(line)
                 if pc and pc.group():
                     self._set_percentage_completion(int(pc["percentage_completion"]))
+
+        if self.test_run_complete():
+            self._set_percentage_completion(100)
 
         return self._get_percentage_completion()
 
@@ -372,9 +378,23 @@ class OneHopTestHarness:
 
         return response_file_path
 
+    ###########################################################################################
+    # File System based implementation of Test Run Archive
+    # TODO: Might be better to store them in a (NoSQL, Document-based) database (e.g. MongoDb?)
+    ###########################################################################################
+
+    @classmethod
+    def get_completed_test_runs(cls) -> List[str]:
+        """
+        :return: list of test run identifiers of completed test runs
+        """
+        test_results_directory = normpath(f"{ONEHOP_TEST_DIRECTORY}/test_results")
+        test_run_list = listdir(test_results_directory)
+        return test_run_list
+
     def _set_test_run_root_path(self):
         # subdirectory for local run output data
-        self.test_run_root_path = f"{TEST_RESULTS_DIR}/{self._test_run_id}"
+        self.test_run_root_path = f"{TEST_RESULTS_DIR}{sep}{self._test_run_id}"
         makedirs(self.test_run_root_path, exist_ok=True)
 
     def _get_test_run_root_path(self) -> str:
@@ -402,13 +422,13 @@ class OneHopTestHarness:
         """
         path_parts = [TEST_RESULTS_DIR, self._test_run_id] + edge_details_file_path.split('/')
 
-        unit_test_dir_path = '/'.join(path_parts[:-1])
+        unit_test_dir_path = sep.join(path_parts[:-1])
         try:
             makedirs(f"{unit_test_dir_path}", exist_ok=True)
         except OSError as ose:
             logger.warning(f"unit_test_report_filepath() makedirs exception: {str(ose)}")
 
-        unit_test_file_path = '/'.join(path_parts)
+        unit_test_file_path = sep.join(path_parts)
 
         return unit_test_file_path
 

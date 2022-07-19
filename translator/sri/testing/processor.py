@@ -10,16 +10,16 @@ from sys import platform, stderr
 from multiprocessing import Process, Pipe
 from multiprocessing.context import BaseContext
 from multiprocessing.connection import Connection
-from time import sleep
 
-from typing import Optional, Generator
+from typing import Optional, Generator, IO
 
 import multiprocessing as mp
 from queue import Empty
 from subprocess import (
     Popen,
     PIPE,
-    STDOUT
+    STDOUT,
+    DEVNULL
 )
 import os
 import logging
@@ -49,7 +49,8 @@ def _worker_process(
         pipe: mp.Pipe,
         lock: mp.Lock,
         queue: mp.Queue,
-        command_line: str
+        command_line: str,
+        log_file: Optional[str] = None
 ):
     """
     Wrapper for a background worker process which runs a specified command.
@@ -58,6 +59,8 @@ def _worker_process(
     :param lock: Lock, process lock used to synchronize background output
     :param queue: Queue, used for communication of worker process to caller
     :param command_line: str, the worker process command to execute
+    :param log_file: Optional[str], path to save process output (in parallel to pipe)
+
     :return: None (process state indirectly returned via Queue)
     """
     lock.acquire()
@@ -75,11 +78,15 @@ def _worker_process(
     # the caller, as a point of reference
     queue.put(process_id)
 
-    # result: Union[CompletedProcess, CalledProcessError, TimeoutExpired]
     return_code: int
     return_status: str
+
+    log: Optional[IO] = None
+    if log_file:
+        log = open(log_file, "w")
+
     try:
-        # do the heavy lifting here
+
         with Popen(
                 args=command_line,
                 shell=True,
@@ -89,11 +96,15 @@ def _worker_process(
                 stdout=PIPE,
                 stderr=STDOUT
         ) as proc:
-            logger.debug(f"_worker_process(command_line={command_line}) log:\n")
             for line in proc.stdout:
+                # Echo 'line' to 'log_file' (may be /dev/null)
+                if log:
+                    log.write(line)
+
                 line = line.strip()
                 if line:
-                    # Simple-minded approach of shoving all the child output lines into an interprocess pipe
+                    # Simple-minded strategy of shoving all the
+                    # Worker Process output into an interprocess pipe
                     pipe.send(line)
 
         return_code = proc.returncode
@@ -104,8 +115,12 @@ def _worker_process(
         return_code = 1
         return_status = f"Worker Process Exception: {str(rte)}?"
 
+    finally:
+        if log:
+            log.close()
+
     # propagate the result - successful or not - back to the caller
-    queue.put(f"Worker Process Return Code: {return_code}\nStatus {return_status}")
+    queue.put(f"{WorkerProcess.COMPLETED} - Return Code: {return_code}\nStatus {return_status}")
 
 
 class WorkerProcessException(Exception):
@@ -114,11 +129,12 @@ class WorkerProcessException(Exception):
 
 class WorkerProcess:
 
-    def __init__(self, timeout: Optional[int] = None):
+    def __init__(self, timeout: Optional[int] = None, log_file: Optional[str] = None):
         """
         Constructor for WorkerProcess.
         
         :param timeout: int, worker process data query access timeout (Default: None => queue data access is blocking?)
+        :param log_file: Optional[str], log file (path) to which to save a copy of worker process output lines.
         """
         self._timeout: Optional[int] = timeout
         self._parent_conn: Optional[Connection] = None
@@ -128,6 +144,8 @@ class WorkerProcess:
         self._lock = self._ctx.Lock()
         self._process: Optional[Process] = None
         self._process_id: int = 0
+        self._status: Optional[str] = None
+        self._log_file: Optional[str] = log_file
 
     def run_command(self, command_line: str):
         """
@@ -147,7 +165,8 @@ class WorkerProcess:
             #    https://docs.python.org/3/library/multiprocessing.html?highlight=multiprocessing#module-multiprocessing
             assert not self._process
 
-            # We'll access the internal _worker_process standard output/error stream using an interprocess Pipe
+            # Directly access the internal Worker Process task
+            # standard output/error, using an interprocess Pipe
             self._parent_conn, self._child_conn = Pipe()
 
             self._process = self._ctx.Process(
@@ -156,7 +175,8 @@ class WorkerProcess:
                     self._child_conn,
                     self._lock,
                     self._queue,
-                    command_line
+                    command_line,
+                    self._log_file
                 )
             )
 
@@ -178,6 +198,9 @@ class WorkerProcess:
             # 'process_id', with queue access timeouts after several retries
             if not self._process_id:
                 raise RuntimeError("Worker process startup time-out?")
+
+            # TODO: perhaps I need to initiate a lightweight background thread *here*, to monitor the PIPE for
+            #       Worker Process progress, instead of relying on access to PIPE output in the /status endpoint?
 
         except Exception as ex:
 
@@ -209,6 +232,27 @@ class WorkerProcess:
         else:
             # Caller also gets nothing if there is no active connection
             return None
+
+    NOT_RUNNING: str = "Worker Process Not Running"
+    COMPLETED: str = "Worker Process Completed"
+    RUNNING: str = "Worker Process Running"
+
+    def status(self) -> str:
+
+        if not self._status or self._status == self.RUNNING:
+
+            # ... otherwise, check the process queue for a final message...
+            try:
+                self._status = self._queue.get(block=True, timeout=1)
+            except Empty:
+                # ... (hopefully) still running...
+                self._status = self.RUNNING
+
+            # Hacker assumption: that a missing process is one deemed "completed"
+            if not (self._process or not self._process.is_alive() or self._process_id):
+                self._status = self.NOT_RUNNING
+
+        return self._status
 
     def close(self):
         # Job done, the parent, not the child, sets the connections to None

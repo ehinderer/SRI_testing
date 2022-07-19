@@ -17,9 +17,12 @@ from translator.sri.testing.processor import (
     WorkerProcess
 )
 from tests.onehop import ONEHOP_TEST_DIRECTORY
+
 from translator.sri.testing.report import PERCENTAGE_COMPLETION_SUFFIX_PATTERN
 
 logger = logging.getLogger()
+
+TEST_RESULTS_PATH = abspath(f"{dirname(__file__)}{sep}test_results")
 
 
 def _report_outcome(
@@ -29,8 +32,10 @@ def _report_outcome(
         expecting_output: bool = True,
         expected_output: Optional[str] = None
 ):
-    wp = WorkerProcess(timeout)
+    wp = WorkerProcess(timeout, log_file=f"{TEST_RESULTS_PATH}{sep}{test_name}.log")
+
     wp.run_command(command_line)
+
     line: str
 
     if expecting_output:
@@ -85,7 +90,7 @@ MOCK_WORKER = abspath(dirname(__file__)+sep+"mock_worker.py")
 
 def test_progress_monitoring():
 
-    wp = WorkerProcess(1)
+    wp = WorkerProcess(timeout=1, log_file=f"{TEST_RESULTS_PATH}{sep}test_progress_monitoring.log")
 
     wp.run_command(f"{PYTHON_PATH} {MOCK_WORKER}")
 
@@ -118,3 +123,10 @@ def test_progress_monitoring():
             done = True
 
     print("test_progress_monitoring() test completed", file=stderr)
+
+
+def test_dev_null_log():
+    print("\n", file=stderr)
+    wp = WorkerProcess(timeout=1)
+    wp.run_command(command_line=f"{PYTHON_PATH} {MOCK_WORKER}")
+    print("\ntest_dev_null_log() created no log file under 'test_results', ya?", file=stderr)
