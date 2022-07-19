@@ -11,7 +11,7 @@ from translator.sri.testing.processor import CMD_DELIMITER, WorkerProcess
 
 from tests.onehop import ONEHOP_TEST_DIRECTORY
 
-from translator.sri.testing.report_db import TestReportDatabase, FileReportDatabase
+from translator.sri.testing.report_db import TestReportDatabase, FileReportDatabase, TestReport
 
 import logging
 logger = logging.getLogger()
@@ -164,10 +164,11 @@ class OneHopTestHarness:
             self._test_run_id = self._generate_test_run_id()
             self._test_run_id_2_worker_process[self._test_run_id] = {}
 
-        self._test_report_database.set_current_report(identifier=self._test_run_id)
+        # Retrieve the associated test run report object
+        self._test_report = self._test_report_database.get_test_report(identifier=self._test_run_id)
 
         # TODO: can we somehow adapt log capture for TestReportDatabase() to MongoDb?
-        self._log_file_path: Optional[str] = f"{self.get_report_database().get_test_run_root_path()}{sep}pytest.log"
+        self._log_file_path: Optional[str] = f"{ self._test_report.get_root_path()}{sep}pytest.log"
 
     def get_test_run_id(self) -> Optional[str]:
         return self._test_run_id
@@ -303,6 +304,23 @@ class OneHopTestHarness:
 
         return self._get_percentage_completion()
 
+    def save_json_document(self, document_type: str, document: Dict, document_key: str, is_big: bool = False):
+        """
+        Saves an indexed document either to a test report database or the filing system.
+
+        :param document_type: str, category label of document type being saved (for error reporting)
+        :param document: Dict, Python object to persist as a JSON document.
+        :param document_key: str, indexing path for the document being saved.
+        :param is_big: bool, if True, flags that the JSON file is expected to require special handling due to its size.
+        """
+        self.get_report_database().save_json_document(
+            report=self._test_report,
+            document_type=document_type,
+            document=document,
+            document_key=document_key,
+            is_big=is_big
+        )
+
     @classmethod
     def get_completed_test_runs(cls) -> List[str]:
         """
@@ -319,7 +337,9 @@ class OneHopTestHarness:
         :return: Optional[str], JSON structured document summary of unit test results. 'None' if not (yet) available.
         """
         summary: Optional[Dict] = self.get_report_database().retrieve_document(
-            report_type="Summary", document_key="test_summary"
+            report=self._test_report,
+            document_type="Summary",
+            document_key="test_summary"
         )
         return summary
 
@@ -343,7 +363,7 @@ class OneHopTestHarness:
         """
         document_key: str = _get_details_document_key(component, resource_id, edge_num)
         details: Optional[Dict] = self.get_report_database().retrieve_document(
-            report_type="Details", document_key=document_key
+            report=self._test_report, document_type="Details", document_key=document_key
         )
         return details
 
@@ -369,7 +389,7 @@ class OneHopTestHarness:
         """
         document_key: str = _get_details_document_key(component, resource_id, edge_num)
         return self.get_report_database().stream_document(
-            report_type="Details", document_key=f"{document_key}-{test_id}"
+            report=self._test_report, document_type="Details", document_key=f"{document_key}-{test_id}"
         )
 
 

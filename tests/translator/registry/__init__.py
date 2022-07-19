@@ -51,22 +51,25 @@ MOCK_TRANSLATOR_SMARTAPI_REGISTRY_METADATA = {
                 }
             }
         },
-        {
-            "info": {
-                "title": "Unit Test Automatic Relay Agent",
-                "version": "0.0.1",
-                "x-translator": {
-                    "infores": "infores:aragorn",
-                    "component": "ARA",
-                    "team": "Ranking Agent",
-                    "biolink-version": "2.2.16"
-                },
-                "x-trapi": {
-                    "version": "1.2.0",
-                    "test_data_location": "https://raw.githubusercontent.com/TranslatorSRI/SRI_testing/main/" +
-                                          "tests/onehop/test_triples/ARA/Unit_Test_ARA/Test_ARA.json"
-                }
-            }
-        }
+        #
+        # July 18, 2020 - Aragorn seems offline at the moment, so we can't really use it as a test ARA?
+        #
+        # {
+        #     "info": {
+        #         "title": "Unit Test Automatic Relay Agent",
+        #         "version": "0.0.1",
+        #         "x-translator": {
+        #             "infores": "infores:aragorn",
+        #             "component": "ARA",
+        #             "team": "Ranking Agent",
+        #             "biolink-version": "2.2.16"
+        #         },
+        #         "x-trapi": {
+        #             "version": "1.2.0",
+        #             "test_data_location": "https://raw.githubusercontent.com/TranslatorSRI/SRI_testing/main/" +
+        #                                   "tests/onehop/test_triples/ARA/Unit_Test_ARA/Test_ARA.json"
+        #         }
+        #     }
+        # }
     ]
 }

@@ -49,8 +49,6 @@ def pytest_sessionfinish(session):
         if "test_run_id" in session.config.option and session.config.option.test_run_id else None
     )
 
-    test_run.get_report_database().initialize_report(test_run.get_test_run_id())
-
     session_results = get_session_results_dct(session)
 
     test_summary: Dict = dict()
@@ -144,7 +142,8 @@ def pytest_sessionfinish(session):
                 case_response['response'] = rb['response']['response_json']
 
                 response_document_key = f"{edge_details_key}-{test_id}"
-                test_run.get_report_database().save_json_document(
+                test_run.save_json_document(
+                    document_type="TRAPI I/O",
                     document=case_response,
                     document_key=response_document_key,
                     is_big=True
@@ -165,17 +164,18 @@ def pytest_sessionfinish(session):
     #
     # Print out the cached details of each edge test case
     for edge_details_key in case_details:
-        test_run.get_report_database().save_json_document(
-            document=case_details[edge_details_key], document_key=edge_details_key
+        test_run.save_json_document(
+            document_type="Details",
+            document=case_details[edge_details_key],
+            document_key=edge_details_key
         )
 
     # Save Test Run Summary
-    test_run.get_report_database().save_json_document(
-        document=test_summary, document_key="test_summary"
+    test_run.save_json_document(
+        document_type="Summary",
+        document=test_summary,
+        document_key="test_summary"
     )
-
-    # Finished reporting to database?... clear the current report id
-    test_run.get_report_database().clear_current_report()
 
 
 def pytest_addoption(parser):
