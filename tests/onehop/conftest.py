@@ -137,6 +137,7 @@ def pytest_sessionfinish(session):
 
             if 'response' in rb:
                 case_response: Dict = dict()
+                case_response['url'] = rb['case']['url'] if 'url' in rb['case'] else "Unknown?!"
                 case_response['unit_test_key'] = unit_test_key
                 case_response['http_status_code'] = rb["response"]["status_code"]
                 case_response['response'] = rb['response']['response_json']
@@ -443,7 +444,7 @@ def generate_trapi_kp_tests(metafunc, trapi_version: str, biolink_version: str) 
 
         if not ('url' in kpjson and kpjson['url'].startswith("http")):
             err_msg = f"generate_trapi_kp_tests(): source '{source}' url "
-            err_msg += f"{str(kpjson['url'])} is invalid" if 'url' in kpjson else "field is missing"
+            err_msg += f"{str(kpjson['url'])} is invalid" if 'url' in kpjson else "field is missing or is not a URI"
             err_msg += "... Skipping test data source?"
             logger.error(err_msg)
             continue
@@ -451,84 +452,82 @@ def generate_trapi_kp_tests(metafunc, trapi_version: str, biolink_version: str) 
         # TODO: see below about echoing the edge input data to the Pytest stdout
         print(f"### Start of Test Input Edges for KP '{kpjson['api_name']}' ###")
 
-        if 'url' in kpjson:
+        for edge_i, edge in enumerate(kpjson['edges']):
 
-            for edge_i, edge in enumerate(kpjson['edges']):
+            # We tag each edge internally with its
+            # sequence number, for later convenience
+            edge['idx'] = edge_i
 
-                # We tag each edge internally with its
-                # sequence number, for later convenience
-                edge['idx'] = edge_i
+            # We can already do some basic Biolink Model validation here of the
+            # S-P-O contents of the edge being input from the current triples file?
+            model_version, errors = \
+                check_biolink_model_compliance_of_input_edge(
+                    edge,
+                    biolink_version=kpjson['biolink_version']
+                )
+            if errors:
+                # defer reporting of errors to higher level of test harness
+                edge['biolink_errors'] = model_version, errors
 
-                # We can already do some basic Biolink Model validation here of the
-                # S-P-O contents of the edge being input from the current triples file?
-                model_version, errors = \
-                    check_biolink_model_compliance_of_input_edge(
-                        edge,
-                        biolink_version=kpjson['biolink_version']
-                    )
-                if errors:
-                    # defer reporting of errors to higher level of test harness
-                    edge['biolink_errors'] = model_version, errors
+            edge['location'] = kpjson['location']
 
-                edge['location'] = kpjson['location']
+            edge['url'] = kpjson['url']
 
-                edge['url'] = kpjson['url']
+            edge['kp_api_name'] = kpjson['api_name']
 
-                edge['kp_api_name'] = kpjson['api_name']
+            edge['trapi_version'] = kpjson['trapi_version']
+            edge['biolink_version'] = kpjson['biolink_version']
 
-                edge['trapi_version'] = kpjson['trapi_version']
-                edge['biolink_version'] = kpjson['biolink_version']
+            if 'infores' in kpjson:
+                edge['kp_source'] = f"infores:{kpjson['infores']}"
+            else:
+                logger.warning(
+                    f"generate_trapi_kp_tests(): input file '{source}' "
+                    "is missing its 'infores' field value? Inferred from its API name?"
+                )
+                kp_api_name: str = edge['kp_api_name']
+                edge['kp_source'] = f"infores:{kp_api_name.lower()}"
 
-                if 'infores' in kpjson:
-                    edge['kp_source'] = f"infores:{kpjson['infores']}"
+            if 'source_type' in kpjson:
+                edge['kp_source_type'] = kpjson['source_type']
+            else:
+                # If not specified, we assume that the KP is a "primary_knowledge_source"
+                edge['kp_source_type'] = "primary"
+
+            if 'query_opts' in kpjson:
+                edge['query_opts'] = kpjson['query_opts']
+            else:
+                edge['query_opts'] = {}
+
+            if dataset_level_test_exclusions:
+                if 'exclude_tests' not in edge:
+                    edge['exclude_tests']: Set = dataset_level_test_exclusions
                 else:
-                    logger.warning(
-                        f"generate_trapi_kp_tests(): input file '{source}' "
-                        "is missing its 'infores' field value? Inferred from its API name?"
-                    )
-                    kp_api_name: str = edge['kp_api_name']
-                    edge['kp_source'] = f"infores:{kp_api_name.lower()}"
+                    # converting List internally to a set
+                    edge['exclude_tests'] = set(edge['exclude_tests'])
+                    edge['exclude_tests'].update(dataset_level_test_exclusions)
 
-                if 'source_type' in kpjson:
-                    edge['kp_source_type'] = kpjson['source_type']
-                else:
-                    # If not specified, we assume that the KP is a "primary_knowledge_source"
-                    edge['kp_source_type'] = "primary"
+            # convert back to List for JSON serialization safety later
+            if 'exclude_tests' in edge:
+                edge['exclude_tests'] = list(edge['exclude_tests'])
 
-                if 'query_opts' in kpjson:
-                    edge['query_opts'] = kpjson['query_opts']
-                else:
-                    edge['query_opts'] = {}
+            edges.append(edge)
 
-                if dataset_level_test_exclusions:
-                    if 'exclude_tests' not in edge:
-                        edge['exclude_tests']: Set = dataset_level_test_exclusions
-                    else:
-                        # converting List internally to a set
-                        edge['exclude_tests'] = set(edge['exclude_tests'])
-                        edge['exclude_tests'].update(dataset_level_test_exclusions)
+            resource_id = edge['kp_api_name']
 
-                # convert back to List for JSON serialization safety later
-                if 'exclude_tests' in edge:
-                    edge['exclude_tests'] = list(edge['exclude_tests'])
+            #
+            # TODO: caching the edge here doesn't help parsing of the results into a report since
+            #       the cache is not shared with the parent process.
+            #       Instead, we will try to echo the edge directly to stdout, for later parsing for the report.
+            #
+            # add_kp_edge(resource_id, edge_i, edge)
+            json.dump(edge, stdout)
 
-                edges.append(edge)
+            edge_id = generate_edge_id(resource_id, edge_i)
+            idlist.append(edge_id)
 
-                resource_id = edge['kp_api_name']
-
-                #
-                # TODO: caching the edge here doesn't help parsing of the results into a report since
-                #       the cache is not shared with the parent process.
-                #       Instead, we will try to echo the edge directly to stdout, for later parsing for the report.
-                #
-                # add_kp_edge(resource_id, edge_i, edge)
-                json.dump(edge, stdout)
-
-                edge_id = generate_edge_id(resource_id, edge_i)
-                idlist.append(edge_id)
-
-                if metafunc.config.getoption('one', default=False):
-                    break
+            if metafunc.config.getoption('one', default=False):
+                break
 
         print(f"### End of Test Input Edges for KP '{kpjson['api_name']}' ###")
 
