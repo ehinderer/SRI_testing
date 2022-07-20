@@ -4,7 +4,7 @@ SRI Testing Report utility functions.
 from typing import Optional, Dict, Tuple, List
 
 from os import makedirs, listdir, sep
-from os.path import normpath
+from os.path import normpath, exists
 from datetime import datetime
 import re
 
@@ -395,9 +395,13 @@ class OneHopTestHarness:
         """
         :return: list of test run identifiers of completed test runs
         """
-        test_results_directory = normpath(f"{ONEHOP_TEST_DIRECTORY}/test_results")
-        test_run_list = listdir(test_results_directory)
-        return test_run_list
+        test_results_directory = normpath(f"{TEST_RESULTS_DIR}")
+        test_run_ids = listdir(test_results_directory)
+        completed_runs = [
+            test_run_id for test_run_id in test_run_ids
+            if exists(f"{TEST_RESULTS_DIR}{sep}{test_run_id}{sep}test_summary.json")
+        ]
+        return completed_runs
 
     def _set_test_run_root_path(self):
         # subdirectory for local run output data
