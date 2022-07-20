@@ -268,10 +268,13 @@ class OneHopTestHarness:
             self._percentage_completion = run_parameters["percentage_completion"]
             self._test_run_completed = run_parameters["test_run_completed"]
         else:
-            # Test run probably completed already
-            logger.debug(f"_reload_run_parameters(): no Worker Process parameters for {self._test_run_id}")
-            self._percentage_completion = 100
-            self._test_run_completed = True
+            logger.warning(
+                f"Test run '{self._test_run_id}' is not associated with a Worker Process. " +
+                f"May be invalid or an historic archive? Client needs to check for the latter?")
+            self._command_line = None
+            self._process = None
+            self._timeout = DEFAULT_WORKER_TIMEOUT
+            self._percentage_completion = -1
 
     def test_run_complete(self) -> bool:
         if not self._test_run_completed:
@@ -293,7 +296,12 @@ class OneHopTestHarness:
 
         :return: int, 0..100 indicating the percentage completion of the test run., -1 if test run not running?
         """
-        if self._get_percentage_completion() < 100:
+        test_run_list: List[str] = self.get_completed_test_runs()
+        if self._test_run_id in test_run_list:
+            # existing archived run assumed complete
+            return 100
+
+        if 0 <= self._get_percentage_completion() < 100:
             for line in self._process.get_output(timeout=5):
                 logger.debug(f"Pytest output: {line}")
                 pc = PERCENTAGE_COMPLETION_SUFFIX_PATTERN.search(line)
@@ -327,8 +335,6 @@ class OneHopTestHarness:
         """
         :return: list of test run identifiers of completed test runs
         """
-        # TODO: for now, the test report database only has collections
-        #       of test results, so this simple-minded delegated call should work?
         return cls.get_report_database().get_available_reports()
 
     def get_summary(self) -> Optional[Dict]:
