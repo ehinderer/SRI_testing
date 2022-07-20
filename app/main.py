@@ -175,7 +175,7 @@ async def get_status(test_run_id: str) -> TestRunStatus:
     """
     assert test_run_id, "Null or empty Test Run Identifier?"
 
-    percent_complete: int = OneHopTestHarness(uuid=test_run_id).get_status()
+    percent_complete: int = OneHopTestHarness(test_run_id=test_run_id).get_status()
 
     return TestRunStatus(test_run_id=test_run_id, percent_complete=percent_complete)
 
@@ -204,7 +204,7 @@ async def get_summary(test_run_id: str) -> TestRunSummary:
     """
     assert test_run_id, "Null or empty Test Run Identifier?"
 
-    summary: Optional[Dict] = OneHopTestHarness(uuid=test_run_id).get_summary()
+    summary: Optional[Dict] = OneHopTestHarness(test_run_id=test_run_id).get_summary()
 
     if summary is not None:
         return TestRunSummary(test_run_id=test_run_id, summary=summary)
@@ -251,9 +251,7 @@ async def get_details(test_run_id: str, component: str, resource_id: str, edge_n
     assert resource_id, "Null or empty Resource Identifier?"
     assert edge_num, "Null or empty Edge Number?"
 
-    details: Optional[Dict] = OneHopTestHarness(
-        uuid=test_run_id
-    ).get_details(
+    details: Optional[Dict] = OneHopTestHarness(test_run_id=test_run_id).get_details(
         component=component,
         resource_id=resource_id,
         edge_num=edge_num
@@ -318,9 +316,7 @@ async def get_response(
     assert edge_num, "Null or empty Edge Number?"
     assert test_id, "Null or empty Unit Test Identifier?"
 
-    response_file_path: str = OneHopTestHarness(
-        uuid=test_run_id
-    ).get_response_file_path(
+    response_file_path: str = OneHopTestHarness(test_run_id=test_run_id).get_response_file_path(
         component=component,
         resource_id=resource_id,
         edge_num=edge_num,

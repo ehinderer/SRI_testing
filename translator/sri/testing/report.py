@@ -249,7 +249,7 @@ class OneHopTestHarness:
             self._test_run_id_2_worker_process[self._test_run_id]["percentage_completion"] = value
         else:
             raise RuntimeError(
-                f"_set_percentage_completion(): Unknown Worker Process for test run '{str(self._test_run_id)}'?"
+                f"_set_percentage_completion(): '{str(self._test_run_id)}' Worker Process is unknown!"
             )
     
     def _get_percentage_completion(self) -> int:
@@ -257,9 +257,7 @@ class OneHopTestHarness:
                 "percentage_completion" in self._test_run_id_2_worker_process[self._test_run_id]:
             return self._test_run_id_2_worker_process[self._test_run_id]["percentage_completion"]
         else:
-            raise RuntimeError(
-                f"_get_percentage_completion(): Unknown Worker Process for test run '{str(self._test_run_id)}'?"
-            )
+            return -1  # signal unknown test run process?
     
     def _reload_run_parameters(self):
         if self._test_run_id in self._test_run_id_2_worker_process:
@@ -269,9 +267,13 @@ class OneHopTestHarness:
             self._timeout = run_parameters["timeout"]
             self._percentage_completion = run_parameters["percentage_completion"]
         else:
-            raise RuntimeError(
-                f"_reload_run_parameters(): Unknown Worker Process for test run '{str(self._test_run_id)}'?"
-            )
+            logger.warning(
+                f"Test run '{self._test_run_id}' is not associated with a Worker Process. " +
+                f"May be invalid or an historic archive? Client needs to check for the latter?")
+            self._command_line = None
+            self._process = None
+            self._timeout = DEFAULT_WORKER_TIMEOUT
+            self._percentage_completion = -1  # benefit of the doubt: assume completed run?
 
     @classmethod
     def get_test_run_list(cls) -> List[str]:
@@ -286,9 +288,14 @@ class OneHopTestHarness:
         """
         If available, returns the percentage completion of the currently active OneHopTestHarness run.
 
-        :return: int, 0..100 indicating the percentage completion of the test run., -1 if test run not running?
+        :return: int, 0..100 indicating the percentage completion of the test run. -1 if unknown test run ID
         """
-        if self._get_percentage_completion() < 100:
+        test_run_list: List[str] = self.get_test_run_list()
+        if self._test_run_id in test_run_list:
+            # existing archived run assumed complete
+            return 100
+
+        if 0 <= self._get_percentage_completion() < 100:
             for line in self._process.get_output(timeout=10):
                 pc = PERCENTAGE_COMPLETION_SUFFIX_PATTERN.search(line)
                 if pc and pc.group():
@@ -368,7 +375,7 @@ class OneHopTestHarness:
         """
         edge_details_file_path: str = _get_details_file_path(component, resource_id, edge_num)
 
-        response_file_path = self._absolute_report_file_path(f"{edge_details_file_path}-{test_id}-response.json")
+        response_file_path = self._absolute_report_file_path(f"{edge_details_file_path}-{test_id}.json")
 
         return response_file_path
 
@@ -446,7 +453,7 @@ class OneHopTestHarness:
         :return:
         """
         for test_id in case_response[edge_details_file_path]:
-            with open(f"{test_details_file_path}-{test_id}-response.json", 'w') as response_file:
+            with open(f"{test_details_file_path}-{test_id}.json", 'w') as response_file:
                 response: Dict = case_response[edge_details_file_path][test_id]
                 json.dump(response, response_file, indent=4)
 
