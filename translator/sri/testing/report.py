@@ -310,7 +310,7 @@ class OneHopTestHarness:
         return self._get_percentage_completion()
 
     def _absolute_report_file_path(self, report_file_path: str) -> str:
-        absolute_file_path = normpath(f"{ONEHOP_TEST_DIRECTORY}/test_results/{self._test_run_id}/{report_file_path}")
+        absolute_file_path = normpath(f"{TEST_RESULTS_DIR}{sep}{self._test_run_id}{sep}{report_file_path}")
         return absolute_file_path
 
     def get_summary(self) -> Optional[Dict]:
