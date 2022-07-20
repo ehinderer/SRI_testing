@@ -434,6 +434,13 @@ def generate_trapi_kp_tests(metafunc, trapi_version: str, biolink_version: str) 
         # User CLI may override here the target Biolink Model version during KP test data preparation
         kpjson = load_test_data_source(source, metadata, trapi_version, biolink_version)
 
+        if not kpjson:
+            # valid test data file not found?
+            logger.error(
+                f"generate_trapi_ara_tests():  JSON file at test data location '{source}' is missing or invalid"
+            )
+            continue
+
         cache_resource_metadata(kpjson)
 
         dataset_level_test_exclusions: Set = set()
@@ -582,6 +589,13 @@ def generate_trapi_ara_tests(metafunc, kp_edges, trapi_version, biolink_version)
 
         # User CLI may override here the target Biolink Model version during KP test data preparation
         arajson = load_test_data_source(source, metadata, trapi_version, biolink_version)
+
+        if not arajson:
+            # valid test data file not found?
+            logger.error(
+                f"generate_trapi_ara_tests(): JSON file at test data location '{source}' is missing or invalid"
+            )
+            continue
 
         cache_resource_metadata(arajson)
 
