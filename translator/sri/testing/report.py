@@ -265,10 +265,13 @@ class OneHopTestHarness:
             self._percentage_completion = run_parameters["percentage_completion"]
             self._test_run_completed = run_parameters["test_run_completed"]
         else:
-            # Test run probably completed already
-            logger.debug(f"_reload_run_parameters(): no Worker Process parameters for {self._test_run_id}")
-            self._percentage_completion = 100
-            self._test_run_completed = True
+            logger.warning(
+                f"Test run '{self._test_run_id}' is not associated with a Worker Process. " +
+                f"May be invalid or an historic archive? Client needs to check for the latter?")
+            self._command_line = None
+            self._process = None
+            self._timeout = DEFAULT_WORKER_TIMEOUT
+            self._percentage_completion = -1
 
     def test_run_complete(self) -> bool:
         if not self._test_run_completed:
