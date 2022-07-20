@@ -246,16 +246,15 @@ class OneHopTestHarness:
             self._test_run_id_2_worker_process[self._test_run_id]["percentage_completion"] = value
         else:
             raise RuntimeError(
-                f"_set_percentage_completion(): Unknown Worker Process for test run '{str(self._test_run_id)}'?"
+                f"_set_percentage_completion(): '{str(self._test_run_id)}' Worker Process is unknown!"
             )
     
     def _get_percentage_completion(self) -> int:
         if self._test_run_id in self._test_run_id_2_worker_process:
             return self._test_run_id_2_worker_process[self._test_run_id]["percentage_completion"]
         else:
-            logger.debug(f"_get_percentage_completion(): no Worker Process parameters for {self._test_run_id}")
-            return 100
-    
+            return -1  # signal unknown test run process?
+
     def _reload_run_parameters(self):
         if self._test_run_id in self._test_run_id_2_worker_process:
             run_parameters: Dict = self._test_run_id_2_worker_process[self._test_run_id]
@@ -291,7 +290,7 @@ class OneHopTestHarness:
         """
         If available, returns the percentage completion of the currently active OneHopTestHarness run.
 
-        :return: int, 0..100 indicating the percentage completion of the test run., -1 if test run not running?
+        :return: int, 0..100 indicating the percentage completion of the test run. -1 if unknown test run ID
         """
         test_run_list: List[str] = self.get_completed_test_runs()
         if self._test_run_id in test_run_list:
