@@ -3,12 +3,14 @@ FastAPI web service wrapper for SRI Testing harness
 (i.e. for reports to a Translator Runtime Status Dashboard)
 """
 from typing import Optional, Dict, List
+from os.path import dirname, abspath
+
 from pydantic import BaseModel
 
 import uvicorn
 
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import StreamingResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 
 from reasoner_validator.util import latest
@@ -29,6 +31,13 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+favicon_path = f"{abspath(dirname(__file__))}/img/favicon.ico"
+
+
+@app.get('/favicon.ico', include_in_schema=False)
+async def favicon():
+    return FileResponse(favicon_path)
 
 
 #
