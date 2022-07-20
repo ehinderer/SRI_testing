@@ -271,7 +271,7 @@ class OneHopTestHarness:
             self._command_line = None
             self._process = None
             self._timeout = DEFAULT_WORKER_TIMEOUT
-            self._percentage_completion = -1  # benefit of the doubt: assume completed run?
+            self._percentage_completion = -1
 
     def test_run_complete(self) -> bool:
         if not self._test_run_completed:
