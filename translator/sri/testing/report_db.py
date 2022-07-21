@@ -15,7 +15,7 @@ from pymongo.database import Database
 # for saving big MongoDb files
 from gridfs import GridFS
 
-from tests.onehop import TEST_RESULTS_DIR
+from tests.onehop import TEST_RESULTS_DIR, TEST_RESULTS_DB, get_test_results_dir
 
 import logging
 logger = logging.getLogger()
@@ -29,10 +29,10 @@ class TestReport:
     Abstract superclass of a Test Report, which is a related
     collection of test run documents stored in a TestReportDatabase.
     """
-    def __init__(self, identifier: str):
+    def __init__(self, identifier: str, db_name: Optional[str] = None):
         assert identifier  # the test report 'identifier' should not be None or empty string
         self._report_identifier = identifier
-        self._report_root_path = f"{TEST_RESULTS_DIR}{sep}{identifier}"
+        self._report_root_path = f"{get_test_results_dir(db_name)}{sep}{identifier}"
 
     def get_identifier(self) -> str:
         return self._report_identifier
@@ -85,11 +85,23 @@ class TestReport:
 
 
 class TestReportDatabase:
+
+    LOG_NAME = "log"
+
     """
     Abstract superclass of a Test Report Database
     """
-    def __init__(self, **kwargs):
-        pass
+    def __init__(self, db_name: Optional[str] = TEST_RESULTS_DB, **kwargs):
+        self._db_name = db_name
+
+    def list_databases(self) -> List[str]:
+        raise NotImplementedError("Abstract method - implement in child subclass!")
+
+    def drop_database(self) -> List[str]:
+        raise NotImplementedError("Abstract method - implement in child subclass!")
+
+    def get_db_name(self) -> str:
+        return self._db_name
 
     def get_test_report(self, identifier: str) -> TestReport:
         """
@@ -110,11 +122,17 @@ class TestReportDatabase:
         """
         raise NotImplementedError("Abstract method - implement in child subclass!")
 
+    def get_logs(self) -> Dict:
+        """
+        :return: Dict, report database log (as a Python dictionary)
+        """
+        raise NotImplementedError("Abstract method - implement in child subclass!")
+
 
 class FileTestReport(TestReport):
 
-    def __init__(self, identifier: str):
-        TestReport.__init__(self, identifier=identifier)
+    def __init__(self, identifier: str, db_name: Optional[str] = None):
+        TestReport.__init__(self, identifier=identifier, db_name=db_name)
 
         # File system based reporting needs to create a
         # 'identifier' tagged directory for test results
@@ -209,8 +227,19 @@ class FileReportDatabase(TestReportDatabase):
     """
     Wrapper class for an OS filing system-based repository for storing and retrieving SRI Testing test results.
     """
-    def __init__(self, **kwargs):
-        TestReportDatabase.__init__(self, **kwargs)
+
+    def __init__(self, db_name: Optional[str] = None, **kwargs):
+        TestReportDatabase.__init__(self, db_name=db_name, **kwargs)
+
+    def list_databases(self) -> List[str]:
+        # FileReportDatabase implementations only have
+        # a single database a.k.a. root file directory
+        return [self.get_db_name()]
+
+    def drop_database(self) -> List[str]:
+        # test_report_directory = normpath(self.get_root_path())
+        # shutil.rmtree(test_report_directory)
+        raise NotImplementedError("Implement me!")
 
     def get_test_report(self, identifier: str) -> TestReport:
         """
@@ -235,20 +264,27 @@ class FileReportDatabase(TestReportDatabase):
         test_run_list = listdir(test_results_directory)
         return test_run_list
 
+    def get_logs(self) -> Dict:
+        """
+        :return: Dict, report database log (as a Python dictionary)
+        """
+        raise NotImplementedError("Implement me!")
+
 
 class MongoTestReport(TestReport):
 
-    def __init__(self, identifier: str, db: Database):
-        TestReport.__init__(self, identifier=identifier)
+    def __init__(self, identifier: str, db_name: Optional[str], db: Database):
+        TestReport.__init__(self, identifier=identifier, db_name=db_name)
 
         # MongoDb based reporting needs to create a
         # 'identifier' tagged collection for test results
         # Also save large files into GridFS
         self._db: Database = db
         self._gridfs: GridFS = GridFS(self._db)
-        self._collection: Collection = self._db[identifier]
+        self._collection: Optional[Collection] = self._db[identifier]
 
     def delete(self):
+        self._collection = None
         self._db.drop_collection(self.get_identifier())
 
     def save_json_document(
@@ -271,7 +307,7 @@ class MongoTestReport(TestReport):
         document['document_key'] = document_key
         if is_big:
             # Save this large document with GridFS
-            gridfs_uid = self._gridfs.put(document)
+            gridfs_uid = self._gridfs.put(json.dumps(document), encoding="utf8")
             # we save large documents in GridFS dereferenced by a proxy document in the main database
             proxy_document = {
                 'document_key': document_key,
@@ -290,8 +326,10 @@ class MongoTestReport(TestReport):
         :return: Dict, JSON document retrieved.
         """
         assert document_key
-        assert self._collection
-        document: Optional[Dict] = self._collection.find_one({'document_key': document_key}, fields={'_id': False})
+        assert self._collection is not None
+        document: Optional[Dict] = self._collection.find_one(
+            filter={'document_key': document_key}, projection={'_id': False}
+        )
         return document
 
     def stream_document(self, document_type: str, document_key: str) -> Generator:
@@ -308,21 +346,22 @@ class MongoTestReport(TestReport):
             gridfs_uid = document_proxy["gridfs_uid"]
             try:
                 with self._gridfs.get(gridfs_uid) as datafile:
-                    yield from datafile
+                    yield from datafile.readline().decode(encoding="utf8")
             except OSError as ose:
                 logger.warning(f"{document_type} '{document_key}' is not (yet) accessible: {str(ose)}?")
 
 
 class MongoReportDatabase(TestReportDatabase):
+
     """
     Wrapper class for a MongoDb instance-based repository for storing and retrieving SRI Testing test results.
     """
     def __init__(
             self,
+            db_name: Optional[str] = None,
             user: str = environ.get('MONGO_INITDB_ROOT_USERNAME', "root"),
             password: str = environ.get('MONGO_INITDB_ROOT_PASSWORD', "example"),
             host: str = "mongo" if RUNNING_INSIDE_DOCKER else "localhost",
-            db_name: str = "sri_testing",
             **kwargs
     ):
         """
@@ -336,7 +375,7 @@ class MongoReportDatabase(TestReportDatabase):
 
         :raises pymongo.errors.ConnectionFailure
         """
-        TestReportDatabase.__init__(self, **kwargs)
+        TestReportDatabase.__init__(self, db_name=db_name, **kwargs)
 
         self._db_uri = "mongodb://%s:%s@%s" % (quote_plus(user), quote_plus(password), host)
         self._db_client = MongoClient(
@@ -348,12 +387,19 @@ class MongoReportDatabase(TestReportDatabase):
             # type_registry: Optional[TypeRegistry] = None,
             # **kwargs: Any,
         )
-        self._db_client.admin.command('ping')  # will through pymongo.errors.ConnectionFailure if the connection fails
-        self._db_name: Optional[str] = db_name
+
+        # 'ping' will throw a pymongo.errors.ConnectionFailure if the connection fails
+        self._db_client.admin.command('ping')
+
         self._sri_testing_db: Database = self._db_client[self._db_name]
-        self._logs: Collection = self._sri_testing_db["test_logs"]
-        time_created: str = datetime.now().strftime("%Y-%b-%d_%Hhr%M")
-        self._logs.insert_one({"time_created": time_created})
+
+        if self.LOG_NAME not in self._sri_testing_db.list_collection_names():
+            time_created: str = datetime.now().strftime("%Y-%b-%d_%Hhr%M")
+            self._logs: Collection = self._sri_testing_db[self.LOG_NAME]
+            # this should create the log once
+            self._logs.insert_one({"time_created": time_created})
+        else:
+            self._logs: Collection = self._sri_testing_db[self.LOG_NAME]
 
     def list_databases(self) -> List[str]:
         return [name for name in self._db_client.list_database_names() if name not in ['admin', 'config', 'local']]
@@ -368,7 +414,7 @@ class MongoReportDatabase(TestReportDatabase):
         :param identifier: str, test run identifier for the report
         :return: wrapped test report
         """
-        report = MongoTestReport(identifier=identifier, db=self._sri_testing_db)
+        report = MongoTestReport(identifier=identifier, db_name=self._db_name, db=self._sri_testing_db)
         return report
 
     def delete_test_report(self, report: TestReport):
@@ -382,5 +428,12 @@ class MongoReportDatabase(TestReportDatabase):
         """
         :return: list of identifiers of available reports.
         """
-        non_system_collection_filter: Dict = {"name": {"$regex": r"^(?!system\.)"}}
+        non_system_collection_filter: Dict = {"name": {"$regex": rf"^(?!system\.|{self.LOG_NAME}|fs\..*)"}}
         return self._sri_testing_db.list_collection_names(filter=non_system_collection_filter)
+
+    def get_logs(self) -> List[Dict]:
+        """
+        :return: Dict, report database log (as a Python dictionary)
+        """
+        logs: List[Dict] = [doc for doc in self._logs.find()]
+        return logs

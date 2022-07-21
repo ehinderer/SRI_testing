@@ -1,53 +1,131 @@
+import json
 from sys import stderr
 from os.path import sep
 from datetime import datetime
-from typing import Dict
-
-import pytest
+from typing import Dict, Optional
 
 from tests.onehop import TEST_RESULTS_DIR
-from translator.sri.testing.report_db import FileReportDatabase
+from translator.sri.testing.report_db import FileReportDatabase, TestReport
 
 DEBUG: bool = True
 
 
-def sample_file_document_insertion(tdb: FileReportDatabase):
-    sample_item = {
-        "component": "SRI",
-        "activity": "testing"
-    }
-    raise NotImplementedError("Implement me!")
-    # test_bin: Collection = tdb.get_current_collection()
-    #
-    # result = test_bin.insert_one(sample_item)
-    # assert result
-    # assert result.inserted_id
-    #
-    # items = test_bin.find({'component': "SRI"})
-    # assert items
-    # assert any([item[u'_id'] == result.inserted_id and item[u'component'] == "SRI" for item in items])
-    #
-    # if not DEBUG:
-    #     test_bin.delete_one(result.inserted_id)
+def test_file_report_db_connection():
+
+    frd = FileReportDatabase(db_name="test-database")
+
+    assert "test-database" in frd.list_databases()
+
+    assert any(['time_created' in doc for doc in frd.get_logs()])
+
+    assert FileReportDatabase.LOG_NAME not in frd.get_available_reports()
+
+    if not DEBUG:
+        frd.drop_database()
+
+    print(
+        "\nThe test_file_report_db_connection() connection has succeeded *as expected*... " +
+        "The Test is a success!", file=stderr
+    )
 
 
-def test_insert_test_entry():
-    tdb = FileReportDatabase()
-    sample_mongodb_document_insertion(tdb)
+def test_delete_file_report_db_database():
+    # same as the previous test but ignoring DEBUG TO enforce the database deletion
+    frd = FileReportDatabase(db_name="test-database")
+
+    assert "test-database" in frd.list_databases()
+
+    frd.drop_database()
+
+    assert "test-database" not in frd.list_databases()
+
+    print(
+        "\nThe test_file_report_db_connection() connection has succeeded *as expected*... " +
+        "The Test is a success!", file=stderr
+    )
 
 
-def test_get_test_report_and_insertion():
+SAMPLE_DOCUMENT_KEY: str = "sample-document"
+SAMPLE_DOCUMENT: Dict = {}
 
-    tdb = FileReportDatabase()
+
+def sample_file_document_creation_and_insertion(
+        frd: FileReportDatabase,
+        identifier: str,
+        is_big: bool = False
+) -> TestReport:
+
+    test_report: TestReport = frd.get_test_report(identifier=identifier)
+    assert test_report.get_identifier() == identifier
+    assert test_report.get_root_path() == f"{TEST_RESULTS_DIR}{sep}{identifier}"
+
+    # A test report is not yet available until something is saved
+    assert identifier not in frd.get_available_reports()
+
+    test_report.save_json_document(
+        document_type="test document",
+        document={},
+        document_key=SAMPLE_DOCUMENT_KEY,
+        is_big=is_big
+    )
+    assert identifier in frd.get_available_reports()
+
+    return test_report
+
+
+def test_create_test_report_then_save_and_retrieve_document():
+    frd = FileReportDatabase(db_name="test-database")
 
     test_id = datetime.now().strftime("%Y-%b-%d_%Hhr%M")
+    test_report: TestReport = sample_file_document_creation_and_insertion(frd, test_id)
 
-    report = tdb.get_test_report(identifier=test_id)
+    document: Optional[Dict] = test_report.retrieve_document(
+        document_type="test document", document_key=SAMPLE_DOCUMENT_KEY
+    )
+    assert document
+    assert document["document_key"] == SAMPLE_DOCUMENT_KEY
 
-    assert report
-    assert report.get_identifier() == test_id
-    assert report.get_root_path() == f"{TEST_RESULTS_DIR}{sep}{test_id}"
+    if not DEBUG:
+        test_report.delete()
+        assert test_id not in frd.get_available_reports()
 
-    sample_mongodb_document_insertion(tdb)
+        frd.drop_database()
 
-    assert test_id in tdb.get_available_reports()
+
+def test_db_level_test_report_deletion():
+
+    frd = FileReportDatabase(db_name="test-database")
+
+    test_id = datetime.now().strftime("%Y-%b-%d_%Hhr%M")
+    test_report: TestReport = sample_file_document_creation_and_insertion(frd, test_id)
+
+    frd.delete_test_report(test_report)
+    assert test_id not in frd.get_available_reports()
+
+    if not DEBUG:
+        frd.drop_database()
+
+
+def test_create_test_report_then_save_and_retrieve_a_big_document():
+
+    frd = FileReportDatabase(db_name="test-database")
+
+    test_id = datetime.now().strftime("%Y-%b-%d_%Hhr%M")
+    test_report: TestReport = sample_file_document_creation_and_insertion(frd, test_id, is_big=True)
+
+    text_file: str = ""
+    for line in test_report.stream_document(document_type="test document", document_key=SAMPLE_DOCUMENT_KEY):
+        text_file += line
+
+    assert text_file
+
+    # Should be a JSON document
+    document = json.loads(text_file)
+
+    assert document["document_key"] == SAMPLE_DOCUMENT_KEY
+
+    if not DEBUG:
+        test_report.delete()
+        assert test_id not in frd.get_available_reports()
+
+        frd.drop_database()
