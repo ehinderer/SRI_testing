@@ -2,27 +2,53 @@ from sys import stderr
 from os.path import sep
 from datetime import datetime
 
-from pymongo.collection import Collection
 from pymongo.errors import ConnectionFailure
 
 from tests.onehop import TEST_RESULTS_DIR
-from translator.sri.testing.report_db import MongoReportDatabase
+from translator.sri.testing.report_db import MongoReportDatabase, TestReport
 
+# For early testing of the Unit test, test data is not deleted when DEBUG is True;
+# however, this interferes with idempotency of the tests (i.e. data must be manually deleted from the test database)
 DEBUG: bool = True
 
 
-def test_report_db_connection():
+def test_mongo_report_db_connection():
     try:
-        MongoReportDatabase()
+        mrd = MongoReportDatabase(db_name="test-database")
+
+        assert "test-database" in mrd.list_databases()
+
+        if not DEBUG:
+            mrd.drop_database()
+
         print(
-            "\nThe test_report_db_connection() connection has succeeded *as expected*... " +
+            "\nThe test_mongo_report_db_connection() connection has succeeded *as expected*... " +
             "The Test is a success!", file=stderr
         )
     except ConnectionFailure:
         assert False, "This test connection should succeed if a suitable Mongodb instance is running?!"
 
 
-def test_fake_report_db_connection():
+def test_delete_mongo_report_db_database():
+    # same as the previous test but ignoring DEBUG TO enforce the database deletion
+    try:
+        mrd = MongoReportDatabase(db_name="test-database")
+
+        assert "test-database" in mrd.list_databases()
+
+        mrd.drop_database()
+
+        assert "test-database" not in mrd.list_databases()
+
+        print(
+            "\nThe test_mongo_report_db_connection() connection has succeeded *as expected*... " +
+            "The Test is a success!", file=stderr
+        )
+    except ConnectionFailure:
+        assert False, "This test connection should succeed if a suitable Mongodb instance is running?!"
+
+
+def test_fake_mongo_report_db_connection():
     try:
         MongoReportDatabase(
             user="nobody",
@@ -32,62 +58,57 @@ def test_fake_report_db_connection():
         assert False, "This nonsense test connection should always fail!"
     except ConnectionFailure:
         print(
-            "\nThe test_fake_report_db_connection() fake connection has failed *as expected*... " +
+            "\nThe test_fake_mongo_report_db_connection() fake connection has failed *as expected*... " +
             "The Test itself is a success!", file=stderr
         )
         assert True
 
 
-def sample_mongodb_document_insertion(tdb: MongoReportDatabase):
-    sample_item = {
-        "component": "SRI",
-        "activity": "testing"
-    }
+def sample_mongodb_document_creation_and_insertion(mrd: MongoReportDatabase, identifier: str) -> TestReport:
 
-    test_bin: Collection = tdb.get_current_collection()
+    test_report: TestReport = mrd.get_test_report(identifier=identifier)
+    assert test_report.get_identifier() == identifier
+    assert test_report.get_root_path() == f"{TEST_RESULTS_DIR}{sep}{identifier}"
 
-    result = test_bin.insert_one(sample_item)
-    assert result
-    assert result.inserted_id
+    # A test report is not yet available until something is saved
+    assert identifier not in mrd.get_available_reports()
 
-    items = test_bin.find({'component': "SRI"})
-    assert items
-    assert any([item[u'_id'] == result.inserted_id and item[u'component'] == "SRI" for item in items])
+    test_report.save_json_document(document_type="test", document={}, document_key="sample-document", is_big=False)
+    assert identifier in mrd.get_available_reports()
 
-    if not DEBUG:
-        test_bin.delete_one(result.inserted_id)
+    return test_report
 
 
-def test_insert_test_entry():
+def test_create_test_report_and_save_json_document():
     try:
-        tdb = MongoReportDatabase()
-
-        sample_mongodb_document_insertion(tdb)
-
-    except ConnectionFailure:
-        assert False, "This test document insertion should succeed if a suitable Mongodb instance is running?!"
-
-
-def test_get_test_report_and_insertion():
-
-    try:
-        tdb = MongoReportDatabase()
+        mrd = MongoReportDatabase(db_name="test-database")
 
         test_id = datetime.now().strftime("%Y-%b-%d_%Hhr%M")
+        test_report: TestReport = sample_mongodb_document_creation_and_insertion(mrd, test_id)
 
-        report = tdb.get_test_report(identifier=test_id)
+        if not DEBUG:
+            test_report.delete()
+            assert test_id not in mrd.get_available_reports()
 
-        assert report
-        assert report.get_identifier() == test_id
-        assert report.get_root_path() == f"{TEST_RESULTS_DIR}{sep}{test_id}"
+            mrd.drop_database()
 
-        sample_mongodb_document_insertion(tdb)
+    except ConnectionFailure:
+        assert False, "This test connection should succeed if a suitable Mongodb instance is running?!"
 
-        assert test_id in tdb.get_available_reports()
 
-        tdb.delete_test_report(report)
+def test_db_level_test_report_deletion(db_name="test-database"):
 
-        assert test_id not in tdb.get_available_reports()
+    try:
+        mrd = MongoReportDatabase()
+
+        test_id = datetime.now().strftime("%Y-%b-%d_%Hhr%M")
+        test_report: TestReport = sample_mongodb_document_creation_and_insertion(mrd, test_id)
+
+        mrd.delete_test_report(test_report)
+        assert test_id not in mrd.get_available_reports()
+
+        if not DEBUG:
+            mrd.drop_database()
 
     except ConnectionFailure:
         assert False, "This test document insertion should succeed if a suitable Mongodb instance is running?!"
@@ -115,5 +136,3 @@ def test_save_json_document():
 
     except ConnectionFailure:
         assert False, "This test document insertion should succeed if a suitable Mongodb instance is running?!"
-
-

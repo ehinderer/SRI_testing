@@ -11,7 +11,7 @@ from translator.sri.testing.processor import CMD_DELIMITER, WorkerProcess
 
 from tests.onehop import ONEHOP_TEST_DIRECTORY
 
-from translator.sri.testing.report_db import TestReportDatabase, FileReportDatabase
+from translator.sri.testing.report_db import TestReportDatabase, FileReportDatabase, TestReport
 
 import logging
 logger = logging.getLogger()
@@ -165,14 +165,17 @@ class OneHopTestHarness:
             self._test_run_id_2_worker_process[self._test_run_id] = {}
 
         # Retrieve the associated test run report object
-        self._test_report = self._test_report_database.get_test_report(identifier=self._test_run_id)
+        self._test_report: TestReport = self._test_report_database.get_test_report(identifier=self._test_run_id)
 
         # TODO: can we somehow adapt log capture for TestReportDatabase() to be stored in
         #       MongoDb as a GridFS document, when a MongoTestDatabase() is used?
-        self._log_file_path: Optional[str] = f"{self._test_report.get_root_path()}{sep}pytest.log"
+        self._log_file_path: Optional[str] = f"{self.get_test_report().get_root_path()}{sep}pytest.log"
 
     def get_test_run_id(self) -> Optional[str]:
         return self._test_run_id
+
+    def get_test_report(self) -> TestReport:
+        return self._test_report
 
     def get_log_file_path(self):
         return self._log_file_path
@@ -322,8 +325,7 @@ class OneHopTestHarness:
         :param document_key: str, indexing path for the document being saved.
         :param is_big: bool, if True, flags that the JSON file is expected to require special handling due to its size.
         """
-        self.get_report_database().save_json_document(
-            report=self._test_report,
+        self.get_test_report().save_json_document(
             document_type=document_type,
             document=document,
             document_key=document_key,
@@ -343,10 +345,8 @@ class OneHopTestHarness:
 
         :return: Optional[str], JSON structured document summary of unit test results. 'None' if not (yet) available.
         """
-        summary: Optional[Dict] = self.get_report_database().retrieve_document(
-            report=self._test_report,
-            document_type="Summary",
-            document_key="test_summary"
+        summary: Optional[Dict] = self.get_test_report().retrieve_document(
+            document_type="Summary", document_key="test_summary"
         )
         return summary
 
@@ -369,8 +369,8 @@ class OneHopTestHarness:
                                  KP or ARA resource, or 'None' if the details are not (yet) available.
         """
         document_key: str = _get_details_document_key(component, resource_id, edge_num)
-        details: Optional[Dict] = self.get_report_database().retrieve_document(
-            report=self._test_report, document_type="Details", document_key=document_key
+        details: Optional[Dict] = self.get_test_report().retrieve_document(
+            document_type="Details", document_key=document_key
         )
         return details
 
@@ -395,8 +395,8 @@ class OneHopTestHarness:
         :return: str, TRAPI Response text data file path (generated, but not tested here for file existence)
         """
         document_key: str = _get_details_document_key(component, resource_id, edge_num)
-        return self.get_report_database().stream_document(
-            report=self._test_report, document_type="Details", document_key=f"{document_key}-{test_id}"
+        return self.get_test_report().stream_document(
+            document_type="Details", document_key=f"{document_key}-{test_id}"
         )
 
 

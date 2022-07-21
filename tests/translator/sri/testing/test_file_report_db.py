@@ -5,16 +5,13 @@ from typing import Dict
 
 import pytest
 
-from pymongo.collection import Collection
-from pymongo.errors import ConnectionFailure
-
 from tests.onehop import TEST_RESULTS_DIR
 from translator.sri.testing.report_db import FileReportDatabase
 
 DEBUG: bool = True
 
 
-def sample_mongodb_document_insertion(tdb: FileReportDatabase):
+def sample_file_document_insertion(tdb: FileReportDatabase):
     sample_item = {
         "component": "SRI",
         "activity": "testing"
