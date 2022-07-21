@@ -112,27 +112,3 @@ def test_db_level_test_report_deletion(db_name="test-database"):
 
     except ConnectionFailure:
         assert False, "This test document insertion should succeed if a suitable Mongodb instance is running?!"
-
-
-def test_save_json_document():
-    try:
-        tdb = MongoReportDatabase()
-
-        test_id = datetime.now().strftime("%Y-%b-%d_%Hhr%M")
-
-        report = tdb.get_test_report(identifier=test_id)
-
-        assert report
-        assert report.get_identifier() == test_id
-        assert report.get_root_path() == f"{TEST_RESULTS_DIR}{sep}{test_id}"
-
-        # tdb.save_json_document(
-        #     report=self._test_report,
-        #     document_type=document_type,
-        #     document=document,
-        #     document_key=document_key,
-        #     is_big=is_big
-        # )
-
-    except ConnectionFailure:
-        assert False, "This test document insertion should succeed if a suitable Mongodb instance is running?!"
