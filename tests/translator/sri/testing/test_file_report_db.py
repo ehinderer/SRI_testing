@@ -4,7 +4,7 @@ from os.path import sep
 from datetime import datetime
 from typing import Dict, Optional
 
-from tests.onehop import TEST_RESULTS_DIR
+from tests.onehop import TEST_RESULTS_DIR, get_test_results_dir
 from translator.sri.testing.report_db import FileReportDatabase, TestReport
 
 DEBUG: bool = True
@@ -57,7 +57,7 @@ def sample_file_document_creation_and_insertion(
 
     test_report: TestReport = frd.get_test_report(identifier=identifier)
     assert test_report.get_identifier() == identifier
-    assert test_report.get_root_path() == f"{TEST_RESULTS_DIR}{sep}{identifier}"
+    assert test_report.get_root_path() == f"{get_test_results_dir(frd.get_db_name())}{sep}{identifier}"
 
     # A test report is not yet available until something is saved
     assert identifier not in frd.get_available_reports()

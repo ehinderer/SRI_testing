@@ -24,18 +24,65 @@ logger.setLevel("DEBUG")
 RUNNING_INSIDE_DOCKER = environ.get('RUNNING_INSIDE_DOCKER', False)
 
 
+class TestReportDatabase:
+
+    LOG_NAME = "log"
+
+    """
+    Abstract superclass of a Test Report Database
+    """
+    def __init__(self, db_name: Optional[str] = TEST_RESULTS_DB, **kwargs):
+        self._db_name: str = db_name if db_name else TEST_RESULTS_DB
+        self._test_results_path: str = get_test_results_dir(self.get_db_name())
+
+    def get_db_name(self) -> str:
+        return self._db_name
+
+    def get_test_results_path(self) -> str:
+        return self._test_results_path
+
+    def list_databases(self) -> List[str]:
+        raise NotImplementedError("Abstract method - implement in child subclass!")
+
+    def drop_database(self) -> List[str]:
+        raise NotImplementedError("Abstract method - implement in child subclass!")
+
+    @classmethod
+    def get_available_reports(cls) -> List[str]:
+        """
+        :return: list of identifiers of available ('completed') reports.
+        """
+        raise NotImplementedError("Abstract method - implement in child subclass!")
+
+    def get_logs(self) -> Dict:
+        """
+        :return: Dict, report database log (as a Python dictionary)
+        """
+        raise NotImplementedError("Abstract method - implement in child subclass!")
+
+
 class TestReport:
     """
     Abstract superclass of a Test Report, which is a related
     collection of test run documents stored in a TestReportDatabase.
     """
-    def __init__(self, identifier: str, db_name: Optional[str] = None):
+    def __init__(self, identifier: str, database: TestReportDatabase):
+        """
+        TestReport constructor.
+
+        :param identifier: report identifier (perhaps a timestamp?)
+        :param db: TestReportDatabase to which the report belongs
+        """
         assert identifier  # the test report 'identifier' should not be None or empty string
         self._report_identifier = identifier
-        self._report_root_path = f"{get_test_results_dir(db_name)}{sep}{identifier}"
+        self._database = database
+        self._report_root_path = f"{get_test_results_dir(self._database.get_db_name())}{sep}{identifier}"
 
     def get_identifier(self) -> str:
         return self._report_identifier
+
+    def get_database(self) -> TestReportDatabase:
+        return self._database
 
     def get_root_path(self) -> str:
         return self._report_root_path
@@ -84,62 +131,41 @@ class TestReport:
         raise NotImplementedError("Abstract method - implement in child subclass!")
 
 
-class TestReportDatabase:
-
-    LOG_NAME = "log"
-
-    """
-    Abstract superclass of a Test Report Database
-    """
-    def __init__(self, db_name: Optional[str] = TEST_RESULTS_DB, **kwargs):
-        self._db_name = db_name
-
-    def list_databases(self) -> List[str]:
-        raise NotImplementedError("Abstract method - implement in child subclass!")
-
-    def drop_database(self) -> List[str]:
-        raise NotImplementedError("Abstract method - implement in child subclass!")
-
-    def get_db_name(self) -> str:
-        return self._db_name
-
-    def get_test_report(self, identifier: str) -> TestReport:
+###############################################################
+# Deferred TestReportDatabase method creation to work around  #
+# TestReportDatabase and TestReport forward definitions issue #
+###############################################################
+def _get_test_report(obj, identifier: str) -> TestReport:
         """
         :return: TestReport of the appropriate kind for the given type of TestReportDatabase
         """
         raise NotImplementedError("Abstract method - implement in child subclass!")
 
-    def delete_test_report(self, report: TestReport):
-        """
-        :param report: TestReport, to be deleted
-        """
-        raise NotImplementedError("Abstract method - implement in child subclass!")
 
-    @classmethod
-    def get_available_reports(cls) -> List[str]:
-        """
-        :return: list of identifiers of available ('completed') reports.
-        """
-        raise NotImplementedError("Abstract method - implement in child subclass!")
+TestReportDatabase.get_test_report = _get_test_report
 
-    def get_logs(self) -> Dict:
-        """
-        :return: Dict, report database log (as a Python dictionary)
-        """
-        raise NotImplementedError("Abstract method - implement in child subclass!")
+
+def _delete_test_report(obj, report: TestReport):
+    """
+    :param report: TestReport, to be deleted
+    """
+    raise NotImplementedError("Abstract method - implement in child subclass!")
+
+
+TestReportDatabase.delete_test_report = _delete_test_report
 
 
 class FileTestReport(TestReport):
 
-    def __init__(self, identifier: str, db_name: Optional[str] = None):
-        TestReport.__init__(self, identifier=identifier, db_name=db_name)
+    def __init__(self, identifier: str, database: TestReportDatabase):
+        TestReport.__init__(self, identifier=identifier, database=database)
 
         # File system based reporting needs to create a
         # 'identifier' tagged directory for test results
-        makedirs(self.get_root_path(), exist_ok=True)
+        makedirs(self.get_database().get_test_results_path(), exist_ok=True)
 
     def delete(self):
-        test_report_directory = normpath(self.get_root_path())
+        test_report_directory = normpath(self.get_database().get_test_results_path())
         shutil.rmtree(test_report_directory)
 
     def get_absolute_file_path(self, document_key: str, create_path: bool = False) -> str:
@@ -231,6 +257,10 @@ class FileReportDatabase(TestReportDatabase):
     def __init__(self, db_name: Optional[str] = None, **kwargs):
         TestReportDatabase.__init__(self, db_name=db_name, **kwargs)
 
+        # File system based reporting needs to create
+        # a db_name'd root directory for test results
+        makedirs(self.get_root_path(), exist_ok=True)
+
     def list_databases(self) -> List[str]:
         # FileReportDatabase implementations only have
         # a single database a.k.a. root file directory
@@ -246,7 +276,7 @@ class FileReportDatabase(TestReportDatabase):
         :param identifier: str, test run identifier for the report
         :return: wrapped test report
         """
-        report = FileTestReport(identifier=identifier)
+        report = FileTestReport(identifier=identifier, db_name=self._db_name)
         return report
 
     def delete_test_report(self, report: TestReport):
