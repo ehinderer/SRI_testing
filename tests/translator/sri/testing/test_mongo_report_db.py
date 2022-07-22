@@ -13,12 +13,14 @@ from translator.sri.testing.report_db import MongoReportDatabase, TestReport
 # however, this interferes with idempotency of the tests (i.e. data must be manually deleted from the test database)
 DEBUG: bool = False
 
+TEST_DATABASE = "test-database"
+
 
 def test_mongo_report_db_connection():
     try:
-        mrd = MongoReportDatabase(db_name="test-database")
+        mrd = MongoReportDatabase(db_name=TEST_DATABASE)
 
-        assert "test-database" in mrd.list_databases()
+        assert TEST_DATABASE in mrd.list_databases()
 
         assert any(['time_created' in doc for doc in mrd.get_logs()])
 
@@ -38,13 +40,13 @@ def test_mongo_report_db_connection():
 def test_delete_mongo_report_db_database():
     # same as the previous test but ignoring DEBUG TO enforce the database deletion
     try:
-        mrd = MongoReportDatabase(db_name="test-database")
+        mrd = MongoReportDatabase(db_name=TEST_DATABASE)
 
-        assert "test-database" in mrd.list_databases()
+        assert TEST_DATABASE in mrd.list_databases()
 
         mrd.drop_database()
 
-        assert "test-database" not in mrd.list_databases()
+        assert TEST_DATABASE not in mrd.list_databases()
 
         print(
             "\nThe test_mongo_report_db_connection() connection has succeeded *as expected*... " +
@@ -102,7 +104,7 @@ def sample_mongodb_document_creation_and_insertion(
 
 def test_create_test_report_then_save_and_retrieve_document():
     try:
-        mrd = MongoReportDatabase(db_name="test-database")
+        mrd = MongoReportDatabase(db_name=TEST_DATABASE)
 
         test_id = datetime.now().strftime("%Y-%b-%d_%Hhr%M")
         test_report: TestReport = sample_mongodb_document_creation_and_insertion(mrd, test_id)
@@ -126,7 +128,7 @@ def test_create_test_report_then_save_and_retrieve_document():
 def test_db_level_test_report_deletion():
 
     try:
-        mrd = MongoReportDatabase(db_name="test-database")
+        mrd = MongoReportDatabase(db_name=TEST_DATABASE)
 
         test_id = datetime.now().strftime("%Y-%b-%d_%Hhr%M")
         test_report: TestReport = sample_mongodb_document_creation_and_insertion(mrd, test_id)
@@ -143,7 +145,7 @@ def test_db_level_test_report_deletion():
 
 def test_create_test_report_then_save_and_retrieve_a_big_document():
     try:
-        mrd = MongoReportDatabase(db_name="test-database")
+        mrd = MongoReportDatabase(db_name=TEST_DATABASE)
 
         test_id = datetime.now().strftime("%Y-%b-%d_%Hhr%M")
         test_report: TestReport = sample_mongodb_document_creation_and_insertion(mrd, test_id, is_big=True)

@@ -1,6 +1,6 @@
 import shutil
 from os import environ, makedirs, listdir
-from os.path import sep, normpath
+from os.path import sep, normpath, exists
 from typing import Dict, Optional, List, Generator
 from datetime import datetime
 from urllib.parse import quote_plus
@@ -15,7 +15,7 @@ from pymongo.database import Database
 # for saving big MongoDb files
 from gridfs import GridFS
 
-from tests.onehop import TEST_RESULTS_DIR, TEST_RESULTS_DB, get_test_results_dir
+from tests.onehop import TEST_RESULTS_DB, get_test_results_dir
 
 import logging
 logger = logging.getLogger()
@@ -44,17 +44,16 @@ class TestReportDatabase:
     def list_databases(self) -> List[str]:
         raise NotImplementedError("Abstract method - implement in child subclass!")
 
-    def drop_database(self) -> List[str]:
+    def drop_database(self) :
         raise NotImplementedError("Abstract method - implement in child subclass!")
 
-    @classmethod
-    def get_available_reports(cls) -> List[str]:
+    def get_available_reports(self) -> List[str]:
         """
         :return: list of identifiers of available ('completed') reports.
         """
         raise NotImplementedError("Abstract method - implement in child subclass!")
 
-    def get_logs(self) -> Dict:
+    def get_logs(self) -> List[Dict]:
         """
         :return: Dict, report database log (as a Python dictionary)
         """
@@ -261,15 +260,26 @@ class FileReportDatabase(TestReportDatabase):
         # a db_name'd root directory for test results
         makedirs(self.get_test_results_path(), exist_ok=True)
 
+        self._logs: str = normpath(f"{self.get_test_results_path()}/{self.LOG_NAME}")
+        makedirs(self._logs, exist_ok=True)
+
+        creation_log_file: str = f"{self._logs}{sep}creation.json"
+        if not exists(creation_log_file):
+            time_created: str = datetime.now().strftime("%Y-%b-%d_%Hhr%M")
+            document = {"time_created": time_created}
+            try:
+                with open(f"{creation_log_file}.json", 'w') as log_file:
+                    json.dump(document, log_file, indent=4)
+            except OSError as ose:
+                logger.warning(f"'{creation_log_file}' cannot be written out: {str(ose)}?")
+
     def list_databases(self) -> List[str]:
         # FileReportDatabase implementations only have
         # a single database a.k.a. root file directory
         return [self.get_db_name()]
 
-    def drop_database(self) -> List[str]:
-        # test_report_directory = normpath(self.get_root_path())
-        # shutil.rmtree(test_report_directory)
-        raise NotImplementedError("Implement me!")
+    def drop_database(self) :
+        shutil.rmtree(self.get_test_results_path())
 
     def get_test_report(self, identifier: str) -> TestReport:
         """
@@ -286,20 +296,32 @@ class FileReportDatabase(TestReportDatabase):
         """
         report.delete()
 
-    @classmethod
-    def get_available_reports(cls) -> List[str]:
+    def get_available_reports(self) -> List[str]:
         """
         :return: list of identifiers of available reports.
         """
-        test_results_directory = normpath(TEST_RESULTS_DIR)
-        test_run_list = listdir(test_results_directory)
+        test_results_directory = normpath(self.get_test_results_path())
+        test_run_list: List[str] = [
+            identifier for identifier in listdir(test_results_directory)
+            if identifier != TestReportDatabase.LOG_NAME
+        ]
         return test_run_list
 
-    def get_logs(self) -> Dict:
+    def get_logs(self) -> List[Dict]:
         """
         :return: Dict, report database log (as a Python dictionary)
         """
-        raise NotImplementedError("Implement me!")
+        logs: List[Dict] = list()
+        for identifier in listdir(self._logs):
+            try:
+                with open(f"{identifier}.json", 'r') as log_file:
+                    contents = log_file.read()
+                if contents:
+                    document: Dict = orjson.loads(contents)
+                    logs.append(document)
+            except OSError as ose:
+                logger.warning(f"Log file '{identifier}' cannot be read in: {str(ose)}?")
+        return logs
 
 
 class MongoTestReport(TestReport):

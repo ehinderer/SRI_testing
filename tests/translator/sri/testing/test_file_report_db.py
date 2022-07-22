@@ -7,14 +7,18 @@ from typing import Dict, Optional
 from tests.onehop import TEST_RESULTS_DIR, get_test_results_dir
 from translator.sri.testing.report_db import FileReportDatabase, TestReport
 
+# For early testing of the Unit test, test data is not deleted when DEBUG is True;
+# however, this interferes with idempotency of the tests (i.e. data must be manually deleted from the test database)
 DEBUG: bool = True
 
+TEST_DATABASE = "test-database"
 
-def test_file_report_db_connection():
 
-    frd = FileReportDatabase(db_name="test-database")
+def test_create_file_report_database():
 
-    assert "test-database" in frd.list_databases()
+    frd = FileReportDatabase(db_name=TEST_DATABASE)
+
+    assert TEST_DATABASE in frd.list_databases()
 
     assert any(['time_created' in doc for doc in frd.get_logs()])
 
@@ -23,15 +27,10 @@ def test_file_report_db_connection():
     if not DEBUG:
         frd.drop_database()
 
-    print(
-        "\nThe test_file_report_db_connection() connection has succeeded *as expected*... " +
-        "The Test is a success!", file=stderr
-    )
-
 
 def test_delete_file_report_db_database():
     # same as the previous test but ignoring DEBUG TO enforce the database deletion
-    frd = FileReportDatabase(db_name="test-database")
+    frd = FileReportDatabase(db_name=TEST_DATABASE)
 
     assert "test-database" in frd.list_databases()
 
@@ -74,7 +73,7 @@ def sample_file_document_creation_and_insertion(
 
 
 def test_create_test_report_then_save_and_retrieve_document():
-    frd = FileReportDatabase(db_name="test-database")
+    frd = FileReportDatabase(db_name=TEST_DATABASE)
 
     test_id = datetime.now().strftime("%Y-%b-%d_%Hhr%M")
     test_report: TestReport = sample_file_document_creation_and_insertion(frd, test_id)
@@ -94,7 +93,7 @@ def test_create_test_report_then_save_and_retrieve_document():
 
 def test_db_level_test_report_deletion():
 
-    frd = FileReportDatabase(db_name="test-database")
+    frd = FileReportDatabase(db_name=TEST_DATABASE)
 
     test_id = datetime.now().strftime("%Y-%b-%d_%Hhr%M")
     test_report: TestReport = sample_file_document_creation_and_insertion(frd, test_id)
@@ -108,7 +107,7 @@ def test_db_level_test_report_deletion():
 
 def test_create_test_report_then_save_and_retrieve_a_big_document():
 
-    frd = FileReportDatabase(db_name="test-database")
+    frd = FileReportDatabase(db_name=TEST_DATABASE)
 
     test_id = datetime.now().strftime("%Y-%b-%d_%Hhr%M")
     test_report: TestReport = sample_file_document_creation_and_insertion(frd, test_id, is_big=True)
