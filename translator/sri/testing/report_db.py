@@ -15,7 +15,7 @@ from pymongo.database import Database
 # for saving big MongoDb files
 from gridfs import GridFS
 
-from tests.onehop import TEST_RESULTS_DB, get_test_results_dir
+from tests.onehop import TEST_RESULTS_DB, get_test_results_dir, ONEHOP_TEST_DIRECTORY
 
 import logging
 logger = logging.getLogger()
@@ -206,7 +206,8 @@ class FileTestReport(TestReport):
 
         document_path = self.get_absolute_file_path(document_key=document_key, create_path=True)
         try:
-            with open(f"{document_path}.json", 'w') as document_file:
+            # TODO: maybe I need to write 'is_big' files out as binary?
+            with open(f"{document_path}.json", mode='w', encoding='utf8', buffering=1, newline='\n') as document_file:
                 json.dump(document, document_file, indent=4)
         except OSError as ose:
             logger.warning(f"{document_type} '{document_key}' cannot be written out: {str(ose)}?")
@@ -223,7 +224,7 @@ class FileTestReport(TestReport):
         document: Optional[Dict] = None
         document_path: str = self.get_absolute_file_path(document_key=document_key)
         try:
-            with open(f"{document_path}.json", 'r') as report_file:
+            with open(f"{document_path}.json", mode='r', encoding='utf8', buffering=1, newline='\n') as report_file:
                 contents = report_file.read()
             if contents:
                 document = orjson.loads(contents)
@@ -243,7 +244,10 @@ class FileTestReport(TestReport):
         document_path = self.get_absolute_file_path(document_key)
         try:
             with open(f"{document_path}.json", mode="rb") as datafile:
-                yield datafile.readline().decode(encoding="utf8")
+                data: bytes
+                for data in datafile.readlines():
+                    line: str = data.decode(encoding="utf8")
+                    yield line.strip()
         except OSError as ose:
             logger.warning(f"{document_type} '{document_key}' is not (yet) accessible: {str(ose)}?")
 
@@ -268,15 +272,15 @@ class FileReportDatabase(TestReportDatabase):
             time_created: str = datetime.now().strftime("%Y-%b-%d_%Hhr%M")
             document = {"time_created": time_created}
             try:
-                with open(creation_log_file, 'w') as log_file:
+                with open(creation_log_file, mode='w', encoding='utf8', buffering=1, newline='\n') as log_file:
                     json.dump(document, log_file, indent=4)
             except OSError as ose:
                 logger.warning(f"'{creation_log_file}' cannot be written out: {str(ose)}?")
 
     def list_databases(self) -> List[str]:
-        # FileReportDatabase implementations only have
-        # a single database a.k.a. root file directory
-        return [self.get_db_name()]
+        # At present, the FileReportDatabase hosts all of its
+        # 'databases' a.k.a. 'db_name' folders, under the ONEHOP_TEST_DIRECTORY
+        return [identifier for identifier in listdir(ONEHOP_TEST_DIRECTORY)]
 
     def drop_database(self):
         shutil.rmtree(self.get_test_results_path())
@@ -315,7 +319,7 @@ class FileReportDatabase(TestReportDatabase):
         for identifier in listdir(self._logs):
             try:
                 log_file_name = f"{self._logs}{sep}{identifier}"
-                with open(log_file_name, 'r') as log_file:
+                with open(log_file_name, mode='r', encoding='utf8', buffering=1, newline='\n') as log_file:
                     contents = log_file.read()
                 if contents:
                     document: Dict = orjson.loads(contents)

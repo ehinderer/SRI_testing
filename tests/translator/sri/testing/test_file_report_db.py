@@ -38,11 +38,6 @@ def test_delete_file_report_db_database():
 
     assert "test-database" not in frd.list_databases()
 
-    print(
-        "\nThe test_file_report_db_connection() connection has succeeded *as expected*... " +
-        "The Test is a success!", file=stderr
-    )
-
 
 SAMPLE_DOCUMENT_KEY: str = "sample-document"
 SAMPLE_DOCUMENT: Dict = {}
@@ -72,11 +67,15 @@ def sample_file_document_creation_and_insertion(
     return test_report
 
 
+def _test_id(seq: int) -> str:
+    return f"{datetime.now().strftime('%Y-%b-%d_%Hhr%M')}.{str(seq)}"
+
+
 def test_create_test_report_then_save_and_retrieve_document():
 
     frd = FileReportDatabase(db_name=TEST_DATABASE)
 
-    test_id = datetime.now().strftime("%Y-%b-%d_%Hhr%M")
+    test_id = _test_id(1)
 
     test_report: TestReport = sample_file_document_creation_and_insertion(frd, test_id)
 
@@ -97,7 +96,8 @@ def test_db_level_test_report_deletion():
 
     frd = FileReportDatabase(db_name=TEST_DATABASE)
 
-    test_id = datetime.now().strftime("%Y-%b-%d_%Hhr%M")
+    test_id = _test_id(2)
+
     test_report: TestReport = sample_file_document_creation_and_insertion(frd, test_id)
 
     frd.delete_test_report(test_report)
@@ -111,7 +111,8 @@ def test_create_test_report_then_save_and_retrieve_a_big_document():
 
     frd = FileReportDatabase(db_name=TEST_DATABASE)
 
-    test_id = datetime.now().strftime("%Y-%b-%d_%Hhr%M")
+    test_id = _test_id(3)
+
     test_report: TestReport = sample_file_document_creation_and_insertion(frd, test_id, is_big=True)
 
     text_file: str = ""
