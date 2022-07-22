@@ -73,9 +73,11 @@ def sample_file_document_creation_and_insertion(
 
 
 def test_create_test_report_then_save_and_retrieve_document():
+
     frd = FileReportDatabase(db_name=TEST_DATABASE)
 
     test_id = datetime.now().strftime("%Y-%b-%d_%Hhr%M")
+
     test_report: TestReport = sample_file_document_creation_and_insertion(frd, test_id)
 
     document: Optional[Dict] = test_report.retrieve_document(

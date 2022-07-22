@@ -26,7 +26,7 @@ RUNNING_INSIDE_DOCKER = environ.get('RUNNING_INSIDE_DOCKER', False)
 
 class TestReportDatabase:
 
-    LOG_NAME = "log"
+    LOG_NAME = "logs"
 
     """
     Abstract superclass of a Test Report Database
@@ -44,7 +44,7 @@ class TestReportDatabase:
     def list_databases(self) -> List[str]:
         raise NotImplementedError("Abstract method - implement in child subclass!")
 
-    def drop_database(self) :
+    def drop_database(self):
         raise NotImplementedError("Abstract method - implement in child subclass!")
 
     def get_available_reports(self) -> List[str]:
@@ -260,7 +260,7 @@ class FileReportDatabase(TestReportDatabase):
         # a db_name'd root directory for test results
         makedirs(self.get_test_results_path(), exist_ok=True)
 
-        self._logs: str = normpath(f"{self.get_test_results_path()}/{self.LOG_NAME}")
+        self._logs: str = normpath(f"{self.get_test_results_path()}{sep}{self.LOG_NAME}")
         makedirs(self._logs, exist_ok=True)
 
         creation_log_file: str = f"{self._logs}{sep}creation.json"
@@ -268,7 +268,7 @@ class FileReportDatabase(TestReportDatabase):
             time_created: str = datetime.now().strftime("%Y-%b-%d_%Hhr%M")
             document = {"time_created": time_created}
             try:
-                with open(f"{creation_log_file}.json", 'w') as log_file:
+                with open(creation_log_file, 'w') as log_file:
                     json.dump(document, log_file, indent=4)
             except OSError as ose:
                 logger.warning(f"'{creation_log_file}' cannot be written out: {str(ose)}?")
@@ -278,7 +278,7 @@ class FileReportDatabase(TestReportDatabase):
         # a single database a.k.a. root file directory
         return [self.get_db_name()]
 
-    def drop_database(self) :
+    def drop_database(self):
         shutil.rmtree(self.get_test_results_path())
 
     def get_test_report(self, identifier: str) -> TestReport:
@@ -314,7 +314,8 @@ class FileReportDatabase(TestReportDatabase):
         logs: List[Dict] = list()
         for identifier in listdir(self._logs):
             try:
-                with open(f"{identifier}.json", 'r') as log_file:
+                log_file_name = f"{self._logs}{sep}{identifier}"
+                with open(log_file_name, 'r') as log_file:
                     contents = log_file.read()
                 if contents:
                     document: Dict = orjson.loads(contents)
