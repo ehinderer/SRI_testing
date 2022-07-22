@@ -71,7 +71,7 @@ class TestReport:
         TestReport constructor.
 
         :param identifier: report identifier (perhaps a timestamp?)
-        :param db: TestReportDatabase to which the report belongs
+        :param database: TestReportDatabase to which the report belongs
         """
         assert identifier  # the test report 'identifier' should not be None or empty string
         self._report_identifier = identifier
@@ -136,10 +136,10 @@ class TestReport:
 # TestReportDatabase and TestReport forward definitions issue #
 ###############################################################
 def _get_test_report(obj, identifier: str) -> TestReport:
-        """
-        :return: TestReport of the appropriate kind for the given type of TestReportDatabase
-        """
-        raise NotImplementedError("Abstract method - implement in child subclass!")
+    """
+    :return: TestReport of the appropriate kind for the given type of TestReportDatabase
+    """
+    raise NotImplementedError("Abstract method - implement in child subclass!")
 
 
 TestReportDatabase.get_test_report = _get_test_report
@@ -244,7 +244,7 @@ class FileTestReport(TestReport):
         document_path = self.get_absolute_file_path(document_key)
         try:
             with open(f"{document_path}.json", mode="rb") as datafile:
-                yield from datafile
+                yield datafile.readline().decode(encoding="utf8")
         except OSError as ose:
             logger.warning(f"{document_type} '{document_key}' is not (yet) accessible: {str(ose)}?")
 
@@ -259,7 +259,7 @@ class FileReportDatabase(TestReportDatabase):
 
         # File system based reporting needs to create
         # a db_name'd root directory for test results
-        makedirs(self.get_root_path(), exist_ok=True)
+        makedirs(self.get_test_results_path(), exist_ok=True)
 
     def list_databases(self) -> List[str]:
         # FileReportDatabase implementations only have
@@ -276,10 +276,11 @@ class FileReportDatabase(TestReportDatabase):
         :param identifier: str, test run identifier for the report
         :return: wrapped test report
         """
-        report = FileTestReport(identifier=identifier, db_name=self._db_name)
+        report = FileTestReport(identifier=identifier, database=self)
         return report
 
-    def delete_test_report(self, report: TestReport):
+    @staticmethod
+    def delete_test_report(report: TestReport):
         """
         :param report: TestReport to be deleted
         """
@@ -303,14 +304,18 @@ class FileReportDatabase(TestReportDatabase):
 
 class MongoTestReport(TestReport):
 
-    def __init__(self, identifier: str, db_name: Optional[str], db: Database):
-        TestReport.__init__(self, identifier=identifier, db_name=db_name)
+    def __init__(self, identifier: str, database: TestReportDatabase, mongo_db: Database):
+
+        TestReport.__init__(self, identifier=identifier, database=database)
+
+        # remember the MongoDb database handle associated with this MongoTestReport
+        self._db: Database = mongo_db
+
+        # Also save large files into GridFS
+        self._gridfs: GridFS = GridFS(self._db)
 
         # MongoDb based reporting needs to create a
         # 'identifier' tagged collection for test results
-        # Also save large files into GridFS
-        self._db: Database = db
-        self._gridfs: GridFS = GridFS(self._db)
         self._collection: Optional[Collection] = self._db[identifier]
 
     def delete(self):
@@ -376,7 +381,7 @@ class MongoTestReport(TestReport):
             gridfs_uid = document_proxy["gridfs_uid"]
             try:
                 with self._gridfs.get(gridfs_uid) as datafile:
-                    yield from datafile.readline().decode(encoding="utf8")
+                    yield datafile.readline().decode(encoding="utf8")
             except OSError as ose:
                 logger.warning(f"{document_type} '{document_key}' is not (yet) accessible: {str(ose)}?")
 
@@ -421,15 +426,15 @@ class MongoReportDatabase(TestReportDatabase):
         # 'ping' will throw a pymongo.errors.ConnectionFailure if the connection fails
         self._db_client.admin.command('ping')
 
-        self._sri_testing_db: Database = self._db_client[self._db_name]
+        self._mongo_db: Database = self._db_client[self._db_name]
 
-        if self.LOG_NAME not in self._sri_testing_db.list_collection_names():
+        if self.LOG_NAME not in self._mongo_db.list_collection_names():
             time_created: str = datetime.now().strftime("%Y-%b-%d_%Hhr%M")
-            self._logs: Collection = self._sri_testing_db[self.LOG_NAME]
+            self._logs: Collection = self._mongo_db[self.LOG_NAME]
             # this should create the log once
             self._logs.insert_one({"time_created": time_created})
         else:
-            self._logs: Collection = self._sri_testing_db[self.LOG_NAME]
+            self._logs: Collection = self._mongo_db[self.LOG_NAME]
 
     def list_databases(self) -> List[str]:
         return [name for name in self._db_client.list_database_names() if name not in ['admin', 'config', 'local']]
@@ -444,10 +449,11 @@ class MongoReportDatabase(TestReportDatabase):
         :param identifier: str, test run identifier for the report
         :return: wrapped test report
         """
-        report = MongoTestReport(identifier=identifier, db_name=self._db_name, db=self._sri_testing_db)
+        report = MongoTestReport(identifier=identifier, database=self, mongo_db=self._mongo_db)
         return report
 
-    def delete_test_report(self, report: TestReport):
+    @staticmethod
+    def delete_test_report(report: TestReport):
         """
         :param report: TestReport to be deleted (should be an instance of MongoTestReport)
         """
@@ -459,7 +465,7 @@ class MongoReportDatabase(TestReportDatabase):
         :return: list of identifiers of available reports.
         """
         non_system_collection_filter: Dict = {"name": {"$regex": rf"^(?!system\.|{self.LOG_NAME}|fs\..*)"}}
-        return self._sri_testing_db.list_collection_names(filter=non_system_collection_filter)
+        return self._mongo_db.list_collection_names(filter=non_system_collection_filter)
 
     def get_logs(self) -> List[Dict]:
         """
