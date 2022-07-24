@@ -75,7 +75,8 @@ class TestReport:
         assert identifier  # the test report 'identifier' should not be None or empty string
         self._report_identifier = identifier
         self._database = database
-        self._report_root_path = f"{get_test_results_dir(self._database.get_db_name())}{sep}{identifier}"
+        self._report_root_path: Optional[str] = \
+            f"{get_test_results_dir(self._database.get_db_name())}{sep}{identifier}"
 
     def get_identifier(self) -> str:
         return self._report_identifier
@@ -83,14 +84,15 @@ class TestReport:
     def get_database(self) -> TestReportDatabase:
         return self._database
 
-    def get_root_path(self) -> str:
+    def get_root_path(self) -> Optional[str]:
         return self._report_root_path
 
     def delete(self):
         """
         Delete internal representation of the report.
         """
-        raise NotImplementedError("Abstract method - implement in child subclass!")
+        # Signal deletion with
+        self._report_root_path = None
 
     def save_json_document(
             self,
@@ -164,8 +166,13 @@ class FileTestReport(TestReport):
         makedirs(self.get_database().get_test_results_path(), exist_ok=True)
 
     def delete(self):
-        test_report_directory = normpath(self.get_database().get_test_results_path())
-        shutil.rmtree(test_report_directory)
+        try:
+            shutil.rmtree(self.get_root_path())
+            TestReport.delete(self)
+        except OSError as ose:
+            logger.warning(
+                f"FileTestReport.delete():  could not delete '{str(self.get_root_path())}' report path: {str(ose)}"
+            )
 
     def get_absolute_file_path(self, document_key: str, create_path: bool = False) -> str:
         """
@@ -304,7 +311,7 @@ class FileReportDatabase(TestReportDatabase):
         """
         :return: list of identifiers of available reports.
         """
-        test_results_directory = normpath(self.get_test_results_path())
+        test_results_directory = self.get_test_results_path()
         test_run_list: List[str] = [
             identifier for identifier in listdir(test_results_directory)
             if identifier != TestReportDatabase.LOG_NAME
