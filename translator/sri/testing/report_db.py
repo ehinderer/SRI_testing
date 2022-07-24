@@ -1,4 +1,5 @@
 from typing import Dict, Optional, List, IO, Generator
+from sys import stderr
 from os import environ, makedirs, listdir
 from os.path import sep, normpath, exists
 import shutil
@@ -139,6 +140,15 @@ class TestReport:
         """
         raise NotImplementedError("Abstract method - implement in child subclass!")
 
+    def open_logger(self):
+        raise NotImplementedError("Abstract method - implement in child subclass!")
+
+    def write_logger(self, line: str):
+        raise NotImplementedError("Abstract method - implement in child subclass!")
+
+    def close_logger(self):
+        raise NotImplementedError("Abstract method - implement in child subclass!")
+
 
 ###############################################################
 # Deferred TestReportDatabase method creation to work around  #
@@ -267,6 +277,26 @@ class FileTestReport(TestReport):
                     yield line.strip()
         except OSError as ose:
             logger.warning(f"{document_type} '{document_key}' is not (yet) accessible: {str(ose)}?")
+
+    def open_logger(self):
+        self._log_file: Optional[IO] = None
+        if self.get_root_path():
+            log_file_path: str = self.get_absolute_file_path(document_key="test.log", create_path=True)
+            try:
+                self._log_file = open(log_file_path, "w")
+            except FileNotFoundError as fnfe:
+                logger.warning(f"Cannot open log file: {str(fnfe)}")
+        else:
+            logger.warning(f"ProcessLogger(): 'log_file_path' is not set. No process logging shall be done.")
+
+    def write_logger(self, line: str):
+        if self._log_file:
+            self._log_file.write(line)
+
+    def close_logger(self):
+        if self._log_file:
+            self._log_file.close()
+            self._log_file = None
 
 
 class FileReportDatabase(TestReportDatabase):
@@ -429,6 +459,15 @@ class MongoTestReport(TestReport):
             except OSError as ose:
                 logger.warning(f"{document_type} '{document_key}' is not (yet) accessible: {str(ose)}?")
 
+    def open_logger(self):
+        raise NotImplementedError("Abstract method - implement in child subclass!")
+
+    def write_logger(self, line: str):
+        raise NotImplementedError("Abstract method - implement in child subclass!")
+
+    def close_logger(self):
+        raise NotImplementedError("Abstract method - implement in child subclass!")
+
 
 class MongoReportDatabase(TestReportDatabase):
 
@@ -522,3 +561,24 @@ class MongoReportDatabase(TestReportDatabase):
         """
         logs: List[Dict] = [doc for doc in self._logs.find()]
         return logs
+
+
+####################################################################
+# Here we globally configure and bind a singleton TestReportDatabase
+####################################################################
+_test_report_database: Optional[TestReportDatabase] = None
+
+
+def get_test_report_database() -> TestReportDatabase:
+    global _test_report_database
+    if not _test_report_database:
+        try:
+            # TODO: we only use 'default' MongoDb connection settings here. Needs to be parameterized...
+            _test_report_database = MongoReportDatabase()
+            print("Using MongoReportDatabase!", file=stderr)
+        except TestReportDatabaseException:
+            logger.warning("Mongodb instance not running? We will use a local FileReportDatabase instead...")
+            _test_report_database = FileReportDatabase()
+            print("Using FileReportDatabase!", file=stderr)
+
+    return _test_report_database

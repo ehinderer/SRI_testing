@@ -33,7 +33,7 @@ def _report_outcome(
         expecting_output: bool = True,
         expected_output: Optional[str] = None
 ):
-    wp = WorkerProcess(timeout=timeout, log_file_path=f"{TEST_RESULTS_PATH}{sep}{test_name}.log")
+    wp = WorkerProcess(identifier=test_name, timeout=timeout)
 
     wp.run_command(command_line)
 
@@ -91,7 +91,7 @@ MOCK_WORKER = abspath(dirname(__file__)+sep+"mock_worker.py")
 
 def test_progress_monitoring():
 
-    wp = WorkerProcess(timeout=1, log_file_path=f"{TEST_RESULTS_PATH}{sep}test_progress_monitoring.log")
+    wp = WorkerProcess(identifier="test_progress_monitoring", timeout=1)
 
     wp.run_command(f"{PYTHON_PATH} {MOCK_WORKER}")
 
@@ -102,7 +102,7 @@ def test_progress_monitoring():
     while not done:
 
         print("\nChecking progress...", file=stderr)
-        sleep(20)
+        sleep(1)
 
         next_pc: Optional[str] = None
         for line in wp.get_output():
@@ -124,10 +124,3 @@ def test_progress_monitoring():
             done = True
 
     print("test_progress_monitoring() test completed", file=stderr)
-
-
-def test_dev_null_log():
-    print("\n", file=stderr)
-    wp = WorkerProcess(timeout=1)
-    wp.run_command(command_line=f"{PYTHON_PATH} {MOCK_WORKER}")
-    print("\ntest_dev_null_log() created no log file under 'test_results', ya?", file=stderr)

@@ -15,7 +15,11 @@ from translator.sri.testing.report_db import (
 # however, this interferes with idempotency of the tests (i.e. data must be manually deleted from the test database)
 DEBUG: bool = False
 
-TEST_DATABASE = "test-database"
+TEST_DATABASE = "mongo-report-unit-test-database"
+
+
+def _test_id(seq: int) -> str:
+    return f"{datetime.now().strftime('%Y-%b-%d_%Hhr%M')}.{str(seq)}"
 
 
 def test_mongo_report_db_connection():
@@ -108,7 +112,7 @@ def test_create_test_report_then_save_and_retrieve_document():
     try:
         mrd = MongoReportDatabase(db_name=TEST_DATABASE)
 
-        test_id = datetime.now().strftime("%Y-%b-%d_%Hhr%M")
+        test_id = _test_id(1)
         test_report: TestReport = sample_mongodb_document_creation_and_insertion(mrd, test_id)
 
         document: Optional[Dict] = test_report.retrieve_document(
@@ -132,7 +136,7 @@ def test_db_level_test_report_deletion():
     try:
         mrd = MongoReportDatabase(db_name=TEST_DATABASE)
 
-        test_id = datetime.now().strftime("%Y-%b-%d_%Hhr%M")
+        test_id = _test_id(2)
         test_report: TestReport = sample_mongodb_document_creation_and_insertion(mrd, test_id)
 
         mrd.delete_test_report(test_report)
@@ -149,7 +153,7 @@ def test_create_test_report_then_save_and_retrieve_a_big_document():
     try:
         mrd = MongoReportDatabase(db_name=TEST_DATABASE)
 
-        test_id = datetime.now().strftime("%Y-%b-%d_%Hhr%M")
+        test_id = _test_id(3)
         test_report: TestReport = sample_mongodb_document_creation_and_insertion(mrd, test_id, is_big=True)
 
         text_file: str = ""
@@ -171,3 +175,19 @@ def test_create_test_report_then_save_and_retrieve_a_big_document():
 
     except TestReportDatabaseException:
         assert False, "This test connection should succeed if a suitable Mongodb instance is running?!"
+
+
+def test_mongo_report_process_logger():
+
+    frd = MongoReportDatabase(db_name=TEST_DATABASE)
+
+    test_id = _test_id(4)
+    test_report: TestReport = frd.get_test_report(identifier=test_id)
+
+    test_report.open_logger()
+    test_report.write_logger("Hello World!")
+    test_report.close_logger()
+
+    # logs: List[Dict] = frd.get_report_logs()
+    # assert logs
+    # assert any(['time_created' in doc for doc in frd.get_report_logs()])

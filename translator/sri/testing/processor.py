@@ -11,7 +11,7 @@ from multiprocessing import Process, Pipe
 from multiprocessing.context import BaseContext
 from multiprocessing.connection import Connection
 
-from typing import Optional, Generator, IO
+from typing import Optional, Generator
 
 import multiprocessing as mp
 from queue import Empty
@@ -23,6 +23,10 @@ from subprocess import (
 import os
 import logging
 
+from translator.sri.testing.report_db import (
+    TestReportDatabase,
+    get_test_report_database, TestReport
+)
 
 logger = logging.getLogger()
 
@@ -44,44 +48,24 @@ else:
     PWD_CMD = "pwd"
     PYTHON_PATH = sys.executable
 
-
-class ProcessLogger:
-
-    def __init__(self, log_file_path: Optional[str]):
-        self._log_file: Optional[IO] = None
-        if log_file_path:
-            try:
-                self._log_file = open(log_file_path, "w")
-            except FileNotFoundError as fnfe:
-                logger.warning(f"{log_file_path}: {str(fnfe)}")
-        else:
-            logger.warning(f"ProcessLogger(): 'log_file_path' is not set. No process logging shall be done.")
-
-    def write(self, line: str):
-        if self._log_file:
-            self._log_file.write(line)
-
-    def close_logger(self):
-        if self._log_file:
-            self._log_file.close()
-            self._log_file = None
+_test_report_database: TestReportDatabase = get_test_report_database()
 
 
 def _worker_process(
+        identifier: str,
         pipe: mp.Pipe,
         lock: mp.Lock,
         queue: mp.Queue,
-        command_line: str,
-        log_file_path: Optional[str]
+        command_line: str
 ):
     """
     Wrapper for a background worker process which runs a specified command.
 
+    :param identifier: str, worker process identifier, used to configure logging
     :param pipe: Pipe, process pipe between the Worker and caller
     :param lock: Lock, process lock used to synchronize background output
     :param queue: Queue, used for communication of worker process to caller
     :param command_line: str, the worker process command to execute
-    :param log_file_path: str, file path/key to worker process logging file
 
     :return: None (process state indirectly returned via Queue)
     """
@@ -103,7 +87,8 @@ def _worker_process(
     return_code: int
     return_status: str
 
-    process_logger = ProcessLogger(log_file_path=log_file_path)
+    report: TestReport = _test_report_database.get_test_report(identifier)
+    report.open_logger()
 
     try:
         with Popen(
@@ -116,7 +101,7 @@ def _worker_process(
         ) as proc:
             for line in proc.stdout:
                 # Echo 'line' to report log
-                process_logger.write(line)
+                report.write_logger(line)
 
                 line = line.strip()
                 if line:
@@ -134,7 +119,7 @@ def _worker_process(
         return_status = f"Worker Process Exception: {str(rte)}?"
 
     finally:
-        process_logger.close_logger()
+        report.close_logger()
 
     # propagate the result - successful or not - back to the caller
     queue.put(f"{WorkerProcess.COMPLETED} - Return Code: {return_code}\nStatus {return_status}")
@@ -146,15 +131,15 @@ class WorkerProcessException(Exception):
 
 class WorkerProcess:
 
-    def __init__(self, timeout: Optional[int] = None, log_file_path: Optional[str] = None):
+    def __init__(self, identifier: Optional[str] = None, timeout: Optional[int] = None):
         """
         Constructor for WorkerProcess.
 
+        :param identifier: str, worker process identifier, used to tag the process log
         :param timeout: int, worker process data query access timeout (Default: None => queue data access is blocking?)
-        :param log_file_path: str, file path/key to worker process logging file
         """
+        self._identifier: str = identifier if identifier else "Anonymous_Worker_Process"
         self._timeout: Optional[int] = timeout
-        self._log_file_path: Optional[str] = log_file_path
 
         self._parent_conn: Optional[Connection] = None
         self._child_conn: Optional[Connection] = None
@@ -190,11 +175,11 @@ class WorkerProcess:
             self._process = self._ctx.Process(
                 target=_worker_process,
                 args=(
+                    self._identifier,
                     self._child_conn,
                     self._lock,
                     self._queue,
-                    command_line,
-                    self._log_file_path
+                    command_line
                 )
             )
 

@@ -11,7 +11,7 @@ from translator.sri.testing.report_db import FileReportDatabase, TestReport
 # however, this interferes with idempotency of the tests (i.e. data must be manually deleted from the test database)
 DEBUG: bool = True
 
-TEST_DATABASE = "test-database"
+TEST_DATABASE = "file-report-unit-test-database"
 
 
 def test_create_file_report_database():
@@ -32,7 +32,7 @@ def test_delete_file_report_db_database():
     # same as the previous test but ignoring DEBUG TO enforce the database deletion
     frd = FileReportDatabase(db_name=TEST_DATABASE)
 
-    assert "test-database" in frd.list_databases()
+    assert TEST_DATABASE in frd.list_databases()
 
     frd.drop_database()
 
@@ -131,3 +131,19 @@ def test_create_test_report_then_save_and_retrieve_a_big_document():
         assert test_id not in frd.get_available_reports()
 
         frd.drop_database()
+
+
+def test_file_report_process_logger():
+
+    frd = FileReportDatabase(db_name=TEST_DATABASE)
+
+    test_id = _test_id(4)
+    test_report: TestReport = frd.get_test_report(identifier=test_id)
+
+    test_report.open_logger()
+    test_report.write_logger("Hello World!")
+    test_report.close_logger()
+
+    # logs: List[Dict] = frd.get_report_logs()
+    # assert logs
+    # assert any(['time_created' in doc for doc in frd.get_report_logs()])

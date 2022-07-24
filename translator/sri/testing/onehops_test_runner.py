@@ -2,7 +2,6 @@
 SRI Testing Report utility functions.
 """
 from typing import Optional, Dict, Tuple, List, Generator
-from sys import stderr
 from datetime import datetime
 
 import re
@@ -12,11 +11,9 @@ from translator.sri.testing.processor import CMD_DELIMITER, WorkerProcess
 from tests.onehop import ONEHOP_TEST_DIRECTORY
 
 from translator.sri.testing.report_db import (
-    TestReportDatabaseException,
     TestReport,
     TestReportDatabase,
-    FileReportDatabase,
-    MongoReportDatabase
+    get_test_report_database
 )
 
 import logging
@@ -129,22 +126,7 @@ class OneHopTestHarness:
     # Caching of processes, indexed by test_run_id (timestamp identifier as string)
     _test_run_id_2_worker_process: Dict[str, Dict] = dict()
 
-    _test_report_database: TestReportDatabase = None
-
-    @classmethod
-    def set_test_report_database(cls, database: TestReportDatabase):
-        """
-        Registers a TestReportDatabase with the OneHopTestHarness class
-        :param database: TestReportDatabase, testing reporting database handle
-        """
-        cls._test_report_database = database
-
-    @classmethod
-    def get_test_report_database(cls) -> Optional[TestReportDatabase]:
-        """
-        :return: Optional[TestReportDatabase], testing reporting database handle
-        """
-        return cls._test_report_database
+    _test_report_database: TestReportDatabase = get_test_report_database()
 
     @staticmethod
     def _generate_test_run_id() -> str:
@@ -232,7 +214,7 @@ class OneHopTestHarness:
 
         logger.debug(f"OneHopTestHarness.run() command line: {self._command_line}")
 
-        self._process = WorkerProcess(timeout=self._timeout, log_file_path=self._log_file_path)
+        self._process = WorkerProcess(identifier=self._test_run_id, timeout=self._timeout)
 
         self._process.run_command(self._command_line)
 
@@ -339,7 +321,7 @@ class OneHopTestHarness:
         """
         :return: list of test run identifiers of completed test runs
         """
-        return cls.get_test_report_database().get_available_reports()
+        return cls._test_report_database.get_available_reports()
 
     def get_summary(self) -> Optional[Dict]:
         """
@@ -400,20 +382,3 @@ class OneHopTestHarness:
         return self.get_test_report().stream_document(
             document_type="Details", document_key=f"{document_key}-{test_id}"
         )
-
-
-##################################################################
-# Here we globally configure and bind a TestReportDatabase
-# to the OneHopTestHarness (default to FileReportDatabase for now)
-##################################################################
-test_report_database: TestReportDatabase
-try:
-    # TODO: we only use 'default' MongoDb connection settings here. Needs to be parameterized...
-    test_report_database = MongoReportDatabase()
-    print("Using MongoReportDatabase!", file=stderr)
-except TestReportDatabaseException:
-    logger.warning("Mongodb instance not running? We will use a local FileReportDatabase instead...")
-    test_report_database = FileReportDatabase()
-    print("Using FileReportDatabase!", file=stderr)
-
-OneHopTestHarness.set_test_report_database(test_report_database)
