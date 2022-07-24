@@ -2,7 +2,7 @@ import json
 
 from os.path import sep
 from datetime import datetime
-from typing import Dict, Optional
+from typing import Dict, Optional, List
 
 from tests.onehop import get_test_results_dir
 from translator.sri.testing.report_db import FileReportDatabase, TestReport
@@ -20,7 +20,7 @@ def test_create_file_report_database():
 
     assert TEST_DATABASE in frd.list_databases()
 
-    assert any(['time_created' in doc for doc in frd.get_logs()])
+    assert any(['time_created' in doc for doc in frd.get_report_logs()])
 
     assert FileReportDatabase.LOG_NAME not in frd.get_available_reports()
 
@@ -131,3 +131,19 @@ def test_create_test_report_then_save_and_retrieve_a_big_document():
         assert test_id not in frd.get_available_reports()
 
         frd.drop_database()
+
+
+def test_file_report_logging():
+
+    trd = FileReportDatabase(db_name=TEST_DATABASE)
+
+    test_id = datetime.now().strftime("%Y-%b-%d_%Hhr%M")
+    test_report = trd.get_test_report(identifier=test_id)
+
+    test_report.open_report_log()
+    test_report.write_report_log("Hello World!")
+    test_report.close_report_log()
+
+    # report_logs: List[Dict] = trd.get_report_logs()
+    # assert report_logs
+    # assert any(['time_created' in doc for doc in report_logs])

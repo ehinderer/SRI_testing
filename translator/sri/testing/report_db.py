@@ -1,7 +1,7 @@
-import shutil
+from typing import Dict, Optional, List, IO, Generator
 from os import environ, makedirs, listdir
 from os.path import sep, normpath, exists
-from typing import Dict, Optional, List, Generator
+import shutil
 from datetime import datetime
 from urllib.parse import quote_plus
 
@@ -58,13 +58,13 @@ class TestReportDatabase:
         """
         raise NotImplementedError("Abstract method - implement in child subclass!")
 
-    def get_logs(self) -> List[Dict]:
+    def get_test_report(self, identifier):
+        raise NotImplementedError("Abstract method - implement in child subclass!")
+
+    def get_report_logs(self) -> List[Dict]:
         """
         :return: Dict, report database log (as a Python dictionary)
         """
-        raise NotImplementedError("Abstract method - implement in child subclass!")
-
-    def get_test_report(self, identifier):
         raise NotImplementedError("Abstract method - implement in child subclass!")
 
 
@@ -139,6 +139,15 @@ class TestReport:
         """
         raise NotImplementedError("Abstract method - implement in child subclass!")
 
+    def open_report_log(self):
+        raise NotImplementedError("Abstract method - implement in child subclass!")
+
+    def write_report_log(self, line: str):
+        raise NotImplementedError("Abstract method - implement in child subclass!")
+
+    def close_report_log(self):
+        raise NotImplementedError("Abstract method - implement in child subclass!")
+
 
 ###############################################################
 # Deferred TestReportDatabase method creation to work around  #
@@ -172,6 +181,8 @@ class FileTestReport(TestReport):
         # File system based reporting needs to create a
         # 'identifier' tagged directory for test results
         makedirs(self.get_database().get_test_results_path(), exist_ok=True)
+
+        self._log_file: Optional[IO] = None
 
     def delete(self):
         try:
@@ -266,6 +277,22 @@ class FileTestReport(TestReport):
         except OSError as ose:
             logger.warning(f"{document_type} '{document_key}' is not (yet) accessible: {str(ose)}?")
 
+    def open_report_log(self):
+        log_file_path: str = self.get_absolute_file_path(document_key="test.log", create_path=True)
+        try:
+            self._log_file = open(log_file_path, "w")
+        except FileNotFoundError as fnfe:
+            logger.warning(f"{log_file_path}: {str(fnfe)}")
+
+    def write_report_log(self, line: str):
+        if self._log_file:
+            self._log_file.write(line)
+
+    def close_report_log(self):
+        if self._log_file:
+            self._log_file.close()
+            self._log_file = None
+
 
 class FileReportDatabase(TestReportDatabase):
     """
@@ -326,7 +353,7 @@ class FileReportDatabase(TestReportDatabase):
         ]
         return test_run_list
 
-    def get_logs(self) -> List[Dict]:
+    def get_report_logs(self) -> List[Dict]:
         """
         :return: Dict, report database log (as a Python dictionary)
         """
@@ -427,6 +454,15 @@ class MongoTestReport(TestReport):
             except OSError as ose:
                 logger.warning(f"{document_type} '{document_key}' is not (yet) accessible: {str(ose)}?")
 
+    def open_report_log(self):
+        raise NotImplementedError("Abstract method - implement in child subclass!")
+
+    def write_report_log(self, line: str):
+        raise NotImplementedError("Abstract method - implement in child subclass!")
+
+    def close_report_log(self):
+        raise NotImplementedError("Abstract method - implement in child subclass!")
+
 
 class MongoReportDatabase(TestReportDatabase):
 
@@ -514,7 +550,7 @@ class MongoReportDatabase(TestReportDatabase):
         non_system_collection_filter: Dict = {"name": {"$regex": rf"^(?!system\.|{self.LOG_NAME}|fs\..*)"}}
         return self._mongo_db.list_collection_names(filter=non_system_collection_filter)
 
-    def get_logs(self) -> List[Dict]:
+    def get_report_logs(self) -> List[Dict]:
         """
         :return: Dict, report database log (as a Python dictionary)
         """

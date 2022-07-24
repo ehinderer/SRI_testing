@@ -11,18 +11,20 @@ from multiprocessing import Process, Pipe
 from multiprocessing.context import BaseContext
 from multiprocessing.connection import Connection
 
-from typing import Optional, Generator, IO
+from typing import Optional, Generator
 
 import multiprocessing as mp
 from queue import Empty
 from subprocess import (
     Popen,
     PIPE,
-    STDOUT,
-    DEVNULL
+    STDOUT
 )
 import os
 import logging
+
+from translator.sri.testing.onehops_test_runner import OneHopTestHarness
+from translator.sri.testing.report_db import TestReportDatabase, TestReport
 
 logger = logging.getLogger()
 
@@ -46,20 +48,20 @@ else:
 
 
 def _worker_process(
+        name: str,
         pipe: mp.Pipe,
         lock: mp.Lock,
         queue: mp.Queue,
-        command_line: str,
-        log_file: Optional[str] = None
+        command_line: str
 ):
     """
     Wrapper for a background worker process which runs a specified command.
 
+    :param name: str, worker process name (used to connect with the worker process logger)
     :param pipe: Pipe, process pipe between the Worker and caller
     :param lock: Lock, process lock used to synchronize background output
     :param queue: Queue, used for communication of worker process to caller
     :param command_line: str, the worker process command to execute
-    :param log_file: Optional[str], path to save process output (in parallel to pipe)
 
     :return: None (process state indirectly returned via Queue)
     """
@@ -81,16 +83,11 @@ def _worker_process(
     return_code: int
     return_status: str
 
-    # TODO: how do we fix the log_file to work with the MongoReportDatabase, which is not file-focused?
-    log: Optional[IO] = None
-    if log_file:
-        try:
-            log = open(log_file, "w")
-        except FileNotFoundError as fnfe:
-            logger.warning(f"{log_file}: {str(fnfe)}")
+    report_database: Optional[TestReportDatabase] = OneHopTestHarness.get_test_report_database()
+    report: TestReport = report_database.get_test_report(identifier=name)
+    report.open_report_log()
 
     try:
-
         with Popen(
                 args=command_line,
                 shell=True,
@@ -100,14 +97,14 @@ def _worker_process(
                 stderr=STDOUT
         ) as proc:
             for line in proc.stdout:
-                # Echo 'line' to 'log_file' (may be /dev/null)
-                if log:
-                    log.write(line)
+                # Echo 'line' to report log
+                report.write_report_log(line)
 
                 line = line.strip()
                 if line:
-                    # Simple-minded strategy of shoving all the
+                    # Simple-minded strategy of also shoving all the
                     # Worker Process output into an interprocess pipe
+                    # for "just-in-time" processing
                     pipe.send(line)
 
         return_code = proc.returncode
@@ -119,8 +116,7 @@ def _worker_process(
         return_status = f"Worker Process Exception: {str(rte)}?"
 
     finally:
-        if log:
-            log.close()
+        report.close_report_log()
 
     # propagate the result - successful or not - back to the caller
     queue.put(f"{WorkerProcess.COMPLETED} - Return Code: {return_code}\nStatus {return_status}")
@@ -132,13 +128,14 @@ class WorkerProcessException(Exception):
 
 class WorkerProcess:
 
-    def __init__(self, timeout: Optional[int] = None, log_file: Optional[str] = None):
+    def __init__(self, name: str, timeout: Optional[int] = None):
         """
         Constructor for WorkerProcess.
-        
+
+        :param name: str, name ('identifier') of Worker Process (mainly used to link up to reporting log)
         :param timeout: int, worker process data query access timeout (Default: None => queue data access is blocking?)
-        :param log_file: Optional[str], log file (path) to which to save a copy of worker process output lines.
         """
+        self._name: str = name
         self._timeout: Optional[int] = timeout
         self._parent_conn: Optional[Connection] = None
         self._child_conn: Optional[Connection] = None
@@ -148,7 +145,6 @@ class WorkerProcess:
         self._process: Optional[Process] = None
         self._process_id: int = 0
         self._status: Optional[str] = None
-        self._log_file: Optional[str] = log_file
 
     def run_command(self, command_line: str):
         """
@@ -175,11 +171,11 @@ class WorkerProcess:
             self._process = self._ctx.Process(
                 target=_worker_process,
                 args=(
+                    self._name,
                     self._child_conn,
                     self._lock,
                     self._queue,
-                    command_line,
-                    self._log_file
+                    command_line
                 )
             )
 

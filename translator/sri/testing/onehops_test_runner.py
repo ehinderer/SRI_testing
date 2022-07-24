@@ -3,7 +3,6 @@ SRI Testing Report utility functions.
 """
 from typing import Optional, Dict, Tuple, List, Generator
 from sys import stderr
-from os.path import sep
 from datetime import datetime
 
 import re
@@ -141,7 +140,7 @@ class OneHopTestHarness:
         cls._test_report_database = database
 
     @classmethod
-    def get_report_database(cls) -> Optional[TestReportDatabase]:
+    def get_test_report_database(cls) -> Optional[TestReportDatabase]:
         """
         :return: Optional[TestReportDatabase], testing reporting database handle
         """
@@ -174,18 +173,11 @@ class OneHopTestHarness:
         # Retrieve the associated test run report object
         self._test_report: TestReport = self._test_report_database.get_test_report(identifier=self._test_run_id)
 
-        # TODO: can we somehow adapt log capture for TestReportDatabase() to be stored in
-        #       MongoDb as a GridFS document, when a MongoTestDatabase() is used?
-        self._log_file_path: Optional[str] = f"{self.get_test_report().get_root_path()}{sep}pytest.log"
-
     def get_test_run_id(self) -> Optional[str]:
         return self._test_run_id
 
     def get_test_report(self) -> TestReport:
         return self._test_report
-
-    def get_log_file_path(self):
-        return self._log_file_path
 
     def run(
             self,
@@ -227,7 +219,7 @@ class OneHopTestHarness:
                              f"pytest --tb=line -vv"
         self._command_line += f" --log-cli-level={log}" if log else ""
         self._command_line += f" test_onehops.py"
-        self._command_line += f" --test_run_id={str(self._test_run_id)}"
+        self._command_line += f" --test_run_id={self._test_run_id}"
         self._command_line += f" --TRAPI_Version={trapi_version}" if trapi_version else ""
         self._command_line += f" --Biolink_Version={biolink_version}" if biolink_version else ""
         self._command_line += f" --triple_source={triple_source}" if triple_source else ""
@@ -236,7 +228,7 @@ class OneHopTestHarness:
 
         logger.debug(f"OneHopTestHarness.run() command line: {self._command_line}")
 
-        self._process = WorkerProcess(self._timeout, log_file=self.get_log_file_path())
+        self._process = WorkerProcess(name=self._test_run_id, timeout=self._timeout)
 
         self._process.run_command(self._command_line)
 
@@ -343,7 +335,7 @@ class OneHopTestHarness:
         """
         :return: list of test run identifiers of completed test runs
         """
-        return cls.get_report_database().get_available_reports()
+        return cls.get_test_report_database().get_available_reports()
 
     def get_summary(self) -> Optional[Dict]:
         """
