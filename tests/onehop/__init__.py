@@ -9,7 +9,7 @@ ONEHOP_TEST_DIRECTORY = abspath(dirname(__file__))
 print(f"OneHop Test Directory: {ONEHOP_TEST_DIRECTORY}", file=stderr)
 
 TEST_RESULTS_DB = "test_results"
-print(f"OneHop Test Results Database: {TEST_RESULTS_DB}", file=stderr)
+# print(f"OneHop Test Results Database: {TEST_RESULTS_DB}", file=stderr)
 
 
 def get_test_results_dir(db_name: str = TEST_RESULTS_DB) -> str:
@@ -18,4 +18,4 @@ def get_test_results_dir(db_name: str = TEST_RESULTS_DB) -> str:
 
 
 TEST_RESULTS_DIR = get_test_results_dir()
-print(f"OneHop Test Results Directory: {TEST_RESULTS_DIR}", file=stderr)
+# print(f"OneHop Test Results Directory: {TEST_RESULTS_DIR}", file=stderr)

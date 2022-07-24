@@ -2,6 +2,7 @@
 SRI Testing Report utility functions.
 """
 from typing import Optional, Dict, Tuple, List, Generator
+from sys import stderr
 from os.path import sep
 from datetime import datetime
 
@@ -413,8 +414,10 @@ test_report_database: TestReportDatabase
 try:
     # TODO: we only use 'default' MongoDb connection settings here. Needs to be parameterized...
     test_report_database = MongoReportDatabase()
+    print("Using MongoReportDatabase!", file=stderr)
 except TestReportDatabaseException:
     logger.warning("Mongodb instance not running? We will use a local FileReportDatabase instead...")
     test_report_database = FileReportDatabase()
+    print("Using FileReportDatabase!", file=stderr)
 
 OneHopTestHarness.set_test_report_database(test_report_database)
