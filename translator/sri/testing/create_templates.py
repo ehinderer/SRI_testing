@@ -1,8 +1,10 @@
-from biothings_explorer.smartapi_kg.dataload import load_specs
-# from biothings_explorer.smartapi_kg import MetaKG
 import os
 import requests
 import json
+from requests.exceptions import JSONDecodeError
+
+from biothings_explorer.smartapi_kg.dataload import load_specs
+# from biothings_explorer.smartapi_kg import MetaKG
 
 
 def get_team(spec):
@@ -30,7 +32,7 @@ def get_predicates(pr_url):
             return True, response.json()
         else:
             return False, {}
-    except Exception:
+    except JSONDecodeError:
         return False, {}
 
 
@@ -49,7 +51,7 @@ def create_ara_template(spec, kp_titles):
         }
         with open(f'{teamdir}/{apititle}.json', 'w') as outf:
             json.dump(output, outf, indent=4)
-    except Exception:
+    except (OSError, TypeError, ValueError):
         print(f"Failed {apititle}: invalid spec")
 
 
