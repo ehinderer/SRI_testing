@@ -8,15 +8,18 @@ services:
     ports:
       - 27017:27017
     environment:
+      # TODO: parameterized better Mongodb configuration / secrets
       MONGO_INITDB_ROOT_USERNAME: root
       MONGO_INITDB_ROOT_PASSWORD: example
 
+  # TODO: For diagnostics - should not be deployed in production
   mongo-express:
     image: mongo-express
     restart: always
     ports:
       - 8081:8081
     environment:
+      # TODO: parameterized better Mongodb configuration / secrets
       ME_CONFIG_MONGODB_ADMINUSERNAME: root
       ME_CONFIG_MONGODB_ADMINPASSWORD: example
       ME_CONFIG_MONGODB_URL: mongodb://root:example@mongo:27017/
