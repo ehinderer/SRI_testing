@@ -4,10 +4,12 @@ from sys import stderr
 from os.path import sep
 from datetime import datetime
 
-from pymongo.errors import ConnectionFailure
-
 from tests.onehop import get_test_results_dir
-from translator.sri.testing.report_db import MongoReportDatabase, TestReport
+from translator.sri.testing.report_db import (
+    TestReportDatabaseException,
+    TestReport,
+    MongoReportDatabase
+)
 
 # For early testing of the Unit test, test data is not deleted when DEBUG is True;
 # however, this interferes with idempotency of the tests (i.e. data must be manually deleted from the test database)
@@ -33,7 +35,7 @@ def test_mongo_report_db_connection():
             "\nThe test_mongo_report_db_connection() connection has succeeded *as expected*... " +
             "The Test is a success!", file=stderr
         )
-    except ConnectionFailure:
+    except TestReportDatabaseException:
         assert False, "This test connection should succeed if a suitable Mongodb instance is running?!"
 
 
@@ -52,7 +54,7 @@ def test_delete_mongo_report_db_database():
             "\nThe test_mongo_report_db_connection() connection has succeeded *as expected*... " +
             "The Test is a success!", file=stderr
         )
-    except ConnectionFailure:
+    except TestReportDatabaseException:
         assert False, "This test connection should succeed if a suitable Mongodb instance is running?!"
 
 
@@ -64,7 +66,7 @@ def test_fake_mongo_report_db_connection():
             host="neverneverland"
         )
         assert False, "This nonsense test connection should always fail!"
-    except ConnectionFailure:
+    except TestReportDatabaseException:
         print(
             "\nThe test_fake_mongo_report_db_connection() fake connection has failed *as expected*... " +
             "The Test itself is a success!", file=stderr
@@ -121,7 +123,7 @@ def test_create_test_report_then_save_and_retrieve_document():
 
             mrd.drop_database()
 
-    except ConnectionFailure:
+    except TestReportDatabaseException:
         assert False, "This test connection should succeed if a suitable Mongodb instance is running?!"
 
 
@@ -139,7 +141,7 @@ def test_db_level_test_report_deletion():
         if not DEBUG:
             mrd.drop_database()
 
-    except ConnectionFailure:
+    except TestReportDatabaseException:
         assert False, "This test document insertion should succeed if a suitable Mongodb instance is running?!"
 
 
@@ -167,5 +169,5 @@ def test_create_test_report_then_save_and_retrieve_a_big_document():
 
             mrd.drop_database()
 
-    except ConnectionFailure:
+    except TestReportDatabaseException:
         assert False, "This test connection should succeed if a suitable Mongodb instance is running?!"

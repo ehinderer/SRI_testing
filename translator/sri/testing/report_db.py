@@ -11,6 +11,7 @@ import orjson
 from pymongo import MongoClient
 from pymongo.collection import Collection
 from pymongo.database import Database
+from pymongo.errors import ConnectionFailure, ServerSelectionTimeoutError, ConfigurationError
 
 # for saving big MongoDb files
 from gridfs import GridFS
@@ -22,6 +23,10 @@ logger = logging.getLogger()
 logger.setLevel("DEBUG")
 
 RUNNING_INSIDE_DOCKER = environ.get('RUNNING_INSIDE_DOCKER', False)
+
+
+class TestReportDatabaseException(RuntimeError):
+    pass
 
 
 class TestReportDatabase:
@@ -445,23 +450,28 @@ class MongoReportDatabase(TestReportDatabase):
         :param db_name:  str, name of database (default: "sri_testing")
         :param kwargs:
 
-        :raises pymongo.errors.ConnectionFailure
+        :raises MongoReportException
         """
         TestReportDatabase.__init__(self, db_name=db_name, **kwargs)
 
         self._db_uri = "mongodb://%s:%s@%s" % (quote_plus(user), quote_plus(password), host)
-        self._db_client = MongoClient(
-            host=self._db_uri,  # host: Optional[Union[str, Sequence[str]]] = None,
-            port=27017,  # port: Optional[int] = None,
-            # document_class: Optional[Type[_DocumentType]] = None,
-            # tz_aware: Optional[bool] = None,
-            # connect: Optional[bool] = None,
-            # type_registry: Optional[TypeRegistry] = None,
-            # **kwargs: Any,
-        )
+        try:
+            self._db_client = MongoClient(
+                host=self._db_uri,  # host: Optional[Union[str, Sequence[str]]] = None,
+                port=27017,  # port: Optional[int] = None,
+                # document_class: Optional[Type[_DocumentType]] = None,
+                # tz_aware: Optional[bool] = None,
+                # connect: Optional[bool] = None,
+                # type_registry: Optional[TypeRegistry] = None,
+                # **kwargs: Any,
+            )
 
-        # 'ping' will throw a pymongo.errors.ConnectionFailure if the connection fails
-        self._db_client.admin.command('ping')
+            # 'ping' will throw a pymongo.errors.ConnectionFailure if the connection fails
+            self._db_client.admin.command('ping')
+        except (ConnectionFailure, ConnectionError, ServerSelectionTimeoutError, ConfigurationError) as mrd_ce:
+            err_msg = f"MongoReportDatabase connection error: {str(mrd_ce)}"
+            logger.error(err_msg)
+            raise TestReportDatabaseException(err_msg)
 
         self._mongo_db: Database = self._db_client[self._db_name]
 
