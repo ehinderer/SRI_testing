@@ -7,11 +7,13 @@ from datetime import datetime
 
 import re
 
+from pymongo.errors import ConnectionFailure
+
 from translator.sri.testing.processor import CMD_DELIMITER, WorkerProcess
 
 from tests.onehop import ONEHOP_TEST_DIRECTORY
 
-from translator.sri.testing.report_db import TestReportDatabase, FileReportDatabase, TestReport
+from translator.sri.testing.report_db import TestReportDatabase, FileReportDatabase, TestReport, MongoReportDatabase
 
 import logging
 logger = logging.getLogger()
@@ -123,7 +125,7 @@ class OneHopTestHarness:
     # Caching of processes, indexed by test_run_id (timestamp identifier as string)
     _test_run_id_2_worker_process: Dict[str, Dict] = dict()
 
-    _test_report_database: Optional[TestReportDatabase] = None
+    _test_report_database: TestReportDatabase = None
 
     @classmethod
     def set_test_report_database(cls, database: TestReportDatabase):
@@ -404,5 +406,14 @@ class OneHopTestHarness:
 # Here we globally configure and bind a TestReportDatabase
 # to the OneHopTestHarness (default to FileReportDatabase for now)
 ##################################################################
-test_report_database: TestReportDatabase = FileReportDatabase()
+test_report_database: TestReportDatabase = MongoReportDatabase()
+
+
+try:
+    # TODO: we only use 'default' MongoDb connection settings here. Needs to be parameterized...
+    test_report_database = MongoReportDatabase()
+except ConnectionFailure:
+    logger.warning("Mongodb instance not running? We will use a local FileReportDatabase instead...")
+    test_report_database = FileReportDatabase()
+
 OneHopTestHarness.set_test_report_database(test_report_database)

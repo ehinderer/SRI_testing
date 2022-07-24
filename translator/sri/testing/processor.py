@@ -81,9 +81,13 @@ def _worker_process(
     return_code: int
     return_status: str
 
+    # TODO: how do we fix the log_file to work with the MongoReportDatabase, which is not file-focused?
     log: Optional[IO] = None
     if log_file:
-        log = open(log_file, "w")
+        try:
+            log = open(log_file, "w")
+        except FileNotFoundError as fnfe:
+            logger.warning(f"{log_file}: {str(fnfe)}")
 
     try:
 

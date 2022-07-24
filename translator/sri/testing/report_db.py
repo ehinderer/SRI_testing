@@ -59,6 +59,9 @@ class TestReportDatabase:
         """
         raise NotImplementedError("Abstract method - implement in child subclass!")
 
+    def get_test_report(self, identifier):
+        raise NotImplementedError("Abstract method - implement in child subclass!")
+
 
 class TestReport:
     """

@@ -1,10 +1,10 @@
 import json
-from sys import stderr
+
 from os.path import sep
 from datetime import datetime
 from typing import Dict, Optional
 
-from tests.onehop import TEST_RESULTS_DIR, get_test_results_dir
+from tests.onehop import get_test_results_dir
 from translator.sri.testing.report_db import FileReportDatabase, TestReport
 
 # For early testing of the Unit test, test data is not deleted when DEBUG is True;
