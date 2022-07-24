@@ -2,7 +2,7 @@
 Unit tests for the backend logic of the web services application
 """
 from sys import stderr
-from os import sep
+from os import sep, makedirs
 from os.path import dirname, abspath
 from typing import Optional
 
@@ -18,15 +18,12 @@ from translator.sri.testing.processor import (
 )
 from tests.onehop import ONEHOP_TEST_DIRECTORY
 
-from translator.sri.testing.onehops_test_runner import PERCENTAGE_COMPLETION_SUFFIX_PATTERN, OneHopTestHarness
-from translator.sri.testing.report_db import FileReportDatabase
+from translator.sri.testing.onehops_test_runner import PERCENTAGE_COMPLETION_SUFFIX_PATTERN
 
 logger = logging.getLogger()
 
 TEST_RESULTS_PATH = abspath(f"{dirname(__file__)}{sep}test_results")
-
-test_report_database = FileReportDatabase()
-OneHopTestHarness.set_test_report_database(test_report_database)
+makedirs(TEST_RESULTS_PATH, exist_ok=True)
 
 
 def _report_outcome(
@@ -36,7 +33,7 @@ def _report_outcome(
         expecting_output: bool = True,
         expected_output: Optional[str] = None
 ):
-    wp = WorkerProcess(name=test_name, timeout=timeout)
+    wp = WorkerProcess(timeout=timeout, log_file_path=f"{TEST_RESULTS_PATH}{sep}{test_name}.log")
 
     wp.run_command(command_line)
 
@@ -94,7 +91,7 @@ MOCK_WORKER = abspath(dirname(__file__)+sep+"mock_worker.py")
 
 def test_progress_monitoring():
 
-    wp = WorkerProcess(name="test_progress_monitoring", timeout=1)
+    wp = WorkerProcess(timeout=1, log_file_path=f"{TEST_RESULTS_PATH}{sep}test_progress_monitoring.log")
 
     wp.run_command(f"{PYTHON_PATH} {MOCK_WORKER}")
 
@@ -131,6 +128,6 @@ def test_progress_monitoring():
 
 def test_dev_null_log():
     print("\n", file=stderr)
-    wp = WorkerProcess(name="test_dev_null_log", timeout=1)
+    wp = WorkerProcess(timeout=1)
     wp.run_command(command_line=f"{PYTHON_PATH} {MOCK_WORKER}")
     print("\ntest_dev_null_log() created no log file under 'test_results', ya?", file=stderr)

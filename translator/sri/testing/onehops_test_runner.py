@@ -173,6 +173,10 @@ class OneHopTestHarness:
         # Retrieve the associated test run report object
         self._test_report: TestReport = self._test_report_database.get_test_report(identifier=self._test_run_id)
 
+        # TODO: need a sensible path/db_key for the log file
+        # self._log_file_path = self.get_absolute_file_path(document_key="test.log", create_path=True)
+        self._log_file_path: Optional[str] = None
+
     def get_test_run_id(self) -> Optional[str]:
         return self._test_run_id
 
@@ -228,7 +232,7 @@ class OneHopTestHarness:
 
         logger.debug(f"OneHopTestHarness.run() command line: {self._command_line}")
 
-        self._process = WorkerProcess(name=self._test_run_id, timeout=self._timeout)
+        self._process = WorkerProcess(timeout=self._timeout, log_file_path=self._log_file_path)
 
         self._process.run_command(self._command_line)
 

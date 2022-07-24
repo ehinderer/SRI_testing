@@ -131,19 +131,3 @@ def test_create_test_report_then_save_and_retrieve_a_big_document():
         assert test_id not in frd.get_available_reports()
 
         frd.drop_database()
-
-
-def test_file_report_logging():
-
-    trd = FileReportDatabase(db_name=TEST_DATABASE)
-
-    test_id = datetime.now().strftime("%Y-%b-%d_%Hhr%M")
-    test_report = trd.get_test_report(identifier=test_id)
-
-    test_report.open_report_log()
-    test_report.write_report_log("Hello World!")
-    test_report.close_report_log()
-
-    # report_logs: List[Dict] = trd.get_report_logs()
-    # assert report_logs
-    # assert any(['time_created' in doc for doc in report_logs])

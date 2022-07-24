@@ -139,15 +139,6 @@ class TestReport:
         """
         raise NotImplementedError("Abstract method - implement in child subclass!")
 
-    def open_report_log(self):
-        raise NotImplementedError("Abstract method - implement in child subclass!")
-
-    def write_report_log(self, line: str):
-        raise NotImplementedError("Abstract method - implement in child subclass!")
-
-    def close_report_log(self):
-        raise NotImplementedError("Abstract method - implement in child subclass!")
-
 
 ###############################################################
 # Deferred TestReportDatabase method creation to work around  #
@@ -276,22 +267,6 @@ class FileTestReport(TestReport):
                     yield line.strip()
         except OSError as ose:
             logger.warning(f"{document_type} '{document_key}' is not (yet) accessible: {str(ose)}?")
-
-    def open_report_log(self):
-        log_file_path: str = self.get_absolute_file_path(document_key="test.log", create_path=True)
-        try:
-            self._log_file = open(log_file_path, "w")
-        except FileNotFoundError as fnfe:
-            logger.warning(f"{log_file_path}: {str(fnfe)}")
-
-    def write_report_log(self, line: str):
-        if self._log_file:
-            self._log_file.write(line)
-
-    def close_report_log(self):
-        if self._log_file:
-            self._log_file.close()
-            self._log_file = None
 
 
 class FileReportDatabase(TestReportDatabase):
@@ -453,15 +428,6 @@ class MongoTestReport(TestReport):
                     yield datafile.readline().decode(encoding="utf8")
             except OSError as ose:
                 logger.warning(f"{document_type} '{document_key}' is not (yet) accessible: {str(ose)}?")
-
-    def open_report_log(self):
-        raise NotImplementedError("Abstract method - implement in child subclass!")
-
-    def write_report_log(self, line: str):
-        raise NotImplementedError("Abstract method - implement in child subclass!")
-
-    def close_report_log(self):
-        raise NotImplementedError("Abstract method - implement in child subclass!")
 
 
 class MongoReportDatabase(TestReportDatabase):
