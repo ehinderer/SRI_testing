@@ -71,7 +71,7 @@ def test_generate_test_error_msg_prefix(query):
 
 
 TEST_ARA_CASE_TEMPLATE = {
-    "idx" : 0,
+    "idx": 0,
     "url": "http://test_ara_endpoint",
     "ara_api_name": "test_ARA",
     "ara_source": "infores:test_ara",

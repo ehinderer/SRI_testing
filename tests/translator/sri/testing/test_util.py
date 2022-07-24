@@ -69,18 +69,3 @@ def test_clean_up_unit_test_filename(query):
     assert part[3] == query[4]  # int(edge_num)
     assert part[4] == query[5]  # test_id
     assert part[5] == query[6]  # edge_details_file_path
-
-
-@pytest.mark.parametrize(
-    "query",
-    [
-            "KP/Test_KP_1/Test_KP_1-2",
-            "ARA/Test_ARA/Test_KP_1/Test_KP_1-3"
-    ]
-)
-def test_unit_test_report_filepath(query):
-    test_run: OneHopTestHarness = OneHopTestHarness()
-    test_run_id: str = test_run.get_test_run_id()
-    expected_path: str = f"test_results/{test_run_id}/{query}"
-    assert test_run.unit_test_report_filepath(query) == expected_path
-    shutil.rmtree("test_results", ignore_errors=True)
