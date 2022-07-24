@@ -18,3 +18,4 @@ pytest-asyncio
 pytest-harvest
 bmt>=0.8.4
 kgx
+pmongo

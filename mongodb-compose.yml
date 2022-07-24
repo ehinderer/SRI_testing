@@ -2,15 +2,6 @@ version: '3.9'
 
 services:
 
-  ui:
-    build:
-      context: .
-    ports:
-    - "80:80"
-    # need to tie into code/tests/onehop/results VOLUME
-    volumes:
-    - results:/code/tests/onehop/results
-
   mongo:
     image: mongo
     restart: always
@@ -32,6 +23,3 @@ services:
       ME_CONFIG_MONGODB_ADMINUSERNAME: root
       ME_CONFIG_MONGODB_ADMINPASSWORD: example
       ME_CONFIG_MONGODB_URL: mongodb://root:example@mongo:27017/
-
-volumes:
-  results:

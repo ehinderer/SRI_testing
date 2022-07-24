@@ -29,7 +29,7 @@ from tests.onehop import util as oh_util
 from tests.onehop.util import (
     get_unit_test_codes
 )
-from translator.sri.testing.report import (
+from translator.sri.testing.onehops_test_runner import (
     OneHopTestHarness,
     parse_unit_test_name
 )
@@ -52,9 +52,7 @@ def pytest_sessionfinish(session):
     session_results = get_session_results_dct(session)
 
     test_summary: Dict = dict()
-
     case_details: Dict = dict()
-    case_response: Dict = dict()
 
     for unit_test_key, details in session_results.items():
 
@@ -64,14 +62,13 @@ def pytest_sessionfinish(session):
         rb = {key.strip("\r\n"): value for key, value in rb.items()}
 
         # clean up the name for safe file system usage
-        component, ara_id, kp_id, edge_num, test_id, edge_details_file_path = parse_unit_test_name(
+        component, ara_id, kp_id, edge_num, test_id, edge_details_key = parse_unit_test_name(
             unit_test_key=unit_test_key
         )
 
         ##############################################################
         # Summary file indexed by component, resources and edge cases
         ##############################################################
-
         if component not in test_summary:
             test_summary[component] = dict()
 
@@ -100,24 +97,22 @@ def pytest_sessionfinish(session):
         ##############################
         # Test details indexed by edge
         ##############################
+        if edge_details_key not in case_details:
 
-        if edge_details_file_path not in case_details:
+            # TODO: this is a bit memory intensive... may need a
+            #       better strategy for saving some of the details?
+            case_details[edge_details_key] = dict()
 
-            # TODO: this is a bit memory intensive...
-            #      may need another strategy for capturing details
-            case_details[edge_details_file_path] = dict()
-            case_response[edge_details_file_path] = dict()
+            if 'case' in rb and 'case' not in case_details[edge_details_key]:
+                case_details[edge_details_key] = rb['case']
 
-            if 'case' in rb and 'case' not in case_details[edge_details_file_path]:
-                case_details[edge_details_file_path] = rb['case']
+            if 'results' not in case_details[edge_details_key]:
+                case_details[edge_details_key]['results'] = dict()
 
-            if 'results' not in case_details[edge_details_file_path]:
-                case_details[edge_details_file_path]['results'] = dict()
+        if test_id not in case_details[edge_details_key]['results']:
+            case_details[edge_details_key]['results'][test_id] = dict()
 
-        if test_id not in case_details[edge_details_file_path]['results']:
-            case_details[edge_details_file_path]['results'][test_id] = dict()
-
-        test_details = case_details[edge_details_file_path]['results'][test_id]
+        test_details = case_details[edge_details_key]['results'][test_id]
 
         # Replicating 'PASSED, FAILED, SKIPPED' test status
         # for each unit test, here in the detailed report
@@ -131,25 +126,54 @@ def pytest_sessionfinish(session):
         if details['status'] == 'failed':
 
             if 'request' in rb:
+                # TODO: maybe the 'request' document could be persisted
+                #       separately JIT, to avoid using too much RAM?
                 test_details['request'] = rb['request']
             else:
                 test_details['request'] = "No 'request' generated for this unit test?"
 
             if 'response' in rb:
+                case_response: Dict = dict()
+                case_response['url'] = rb['case']['url'] if 'url' in rb['case'] else "Unknown?!"
+                case_response['unit_test_key'] = unit_test_key
+                case_response['http_status_code'] = rb["response"]["status_code"]
+                case_response['response'] = rb['response']['response_json']
 
-                if test_id not in case_response[edge_details_file_path]:
-                    case_response[edge_details_file_path][test_id] = dict()
-
-                case_response[edge_details_file_path][test_id]['url'] = \
-                    rb['case']['url'] if 'url' in rb['case'] else "Unknown?!"
-                case_response[edge_details_file_path][test_id]['unit_test_key'] = unit_test_key
-                case_response[edge_details_file_path][test_id]['http_status_code'] = rb["response"]["status_code"]
-                case_response[edge_details_file_path][test_id]['response'] = rb['response']['response_json']
+                response_document_key = f"{edge_details_key}-{test_id}"
+                test_run.save_json_document(
+                    document_type="TRAPI I/O",
+                    document=case_response,
+                    document_key=response_document_key,
+                    is_big=True
+                )
 
             else:
                 test_details['response'] = "No 'response' generated for this unit test?"
 
-    test_run.save(test_summary, case_details, case_response)
+        # TODO: in principle, with a database, we could now simply update
+        #       the 'test_details' document here, updated with the
+        #       just encountered test result, rather than cache it in RAM
+        #       then defer writing it out later below, once it is complete?
+
+    # TODO: it would be nice to avoid compiling the case_details dictionary in RAM, for later saving,
+    #       but this currently seems *almost* unavoidable, for the aggregated details file document?
+    #       By "almost", one means that a document already written out could be read back into memory
+    #       then updated, but if one is doing this, why not rather use a (document) database?
+    #
+    # Print out the cached details of each edge test case
+    for edge_details_key in case_details:
+        test_run.save_json_document(
+            document_type="Details",
+            document=case_details[edge_details_key],
+            document_key=edge_details_key
+        )
+
+    # Save Test Run Summary
+    test_run.save_json_document(
+        document_type="Summary",
+        document=test_summary,
+        document_key="test_summary"
+    )
 
 
 def pytest_addoption(parser):

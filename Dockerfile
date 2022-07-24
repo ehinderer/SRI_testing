@@ -1,4 +1,5 @@
 FROM python:3.9
+ENV RUNNING_INSIDE_DOCKER True
 RUN python -m pip install --upgrade pip
 WORKDIR /code
 COPY ./requirements-service.txt /code/requirements.txt

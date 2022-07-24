@@ -11,3 +11,4 @@ pytest>=7.1.1
 pytest-asyncio
 pytest-harvest
 kgx
+pymongo

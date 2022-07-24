@@ -4,9 +4,10 @@ Unit tests for OneHop unit test processing functions
 import pytest
 import shutil
 
-from translator.sri.testing.report import (
+from translator.sri.testing.onehops_test_runner import (
+    OneHopTestHarness,
     parse_unit_test_name,
-    build_edge_details_file_path, OneHopTestHarness
+    build_edge_details_document_key
 )
 
 
@@ -30,7 +31,7 @@ from translator.sri.testing.report import (
     ]
 )
 def test_get_edge_details_file_path(query):
-    edge_details_file_path = build_edge_details_file_path(
+    edge_details_file_path = build_edge_details_document_key(
         component=query[0], ara_id=query[1], kp_id=query[2], edge_num=query[3]
     )
     assert edge_details_file_path == query[4]
@@ -81,5 +82,5 @@ def test_unit_test_report_filepath(query):
     test_run: OneHopTestHarness = OneHopTestHarness()
     test_run_id: str = test_run.get_test_run_id()
     expected_path: str = f"test_results/{test_run_id}/{query}"
-    assert test_run._unit_test_report_filepath(query) == expected_path
+    assert test_run.unit_test_report_filepath(query) == expected_path
     shutil.rmtree("test_results", ignore_errors=True)
