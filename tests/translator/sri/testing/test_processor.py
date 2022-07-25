@@ -118,9 +118,9 @@ def test_progress_monitoring():
             print("get_output() operation timed out?", file=stderr)
             tries += 1
             if tries > 3:
-                assert "Progress monitoring timed out?"
+                assert False, "Progress monitoring timed out?"
 
         if percentage_completion == "100":
             done = True
 
-    print("test_progress_monitoring() test completed", file=stderr)
+    print("test_progress_monitoring() test completed successfully!", file=stderr)
