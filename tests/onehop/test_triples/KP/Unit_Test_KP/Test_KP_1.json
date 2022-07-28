@@ -1,7 +1,7 @@
 {
     "url": "https://automat.renci.org/panther/1.2",
     "source_type": "original",
-    "infores": "panther",
+    "infores": "test-kp-1",
     "exclude_tests": ["RSE"],
     "edges": [
         {

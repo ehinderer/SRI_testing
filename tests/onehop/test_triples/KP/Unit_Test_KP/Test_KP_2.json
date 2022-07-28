@@ -1,7 +1,7 @@
 {
     "url": "https://automat.renci.org/ontological-hierarchy/1.2",
     "source_type": "original",
-    "infores": "ontological-hierarchy",
+    "infores": "test-kp-2",
     "exclude_tests": ["RPBS"],
     "edges": [
         {
