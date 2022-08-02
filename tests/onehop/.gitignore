@@ -1,3 +1,6 @@
 /test_results/
 /test-database/
 /file-report-unit-test-database/
+
+# ignore local Pytest config file
+pytest.ini
