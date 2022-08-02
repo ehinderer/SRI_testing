@@ -1,3 +1,4 @@
 /test_results/
 /test-database/
 /file-report-unit-test-database/
+pytest.ini
