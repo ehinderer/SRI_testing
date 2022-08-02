@@ -204,7 +204,7 @@ def extract_component_test_metadata_from_registry(
         # ... and only interested in resources with a non-empty test_data_location specified
         test_data_location = tag_value(service, "info.x-trapi.test_data_location")
         if not test_data_location:
-            logger.info(f"Service {index}: '{service_title}' lacks a 'test_data_location' to be indexed?")
+            logger.debug(f"Service {index}: '{service_title}' lacks a 'test_data_location' to be indexed?")
             continue
 
         if test_data_location not in service_metadata:
