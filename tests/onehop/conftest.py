@@ -419,8 +419,9 @@ def generate_trapi_kp_tests(metafunc, trapi_version: str, biolink_version: str) 
     edges = []
     idlist = []
 
-    # optional user session identifier for test (maybe be an empty string)
-    test_run_id = metafunc.config.getoption('test_run_id')
+    # TODO: test_run_id is currently unused in this method; it is otherwise an
+    #       optional user session identifier for the test (can be an empty string)
+    # test_run_id = metafunc.config.getoption('test_run_id')
 
     triple_source = metafunc.config.getoption('triple_source')
 

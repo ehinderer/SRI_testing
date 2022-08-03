@@ -173,6 +173,23 @@ def capture_tag_value(service_metadata: Dict, resource: str, tag: str, value: st
         service_metadata[resource][tag] = None
 
 
+def rewrite_github_url(url: str) -> str:
+    """
+    If the URL is a regular Github page specification of a file, then rewrite
+    the URL to point to the corresponding https://raw.githubusercontent.com.
+    Non-Github URLs and raw.githubusercontent.com URLs themselves are simply returned unaltered.
+
+    :param url: input url
+    :return:
+    """
+    if not url:
+        return ""
+    if url.startswith("https://github.com"):
+        url = url.replace("https://github.com", "https://raw.githubusercontent.com")
+        url = url.replace("/blob", "", 1)
+    return url
+
+
 def extract_component_test_metadata_from_registry(
         registry_data: Dict,
         component_type: str
@@ -204,8 +221,12 @@ def extract_component_test_metadata_from_registry(
         # ... and only interested in resources with a non-empty test_data_location specified
         test_data_location = tag_value(service, "info.x-trapi.test_data_location")
         if not test_data_location:
-            logger.info(f"Service {index}: '{service_title}' lacks a 'test_data_location' to be indexed?")
+            logger.debug(f"Service {index}: '{service_title}' lacks a 'test_data_location' to be indexed?")
             continue
+
+        # Sanity check: rewrite 'regular' Github page endpoints to
+        # test_data_location JSON files, into 'raw' file endpoints
+        test_data_location = rewrite_github_url(test_data_location)
 
         if test_data_location not in service_metadata:
             service_metadata[test_data_location] = dict()
