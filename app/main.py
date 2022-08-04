@@ -49,14 +49,6 @@ async def favicon():
     return FileResponse(favicon_path)
 
 
-favicon_path = f"{abspath(dirname(__file__))}/img/favicon.ico"
-
-
-@app.get('/favicon.ico', include_in_schema=False)
-async def favicon():
-    return FileResponse(favicon_path)
-
-
 ###########################################################
 # We don't instantiate the full TRAPI models here but
 # just use an open-ended dictionary which should have
