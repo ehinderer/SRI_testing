@@ -179,13 +179,15 @@ def shared_test_extract_component_test_data_metadata_from_registry(
                             },
                             "x-trapi": {
                                 "version": "1.2.0",
-                                "test_data_location": "http://some-kp-web-test-data-directory"
+                                "test_data_location": "https://github.com/TranslatorSRI/SRI_testing/blob"
+                                                      "/main/tests/onehop/test_triples/KP/Unit_Test_KP/Test_KP_1.json"
                             }
                         }
                     }
                 ]
             },
-            "http://some-kp-web-test-data-directory"  # test_data_location
+            "https://raw.githubusercontent.com/TranslatorSRI/SRI_testing"
+            "/main/tests/onehop/test_triples/KP/Unit_Test_KP/Test_KP_1.json"   # KP test_data_location
         ),
         (   # Query 1 - Empty "hits" List
             {
@@ -299,13 +301,16 @@ def test_extract_kp_test_data_metadata_from_registry(query: Tuple[Dict, str, str
                                 },
                                 "x-trapi": {
                                     "version": "1.2.0",
-                                    "test_data_location": "http://some-ara-web-test-data-directory"
+                                    "test_data_location": "https://github.com/TranslatorSRI/SRI_testing/blob" +
+                                                          "/main/tests/onehop/test_triples/ARA" +
+                                                          "/Unit_Test_ARA/Test_ARA.json"
                                 }
                             }
                         }
                     ]
                 },
-                "http://some-ara-web-test-data-directory"   # test_data_location
+                "https://raw.githubusercontent.com/TranslatorSRI/SRI_testing" +
+                "/main/tests/onehop/test_triples/ARA/Unit_Test_ARA/Test_ARA.json"   # ARA test_data_location
         )
     ]
 )

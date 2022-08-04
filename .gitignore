@@ -59,6 +59,9 @@ coverage.xml
 .hypothesis/
 .pytest_cache/
 
+# local Unit test configuration
+pytest.ini
+
 # Translations
 *.mo
 *.pot

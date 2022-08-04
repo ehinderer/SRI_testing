@@ -1,7 +1,7 @@
 """
 Translator SmartAPI Registry access module.
 """
-from typing import Optional, List, Dict
+from typing import Optional, List, Dict, Tuple
 from datetime import datetime
 
 import requests
@@ -141,7 +141,7 @@ def get_nested_tag_value(data: Dict, path: List[str], pos: int) -> Optional[str]
         return get_nested_tag_value(data[tag], path, pos)
 
 
-def tag_value(json_data, tag_path):
+def tag_value(json_data, tag_path) -> Optional[str]:
     """
 
     :param json_data:
@@ -163,7 +163,6 @@ def capture_tag_value(service_metadata: Dict, resource: str, tag: str, value: st
     :param resource:
     :param tag:
     :param value:
-    :return:
     """
     if value:
         logger.info(f"\t{resource} '{tag}': {value}")
@@ -183,11 +182,53 @@ def rewrite_github_url(url: str) -> str:
     :return:
     """
     if not url:
+        logger.warning("rewrite_github_url(): URL is empty?")
         return ""
     if url.startswith("https://github.com"):
+        logger.info(f"rewrite_github_url(): rewriting '{url}' to raw github link?")
         url = url.replace("https://github.com", "https://raw.githubusercontent.com")
         url = url.replace("/blob", "", 1)
     return url
+
+
+def validate_test_data_location(url: str) -> Optional[str]:
+    """
+    Validates the resource file name and internet access of the specified test_data_location, but not file content.
+
+    :param url: original URL value asserted to be the internet resolvable component's test data file
+    :return: bool, True if accessible JSON file; False otherwise.
+    """
+    if not url:
+        logger.error(f"validate_test_data_location(): empty URL?")
+    elif not url.startswith('http'):
+        logger.error(f"validate_test_data_location(): Resource '{url}' is not an internet URL?")
+    elif not url.endswith('json'):
+        logger.error(f"validate_test_data_location(): JSON Resource '{url}' expected to have a 'json' file extension?")
+    else:
+        # Sanity check: rewrite 'regular' Github page endpoints to
+        # test_data_location JSON files, into 'raw' file endpoints
+        # before attempting access to the resource
+        url = rewrite_github_url(url)
+
+        try:
+            request = requests.get(url)
+            if request.status_code == 200:
+                # Success! return the successfully accessed
+                # (possibly rewritten) test_data_location URL
+                return url
+            else:
+                logger.error(
+                    f"validate_test_data_location(): '{url}' access returned http status code: {request.status_code}?"
+                )
+        except RequestException as re:
+            logger.error(f"validate_test_data_location(): exception {str(re)}?")
+
+    # default is to fail here
+    return None
+
+
+# here, we track Registry duplications of KP and ARA infores identifiers
+_infores_catalog: Dict[str, List[Tuple[Optional[str], Optional[str], Optional[str]]]] = dict()
 
 
 def extract_component_test_metadata_from_registry(
@@ -217,21 +258,25 @@ def extract_component_test_metadata_from_registry(
             continue
 
         service_title = tag_value(service, "info.title")
-
-        # ... and only interested in resources with a non-empty test_data_location specified
-        test_data_location = tag_value(service, "info.x-trapi.test_data_location")
-        if not test_data_location:
-            logger.debug(f"Service {index}: '{service_title}' lacks a 'test_data_location' to be indexed?")
+        if not service_title:
+            logger.warning(f"Service {index} lacks a 'service_title'... Skipped?")
             continue
 
-        # Sanity check: rewrite 'regular' Github page endpoints to
-        # test_data_location JSON files, into 'raw' file endpoints
-        test_data_location = rewrite_github_url(test_data_location)
+        raw_test_data_location: Optional[str] = tag_value(service, "info.x-trapi.test_data_location")
+
+        # ... and only interested in resources with a non-empty, valid, accessible test_data_location specified
+        test_data_location = validate_test_data_location(raw_test_data_location)
+        if not test_data_location:
+            logger.warning(
+                f"Empty, invalid or inaccessible test data resource '{test_data_location}' " +
+                f"for Service {index}: '{service_title}'... Service entry skipped?")
+            continue
 
         if test_data_location not in service_metadata:
             service_metadata[test_data_location] = dict()
         else:
-            # TODO: duplicate test_data_locations are problematic for our unique indexing of the service
+            # TODO: duplicate test_data_locations may be problematic for our unique indexing of the service,
+            #       Should be rather now be indexing the services by (infores, trapi_version, biolink_version)?
             logger.warning(
                 f"Ignoring service {index}: '{service_title}' " +
                 f"with a duplicate test_data_location '{test_data_location}'?"
@@ -239,15 +284,30 @@ def extract_component_test_metadata_from_registry(
             continue
 
         # Grab additional service metadata, then store it all
-
         service_version = tag_value(service, "info.version")
 
         infores = tag_value(service, "info.x-translator.infores")
         # Internally, within SRI Testing, we only track the object_id of the infores CURIE
         infores = infores.replace("infores:", "") if infores else None
 
-        biolink_version = tag_value(service, "info.x-translator.biolink-version")
+        if not infores:
+            logger.warning(f"Registry {component} entry {service_title} has no 'infores' identifier. Skipping?")
+            continue
+
         trapi_version = tag_value(service, "info.x-trapi.version")
+        biolink_version = tag_value(service, "info.x-translator.biolink-version")
+
+        entry_id: Tuple = (service_title, trapi_version, biolink_version)
+
+        if infores not in _infores_catalog:
+            _infores_catalog[infores] = list()
+        else:
+            logger.warning(
+                f"Infores '{infores}' appears duplicated among {component} Registry entries. " +
+                f"New entry reports TRAPI version {str(trapi_version)} and Biolink Version {str(biolink_version)}."
+            )
+
+        _infores_catalog[infores].append(entry_id)
 
         capture_tag_value(service_metadata, test_data_location, "service_title", service_title)
         capture_tag_value(service_metadata, test_data_location, "service_version", service_version)
