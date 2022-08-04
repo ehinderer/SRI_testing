@@ -12,7 +12,7 @@ httpx
 aiofiles
 pyyaml
 biothings-explorer>=1.1.0
-reasoner-validator>=2.2.6
+reasoner-validator>=2.2.7
 pytest>=7.1.1
 pytest-asyncio
 pytest-harvest
