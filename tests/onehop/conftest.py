@@ -37,6 +37,11 @@ from translator.sri.testing.onehops_test_runner import (
 logger = logging.getLogger(__name__)
 
 
+# TODO: temporary circuit breaker for (currently 4-August-2022)
+#  undisciplined edge test data sets (like from RTX-KG2c)
+UNREASONABLE_NUMBER_OF_TEST_EDGES: int = 100
+
+
 def pytest_sessionfinish(session):
     """ Gather all results and save them to a csv.
     Works both on worker and master nodes, and also with xdist disabled
@@ -532,6 +537,10 @@ def generate_trapi_kp_tests(metafunc, trapi_version: str, biolink_version: str) 
             idlist.append(edge_id)
 
             if metafunc.config.getoption('one', default=False):
+                break
+
+            # Circuit breaker for overly large edge test data sets
+            if edge_i > UNREASONABLE_NUMBER_OF_TEST_EDGES:
                 break
 
         print(f"### End of Test Input Edges for KP '{kpjson['api_name']}' ###")
