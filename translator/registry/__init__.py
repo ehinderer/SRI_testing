@@ -1,7 +1,7 @@
 """
 Translator SmartAPI Registry access module.
 """
-from typing import Optional, List, Dict, Tuple
+from typing import Optional, List, Dict, NamedTuple
 from datetime import datetime
 
 import requests
@@ -227,8 +227,15 @@ def validate_test_data_location(url: str) -> Optional[str]:
     return None
 
 
+class RegistryEntryId(NamedTuple):
+    service_title: str
+    service_version: str
+    trapi_version: str
+    biolink_version: str
+
+
 # here, we track Registry duplications of KP and ARA infores identifiers
-_infores_catalog: Dict[str, List[Tuple[Optional[str], Optional[str], Optional[str]]]] = dict()
+_infores_catalog: Dict[str, List[RegistryEntryId]] = dict()
 
 
 def extract_component_test_metadata_from_registry(
@@ -297,14 +304,15 @@ def extract_component_test_metadata_from_registry(
         trapi_version = tag_value(service, "info.x-trapi.version")
         biolink_version = tag_value(service, "info.x-translator.biolink-version")
 
-        entry_id: Tuple = (service_title, trapi_version, biolink_version)
+        entry_id: RegistryEntryId = RegistryEntryId(service_title, service_version, trapi_version, biolink_version)
 
         if infores not in _infores_catalog:
             _infores_catalog[infores] = list()
         else:
             logger.warning(
                 f"Infores '{infores}' appears duplicated among {component} Registry entries. " +
-                f"New entry reports TRAPI version {str(trapi_version)} and Biolink Version {str(biolink_version)}."
+                f"The new entry reports a service version '{str(service_version)}', " +
+                f"TRAPI version '{str(trapi_version)}' and Biolink Version '{str(biolink_version)}'."
             )
 
         _infores_catalog[infores].append(entry_id)
