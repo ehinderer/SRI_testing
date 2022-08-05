@@ -10,6 +10,7 @@ import json
 
 import logging
 
+from deprecation import deprecated
 from pytest_harvest import get_session_results_dct
 
 from reasoner_validator.biolink import check_biolink_model_compliance_of_input_edge
@@ -39,7 +40,7 @@ logger = logging.getLogger(__name__)
 
 # TODO: temporary circuit breaker for (currently 4-August-2022)
 #  undisciplined edge test data sets (like from RTX-KG2c)
-UNREASONABLE_NUMBER_OF_TEST_EDGES: int = 100
+UNREASONABLE_NUMBER_OF_TEST_EDGES: int = 10
 
 
 def pytest_sessionfinish(session):
@@ -365,6 +366,7 @@ def load_test_data_source(
 component_catalog: Dict[str, Dict[str, Any]] = dict()
 
 
+@deprecated
 def cache_resource_metadata(metadata: Dict[str, Any]):
     component = metadata['component']
     assert component in ["KP", "ARA"]
@@ -372,6 +374,7 @@ def cache_resource_metadata(metadata: Dict[str, Any]):
     component_catalog[resource_id] = metadata
 
 
+@deprecated
 def get_metadata_by_resource(resource_id: str) -> Optional[Dict[str, Any]]:
     if resource_id in component_catalog:
         metadata: Dict = component_catalog[resource_id]
@@ -380,6 +383,7 @@ def get_metadata_by_resource(resource_id: str) -> Optional[Dict[str, Any]]:
         return None
 
 
+@deprecated
 def get_component_by_resource(resource_id: str) -> Optional[str]:
     metadata: Dict = get_metadata_by_resource(resource_id)
     if metadata and "component" in metadata:
@@ -391,6 +395,7 @@ def get_component_by_resource(resource_id: str) -> Optional[str]:
 kp_edges_catalog: Dict[str, Dict[str,  Union[int, str]]] = dict()
 
 
+@deprecated
 def add_kp_edge(resource_id: str, edge_idx: int, edge: Dict[str, Any]):
     metadata: Dict = get_metadata_by_resource(resource_id)
     assert metadata
@@ -401,6 +406,7 @@ def add_kp_edge(resource_id: str, edge_idx: int, edge: Dict[str, Any]):
     metadata['edges'][edge_idx] = edge
 
 
+@deprecated
 def get_kp_edge(resource_id: str, edge_idx: int) -> Optional[Dict[str, Any]]:
     metadata: Dict = get_metadata_by_resource(resource_id)
     if metadata:
@@ -421,8 +427,8 @@ def generate_trapi_kp_tests(metafunc, trapi_version: str, biolink_version: str) 
     :param trapi_version, str, TRAPI release set to be used in the validation
     :param biolink_version, str, Biolink Model release set to be used in the validation
     """
-    edges = []
-    idlist = []
+    edges: List = []
+    idlist: List = []
 
     # TODO: test_run_id is currently unused in this method; it is otherwise an
     #       optional user session identifier for the test (can be an empty string)
@@ -444,7 +450,8 @@ def generate_trapi_kp_tests(metafunc, trapi_version: str, biolink_version: str) 
             )
             continue
 
-        cache_resource_metadata(kpjson)
+        # No point in caching for latest implementation of reporting
+        # cache_resource_metadata(kpjson)
 
         dataset_level_test_exclusions: Set = set()
         if "exclude_tests" in kpjson:
@@ -495,8 +502,13 @@ def generate_trapi_kp_tests(metafunc, trapi_version: str, biolink_version: str) 
                     f"generate_trapi_kp_tests(): input file '{source}' "
                     "is missing its 'infores' field value? Inferred from its API name?"
                 )
+                # create a pseudo-infores from a lower cased and hyphenated API name
                 kp_api_name: str = edge['kp_api_name']
-                edge['kp_source'] = f"infores:{kp_api_name.lower()}"
+                if not kp_api_name:
+                    logger.warning("generate_trapi_kp_tests(): KP API Name is missing? Skipping entry...")
+                    continue
+                kp_infores_object_id = kp_api_name.lower().replace("_", "-")
+                edge['kp_source'] = f"infores:{kp_infores_object_id}"
 
             if 'source_type' in kpjson:
                 edge['kp_source_type'] = kpjson['source_type']
@@ -583,7 +595,8 @@ def generate_trapi_ara_tests(metafunc, kp_edges, trapi_version, biolink_version)
     """
     kp_dict = defaultdict(list)
     for e in kp_edges:
-        kp_dict[e['kp_api_name']].append(e)
+        # We connect ARA's to their KPs by infores (== kp_source) now...
+        kp_dict[e['kp_source']].append(e)
 
     ara_edges = []
     idlist = []
@@ -604,13 +617,24 @@ def generate_trapi_ara_tests(metafunc, kp_edges, trapi_version, biolink_version)
             )
             continue
 
-        cache_resource_metadata(arajson)
+        # No point in caching for latest implementation of reporting
+        # cache_resource_metadata(arajson)
 
         for kp in arajson['KPs']:
 
-            # By replacing spaces in name with underscores,
-            # should give get the KP "api_name" indexing the edges.
-            kp = '_'.join(kp.split())
+            #
+            # TODO: use of KP infores ('kp_source') CURIES in the Registry ARA spec
+            #       likely now completely breaks the old filename-centric
+            #       (non-Registry) local test_triples mechanism for KP resolution
+            # # By replacing spaces in name with underscores,
+            # # should give get the KP "api_name" indexing the edges.
+            # kp = '_'.join(kp.split())
+
+            if kp not in kp_dict:
+                logger.warning(
+                    f"generate_trapi_ara_tests(): '{kp}' test edges not (yet) available for ARA {source}. Skipping..."
+                )
+                continue
 
             for edge_i, kp_edge in enumerate(kp_dict[kp]):
 
