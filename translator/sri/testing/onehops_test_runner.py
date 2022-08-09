@@ -149,7 +149,7 @@ class OneHopTestHarness:
 
     @staticmethod
     def _generate_test_run_id() -> str:
-        return datetime.now().strftime("%Y-%b-%d_%Hhr%M")
+        return datetime.now().strftime("%F_%H-%M-%S")
 
     def __init__(self, test_run_id: Optional[str] = None):
         """
