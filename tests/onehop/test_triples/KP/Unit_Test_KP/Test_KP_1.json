@@ -7,6 +7,13 @@
         {
             "subject_category": "biolink:GeneFamily",
             "object_category": "biolink:GeneFamily",
+            "predicate": "biolink:has_part",
+            "subject": "PANTHER.FAMILY:PTHR34921",
+            "object": "PANTHER.FAMILY:PTHR34921:SF1"
+        },
+        {
+            "subject_category": "biolink:GeneFamily",
+            "object_category": "biolink:GeneFamily",
             "predicate": "biolink:part_of",
             "subject": "PANTHER.FAMILY:PTHR34921:SF1",
             "object": "PANTHER.FAMILY:PTHR34921"
