@@ -1,6 +1,6 @@
 from copy import deepcopy
 from functools import wraps
-from typing import Set, Dict
+from typing import Set, Dict, List
 
 from reasoner_validator.biolink import get_biolink_model_toolkit
 from translator.sri.testing.util import ontology_kp
@@ -50,7 +50,8 @@ def create_one_hop_message(edge, look_up_subject=False):
 # results.  For example, when we look up a triple by subject, we should expect that the object entity
 # is bound to query node b.
 #
-# Existing Unit Tests:
+#####################################################################################################
+# Available Unit Tests:
 #
 # - by_subject
 # - inverse_by_new_subject
@@ -71,6 +72,11 @@ def get_unit_test_codes() -> Set[str]:
 def get_unit_test_name(code: str) -> str:
     global _unit_tests
     return _unit_tests[code]
+
+
+def get_unit_test_list() -> List[str]:
+    global _unit_tests
+    return list(_unit_tests.values())
 
 
 def in_excluded_tests(test, test_case) -> bool:
