@@ -354,7 +354,7 @@ class FileReportDatabase(TestReportDatabase):
         test_results_directory = self.get_test_results_path()
         test_run_list: List[str] = [
             identifier for identifier in listdir(test_results_directory)
-            if identifier != TestReportDatabase.LOG_NAME
+            if identifier != TestReportDatabase.LOG_NAME and not identifier.startswith("test_")
         ]
         return test_run_list
 
@@ -552,7 +552,7 @@ class MongoReportDatabase(TestReportDatabase):
         """
         :return: list of identifiers of available reports.
         """
-        non_system_collection_filter: Dict = {"name": {"$regex": rf"^(?!system\.|{self.LOG_NAME}|fs\..*)"}}
+        non_system_collection_filter: Dict = {"name": {"$regex": rf"^(?!system\.|{self.LOG_NAME}|fs\..*|test_.*)"}}
         return self._mongo_db.list_collection_names(filter=non_system_collection_filter)
 
     def get_report_logs(self) -> List[Dict]:

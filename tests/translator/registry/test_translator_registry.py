@@ -6,6 +6,7 @@ import logging
 import pytest
 
 from translator.registry import (
+    rewrite_github_url,
     query_smart_api,
     SMARTAPI_QUERY_PARAMETERS,
     tag_value,
@@ -14,6 +15,30 @@ from translator.registry import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+@pytest.mark.parametrize(
+    "query",
+    [
+        (None, ''),  # Empty URL - just ignored
+        ('', ''),    # Empty URL - just ignored
+        (  # Github page URL
+                'https://github.com/my_org/my_repo/blob/master/test/data/Test_data.json',
+                'https://raw.githubusercontent.com/my_org/my_repo/master/test/data/Test_data.json'
+        ),
+        (  # Git raw URL
+                'https://raw.githubusercontent.com/my_org/my_repo/master/test/data/Test_data.json',
+                'https://raw.githubusercontent.com/my_org/my_repo/master/test/data/Test_data.json'
+        ),
+        (  # Non-Github URL
+                'https://my_domain/Test_data.json',
+                'https://my_domain/Test_data.json'
+        )
+    ]
+)
+def test_github_url_rewrite(query):
+    rewritten_url = rewrite_github_url(query[0])
+    assert rewritten_url == query[1]
 
 
 def test_default_empty_query():
@@ -154,13 +179,15 @@ def shared_test_extract_component_test_data_metadata_from_registry(
                             },
                             "x-trapi": {
                                 "version": "1.2.0",
-                                "test_data_location": "http://some-kp-web-test-data-directory"
+                                "test_data_location": "https://github.com/TranslatorSRI/SRI_testing/blob"
+                                                      "/main/tests/onehop/test_triples/KP/Unit_Test_KP/Test_KP_1.json"
                             }
                         }
                     }
                 ]
             },
-            "http://some-kp-web-test-data-directory"  # test_data_location
+            "https://raw.githubusercontent.com/TranslatorSRI/SRI_testing"
+            "/main/tests/onehop/test_triples/KP/Unit_Test_KP/Test_KP_1.json"   # KP test_data_location
         ),
         (   # Query 1 - Empty "hits" List
             {
@@ -274,13 +301,16 @@ def test_extract_kp_test_data_metadata_from_registry(query: Tuple[Dict, str, str
                                 },
                                 "x-trapi": {
                                     "version": "1.2.0",
-                                    "test_data_location": "http://some-ara-web-test-data-directory"
+                                    "test_data_location": "https://github.com/TranslatorSRI/SRI_testing/blob" +
+                                                          "/main/tests/onehop/test_triples/ARA" +
+                                                          "/Unit_Test_ARA/Test_ARA.json"
                                 }
                             }
                         }
                     ]
                 },
-                "http://some-ara-web-test-data-directory"   # test_data_location
+                "https://raw.githubusercontent.com/TranslatorSRI/SRI_testing" +
+                "/main/tests/onehop/test_triples/ARA/Unit_Test_ARA/Test_ARA.json"   # ARA test_data_location
         )
     ]
 )

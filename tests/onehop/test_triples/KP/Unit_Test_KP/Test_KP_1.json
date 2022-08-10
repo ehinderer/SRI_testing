@@ -1,9 +1,16 @@
 {
-    "url": "https://automat.renci.org/panther/1.2",
+    "url": "https://automat.transltr.io/panther/1.2",
     "source_type": "original",
-    "infores": "panther",
+    "infores": "test-kp-1",
     "exclude_tests": ["RSE"],
     "edges": [
+        {
+            "subject_category": "biolink:GeneFamily",
+            "object_category": "biolink:GeneFamily",
+            "predicate": "biolink:has_part",
+            "subject": "PANTHER.FAMILY:PTHR34921",
+            "object": "PANTHER.FAMILY:PTHR34921:SF1"
+        },
         {
             "subject_category": "biolink:GeneFamily",
             "object_category": "biolink:GeneFamily",

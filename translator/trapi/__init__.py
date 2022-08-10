@@ -45,6 +45,10 @@ def get_trapi_version() -> Optional[str]:
     return _current_trapi_version
 
 
+def get_latest_trapi_version() -> str:
+    return latest.get(DEFAULT_TRAPI_VERSION)
+
+
 def is_valid_trapi(instance, trapi_version):
     """Make sure that the Message is valid using reasoner_validator"""
     try:
