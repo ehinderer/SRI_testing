@@ -1,5 +1,5 @@
 {
-    "url": "https://automat.renci.org/panther/1.2",
+    "url": "https://automat.transltr.io/panther/1.2",
     "source_type": "original",
     "infores": "test-kp-1",
     "exclude_tests": ["RSE"],
