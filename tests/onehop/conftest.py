@@ -74,14 +74,18 @@ def _new_unit_test_statistics() -> Dict[str, int]:
     return new_stats
 
 
-def _tally_unit_test_result(test_case_summary: Dict, test_id: str, test_result: str):
+def _tally_unit_test_result(test_case_summary: Dict, test_id: str, edge_num: int, test_result: str):
 
-    # Sanity check...
-    assert 'results' in test_case_summary
+    # Sanity checks...
+    assert 'results' in test_case_summary, "Missing results in summary?"
+
     assert test_id in get_unit_test_list(), \
         f"Invalid test_result '{str(test_result)}'"
     assert test_result in ['passed', 'failed', 'skipped', 'warning', 'info'], \
         f"Invalid test_result '{str(test_result)}'"
+
+    while edge_num + 1 > test_case_summary['no_of_edges']:
+        test_case_summary['no_of_edges'] += 1
 
     results = test_case_summary['results']
     if test_id not in results:
@@ -171,7 +175,7 @@ def pytest_sessionfinish(session):
         #     case_summary[edge_num][test_id] = details['status']
 
         # TODO: ... rather, we will simply tally the results of the various test_id's
-        _tally_unit_test_result(case_summary, test_id, details['status'])
+        _tally_unit_test_result(case_summary, test_id, edge_num, details['status'])
 
         ############################################################
         # However, full test details will still be indexed by edge #

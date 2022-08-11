@@ -42,7 +42,7 @@ MOCK_TRANSLATOR_SMARTAPI_REGISTRY_METADATA = {
                     "component": "KP",
                     "infores": "test-kp-2",
                     "team": "Ranking Agent",
-                    "biolink-version": "2.2.16"
+                    "biolink-version": "2.4.8"
                 },
                 "x-trapi": {
                     "version": "1.2.0",

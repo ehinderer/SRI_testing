@@ -14,50 +14,50 @@
         {
             "subject_category": "biolink:GeneFamily",
             "object_category": "biolink:GeneFamily",
-            "predicate": "biolink:part_of",
+            "predicate": "biolink:biolink:part_of",
             "subject": "PANTHER.FAMILY:PTHR34921:SF1",
             "object": "PANTHER.FAMILY:PTHR34921"
         },
         {
             "subject_category": "biolink:CellularComponent",
             "object_category": "biolink:Cell",
-            "predicate": "biolink:part_of",
+            "predicate": "biolink:has_part",
             "subject": "GO:0005789",
-            "object": "CL:0000684 "
+            "object": "CL:0000684"
         },
         {
             "subject_category": "biolink:NotABiolinkCategory",
             "object_category": "biolink:GeneFamily",
-            "predicate": "biolink:part_of",
-            "subject": "PANTHER.FAMILY:PTHR34921:SF1",
-            "object": "PANTHER.FAMILY:PTHR34921"
+            "predicate": "biolink:has_part",
+            "subject": "PANTHER.FAMILY:PTHR34921",
+            "object": "PANTHER.FAMILY:PTHR34921:SF1"
         },
         {
             "subject_category": "biolink:GeneFamily",
             "object_category": "biolink:NotABiolinkCategory",
-            "predicate": "biolink:part_of",
-            "subject": "PANTHER.FAMILY:PTHR34921:SF1",
-            "object": "PANTHER.FAMILY:PTHR34921"
+            "predicate": "biolink:has_part",
+            "subject": "PANTHER.FAMILY:PTHR34921",
+            "object": "PANTHER.FAMILY:PTHR34921:SF1"
         },
         {
             "subject_category": "biolink:GeneFamily",
             "object_category": "biolink:GeneFamily",
             "predicate": "biolink:invalid_predicate",
-            "subject": "PANTHER.FAMILY:PTHR34921:SF1",
-            "object": "PANTHER.FAMILY:PTHR34921"
+            "subject": "PANTHER.FAMILY:PTHR34921",
+            "object": "PANTHER.FAMILY:PTHR34921:SF1"
         },
         {
             "subject_category": "biolink:GeneFamily",
             "object_category": "biolink:GeneFamily",
-            "predicate": "biolink:part_of",
+            "predicate": "biolink:has_part",
             "subject": "FOO:1234",
             "object": "PANTHER.FAMILY:PTHR34921"
         },
         {
             "subject_category": "biolink:GeneFamily",
             "object_category": "biolink:GeneFamily",
-            "predicate": "biolink:part_of",
-            "subject": "PANTHER.FAMILY:PTHR34921:SF1",
+            "predicate": "biolink:has_part",
+            "subject": "PANTHER.FAMILY:PTHR34921",
             "object": "BAR:6789"
         }
     ]
