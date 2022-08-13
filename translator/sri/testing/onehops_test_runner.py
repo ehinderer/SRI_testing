@@ -283,6 +283,9 @@ class OneHopTestHarness:
 
         :return: int, 0..100 indicating the percentage completion of the test run. -1 if unknown test run ID
         """
+        #
+        # TODO: get_completed_test_runs() doesn't correctly ignore an ongoing test run anymore... need to fix this!
+        #
         test_run_list: List[str] = self.get_completed_test_runs()
         if self._test_run_id in test_run_list:
             # existing archived run assumed complete

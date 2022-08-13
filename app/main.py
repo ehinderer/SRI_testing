@@ -133,7 +133,7 @@ def _is_valid_version(version_string: str):
     response_model=TestRunSession,
     summary="Initiate an SRI Testing Run"
 )
-async def run_tests(test_parameters: TestRunParameters) -> TestRunSession:
+async def run_tests(test_parameters: Optional[TestRunParameters] = None) -> TestRunSession:
     """
     Initiate an SRI Testing Run with TestRunParameters:
 
@@ -145,41 +145,48 @@ async def run_tests(test_parameters: TestRunParameters) -> TestRunSession:
     :param test_parameters:
     :return: TestRunSession (just 'test_run_id' for now)
     """
-    errors: List[str] = list()
 
     trapi_version: Optional[str] = None
-    if test_parameters.trapi_version:
-        trapi_version = test_parameters.trapi_version
-        if not _is_valid_version(trapi_version):
-            errors.append(f"'trapi_version' parameter '{trapi_version}' is not a valid SemVer string!")
-        else:
-            trapi_version = latest.get(test_parameters.trapi_version)
-
     biolink_version: Optional[str] = None
-    if test_parameters.biolink_version:
-        biolink_version = test_parameters.biolink_version
-        if not _is_valid_version(biolink_version):
-            errors.append(f"'biolink_version' parameter '{biolink_version}' is not a valid SemVer string!")
-
     log: Optional[str] = None
-    if test_parameters.log:
-        log = test_parameters.log
-        try:
-            logging.getLogger().setLevel(log)
-        except (ValueError, TypeError):
-            errors.append(f"'log' parameter '{log}' is not a valid Logging level!")
+    timeout: int = DEFAULT_WORKER_TIMEOUT
+
+    errors: List[str] = list()
+    if test_parameters:
+
+        if test_parameters.trapi_version:
+            trapi_version = test_parameters.trapi_version
+            if not _is_valid_version(trapi_version):
+                errors.append(f"'trapi_version' parameter '{trapi_version}' is not a valid SemVer string!")
+            else:
+                trapi_version = latest.get(test_parameters.trapi_version)
+
+        if test_parameters.biolink_version:
+            biolink_version = test_parameters.biolink_version
+            if not _is_valid_version(biolink_version):
+                errors.append(f"'biolink_version' parameter '{biolink_version}' is not a valid SemVer string!")
+
+        if test_parameters.log:
+            log = test_parameters.log
+            try:
+                logging.getLogger().setLevel(log)
+            except (ValueError, TypeError):
+                errors.append(f"'log' parameter '{log}' is not a valid Logging level!")
+
+        timeout = test_parameters.timeout if test_parameters.timeout else DEFAULT_WORKER_TIMEOUT
 
     if errors:
         return TestRunSession(test_run_id="Invalid Parameters - test run not started...", errors=errors)
 
-    # Constructor initializes a fresh test run identifier with empty test run
+    # Constructor initializes a fresh
+    # test run with a new identifier
     test_harness = OneHopTestHarness()
 
     test_harness.run(
         trapi_version=trapi_version,
         biolink_version=biolink_version,
         log=log,
-        timeout=test_parameters.timeout if test_parameters.timeout else DEFAULT_WORKER_TIMEOUT
+        timeout=timeout
     )
 
     return TestRunSession(test_run_id=test_harness.get_test_run_id())

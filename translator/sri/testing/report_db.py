@@ -96,6 +96,13 @@ class TestReport:
     def get_root_path(self) -> Optional[str]:
         return self._report_root_path
 
+    def exists_document(self, key: str) -> bool:
+        """
+        :param key: str, document key identifier ('path')
+        :return: True if exists
+        """
+        raise NotImplementedError("Abstract method - implement in child subclass!")
+
     def delete(self):
         """
         Delete internal representation of the report.
@@ -184,6 +191,16 @@ class FileTestReport(TestReport):
         makedirs(self.get_database().get_test_results_path(), exist_ok=True)
 
         self._log_file: Optional[IO] = None
+
+    def exists_document(self, key: str) -> bool:
+        """
+        :param key: str, document key identifier ('path')
+        :return: True if exists
+        """
+        # sanity check: Posix key to equivalent OS directory path
+        key = key.replace('/', sep)
+        document_path = f"{self.get_root_path()}{sep}{key}"
+        return exists(document_path)
 
     def delete(self):
         try:
@@ -354,7 +371,7 @@ class FileReportDatabase(TestReportDatabase):
         test_results_directory = self.get_test_results_path()
         test_run_list: List[str] = [
             identifier for identifier in listdir(test_results_directory)
-            if identifier != TestReportDatabase.LOG_NAME and not identifier.startswith("test_")
+            if self.get_test_report(identifier).exists_document("test_summary.json")
         ]
         return test_run_list
 
@@ -391,6 +408,9 @@ class MongoTestReport(TestReport):
         # MongoDb based reporting needs to create a
         # 'identifier' tagged collection for test results
         self._collection: Optional[Collection] = self._db[identifier]
+
+    def exists_document(self, key: str) -> bool:
+        raise NotImplementedError("Implement me!")
 
     def delete(self):
         self._collection = None
@@ -460,13 +480,13 @@ class MongoTestReport(TestReport):
                 logger.warning(f"{document_type} '{document_key}' is not (yet) accessible: {str(ose)}?")
 
     def open_logger(self):
-        raise NotImplementedError("Abstract method - implement in child subclass!")
+        raise NotImplementedError("Implement me!")
 
     def write_logger(self, line: str):
-        raise NotImplementedError("Abstract method - implement in child subclass!")
+        raise NotImplementedError("Implement me!")
 
     def close_logger(self):
-        raise NotImplementedError("Abstract method - implement in child subclass!")
+        raise NotImplementedError("Implement me!")
 
 
 class MongoReportDatabase(TestReportDatabase):
