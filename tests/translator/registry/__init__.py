@@ -10,7 +10,7 @@ Registry package
 #
 # Setting the following flag to 'True' triggers use of the
 # local 'mock' Registry data entries immediately below
-MOCK_REGISTRY: bool = True
+MOCK_REGISTRY: bool = False
 
 # This 'mock' registry entry relies a bit on ARAGORN (Ranking Agent)
 # and the RENCI Automat KP's, which may sometimes be offline?
@@ -40,9 +40,9 @@ MOCK_TRANSLATOR_SMARTAPI_REGISTRY_METADATA = {
                 "version": "0.0.1",
                 "x-translator": {
                     "component": "KP",
-                    "infores": "test-kp-2",
+                    "infores": "infores:test-kp-2",
                     "team": "Ranking Agent",
-                    "biolink-version": "2.2.16"
+                    "biolink-version": "2.4.8"
                 },
                 "x-trapi": {
                     "version": "1.2.0",

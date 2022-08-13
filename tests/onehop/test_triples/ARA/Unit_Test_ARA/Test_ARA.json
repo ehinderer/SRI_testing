@@ -1,8 +1,8 @@
 {
-    "url": "https://aragorn.renci.org/1.2",
+    "url": "https://aragorn.transltr.io/1.2",
     "infores": "aragorn",
     "KPs": [
-        "test-kp-1",
-        "test-kp-2"
+        "infores:test-kp-1",
+        "infores:test-kp-2"
     ]
 }
