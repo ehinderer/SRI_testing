@@ -40,7 +40,7 @@ MOCK_TRANSLATOR_SMARTAPI_REGISTRY_METADATA = {
                 "version": "0.0.1",
                 "x-translator": {
                     "component": "KP",
-                    "infores": "test-kp-2",
+                    "infores": "infores:test-kp-2",
                     "team": "Ranking Agent",
                     "biolink-version": "2.4.8"
                 },
