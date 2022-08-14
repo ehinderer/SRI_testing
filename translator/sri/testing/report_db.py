@@ -96,9 +96,9 @@ class TestReport:
     def get_root_path(self) -> Optional[str]:
         return self._report_root_path
 
-    def exists_document(self, key: str) -> bool:
+    def exists_document(self, document_key: str) -> bool:
         """
-        :param key: str, document key identifier ('path')
+        :param document_key: str, document key identifier ('path')
         :return: True if exists
         """
         raise NotImplementedError("Abstract method - implement in child subclass!")
@@ -192,14 +192,14 @@ class FileTestReport(TestReport):
 
         self._log_file: Optional[IO] = None
 
-    def exists_document(self, key: str) -> bool:
+    def exists_document(self, document_key: str) -> bool:
         """
-        :param key: str, document key identifier ('path')
+        :param document_key: str, document key identifier ('path')
         :return: True if exists
         """
         # sanity check: Posix key to equivalent OS directory path
-        key = key.replace('/', sep)
-        document_path = f"{self.get_root_path()}{sep}{key}"
+        document_key = document_key.replace('/', sep)
+        document_path = f"{self.get_root_path()}{sep}{document_key}"
         return exists(document_path)
 
     def delete(self):
@@ -409,8 +409,8 @@ class MongoTestReport(TestReport):
         # 'identifier' tagged collection for test results
         self._collection: Optional[Collection] = self._db[identifier]
 
-    def exists_document(self, key: str) -> bool:
-        raise NotImplementedError("Implement me!")
+    def exists_document(self, document_key: str) -> bool:
+        return self._collection.find_one(filter={'document_key': document_key}) is not None
 
     def delete(self):
         self._collection = None

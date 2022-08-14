@@ -89,13 +89,13 @@ def sample_mongodb_document_creation_and_insertion(
 ) -> TestReport:
 
     test_report: TestReport = mrd.get_test_report(identifier=identifier)
-    assert test_report.get_identifier() == identifier
+    assert test_report.get_identifier() == identifier, f"TestReport identifier should be {identifier}!"
 
     test_results_dir = get_test_results_dir(mrd.get_db_name())
-    assert test_report.get_root_path() == f"{test_results_dir}{sep}{identifier}"
+    assert test_report.get_root_path() == f"{test_results_dir}{sep}{identifier}", "TestReport root path invalid!"
 
     # A test report is not yet available until something is saved
-    assert identifier not in mrd.get_available_reports()
+    assert identifier not in mrd.get_available_reports(), f"Report '{identifier}' should not be in available reports!"
 
     test_report.save_json_document(
         document_type="test document",
@@ -103,7 +103,9 @@ def sample_mongodb_document_creation_and_insertion(
         document_key=SAMPLE_DOCUMENT_KEY,
         is_big=is_big
     )
-    assert identifier in mrd.get_available_reports()
+    assert identifier in mrd.get_available_reports(), f"Report '{identifier}' should be in available reports!"
+
+    assert test_report.exists_document(SAMPLE_DOCUMENT_KEY), f"Document {SAMPLE_DOCUMENT_KEY} should exist!"
 
     return test_report
 
