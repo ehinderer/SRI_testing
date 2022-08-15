@@ -480,13 +480,16 @@ class MongoTestReport(TestReport):
                 logger.warning(f"{document_type} '{document_key}' is not (yet) accessible: {str(ose)}?")
 
     def open_logger(self):
-        raise NotImplementedError("Implement me!")
+        # raise NotImplementedError("Implement me!")
+        pass
 
     def write_logger(self, line: str):
-        raise NotImplementedError("Implement me!")
+        # raise NotImplementedError("Implement me!")
+        pass
 
     def close_logger(self):
-        raise NotImplementedError("Implement me!")
+        # raise NotImplementedError("Implement me!")
+        pass
 
 
 class MongoReportDatabase(TestReportDatabase):
