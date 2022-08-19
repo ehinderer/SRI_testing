@@ -110,8 +110,6 @@ def pytest_sessionfinish(session):
 
     test_summary: Dict = dict()
 
-    test_summary['timestamp'] = test_run.get_test_run_id()
-
     case_details: Dict = dict()
 
     for unit_test_key, details in session_results.items():
