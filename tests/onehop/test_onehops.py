@@ -73,7 +73,7 @@ def test_trapi_kps(kp_trapi_case, trapi_creator, results_bag):
     This approach will need modification if there turn out to be particular elements we want to test for different
     creators.
     """
-    results_bag.location = kp_trapi_case['location']
+    results_bag.location = kp_trapi_case['kp_test_data_location']
     results_bag.case = kp_trapi_case
     results_bag.errors = list()
     test_report = TestReport(results_bag.errors)
@@ -99,7 +99,7 @@ def test_trapi_aras(ara_trapi_case, trapi_creator, results_bag):
     data from the KP.
     Then it performs a check on the result to make sure that the provenance is correct.
     """
-    results_bag.location = ara_trapi_case['location']
+    results_bag.location = ara_trapi_case['ara_test_data_location']
     results_bag.case = ara_trapi_case
     results_bag.errors = list()
     test_report = TestReport(results_bag.errors)

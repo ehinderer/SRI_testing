@@ -98,11 +98,14 @@ def generate_test_error_msg_prefix(case: Dict, test_name: str) -> str:
     test_msg_prefix: str = "test_onehops.py::test_trapi_"
     resource_id: str = ""
     component: str = "kp"
-    if 'ara_api_name' in case and case['ara_api_name']:
+    if 'ara_source' in case and case['ara_source']:
         component = "ara"
-        resource_id += case['ara_api_name'] + "|"
+        ara_id = case['ara_source'].replace("infores:", "")
+        resource_id += ara_id + "|"
     test_msg_prefix += f"{component}s["
-    resource_id += case['kp_api_name']
+    if 'kp_source' in case and case['kp_source']:
+        kp_id = case['kp_source'].replace("infores:", "")
+        resource_id += kp_id
     edge_idx = case['idx']
     edge_id = generate_edge_id(resource_id, edge_idx)
     if not test_name:

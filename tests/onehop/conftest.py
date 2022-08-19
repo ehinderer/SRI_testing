@@ -2,7 +2,7 @@
 Configure one hop tests
 """
 from typing import Optional, Union, List, Set, Dict, Any
-from sys import stdout, stderr
+from sys import stderr
 from os import path, walk
 from collections import defaultdict
 
@@ -130,6 +130,10 @@ def pytest_sessionfinish(session):
             unit_test_key=unit_test_key
         )
 
+        # TODO: Sanity check: missing 'url' is likely a logical bug in SRI Testing?
+        assert 'url' in test_case
+        url: str = test_case['url']
+
         # TODO: Sanity check: missing TRAPI version is likely a logical bug in SRI Testing?
         assert 'trapi_version' in test_case
         trapi_version: Optional[str] = test_case['trapi_version']
@@ -148,6 +152,11 @@ def pytest_sessionfinish(session):
         if ara_id:
             if ara_id not in test_summary[component]:
                 test_summary[component][ara_id] = dict()
+
+            # TODO: echo the ARA 'url' and 'test_data_location' here
+            test_summary[component][ara_id]['url'] = url
+            test_summary[component][ara_id]['test_data_location'] = test_case['ara_test_data_location']
+
             if kp_id not in test_summary[component][ara_id]:
                 test_summary[component][ara_id][kp_id] = _new_kp_test_case_summary(
                     trapi_version=trapi_version,
@@ -160,6 +169,11 @@ def pytest_sessionfinish(session):
                     trapi_version=trapi_version,
                     biolink_version=biolink_version
                 )
+
+                # TODO: echo the KP 'url' and 'test_data_location' here
+                test_summary[component][kp_id]['url'] = url
+                test_summary[component][kp_id]['test_data_location'] = test_case['kp_test_data_location']
+
             case_summary = test_summary[component][kp_id]
 
         # TODO: the 'case_summary' data structure will
@@ -529,7 +543,7 @@ def generate_trapi_kp_tests(metafunc, trapi_version: str, biolink_version: str) 
         if not kpjson:
             # valid test data file not found?
             logger.error(
-                f"generate_trapi_ara_tests():  JSON file at test data location '{source}' is missing or invalid"
+                f"generate_trapi_kp_tests():  JSON file at test data location '{source}' is missing or invalid"
             )
             continue
 
@@ -569,7 +583,7 @@ def generate_trapi_kp_tests(metafunc, trapi_version: str, biolink_version: str) 
                 # defer reporting of errors to higher level of test harness
                 edge['biolink_errors'] = model_version, errors
 
-            edge['location'] = kpjson['location']
+            edge['kp_test_data_location'] = kpjson['location']
 
             edge['url'] = kpjson['url']
 
@@ -618,7 +632,9 @@ def generate_trapi_kp_tests(metafunc, trapi_version: str, biolink_version: str) 
 
             edges.append(edge)
 
-            resource_id = edge['kp_api_name']
+            # Start using the object_id of the Infores CURIE of the KP instead of its api_name...
+            # resource_id = edge['kp_api_name']
+            kp_id = edge['kp_source'].replace("infores:", "")
 
             #
             # TODO: caching the edge here doesn't help parsing of the results into a report since
@@ -626,9 +642,9 @@ def generate_trapi_kp_tests(metafunc, trapi_version: str, biolink_version: str) 
             #       Instead, we will try to echo the edge directly to stdout, for later parsing for the report.
             #
             # add_kp_edge(resource_id, edge_i, edge)
-            json.dump(edge, stdout)
+            # json.dump(edge, stdout)
 
-            edge_id = generate_edge_id(resource_id, edge_i)
+            edge_id = generate_edge_id(kp_id, edge_i)
             idlist.append(edge_id)
 
             if metafunc.config.getoption('one', default=False):
@@ -724,6 +740,7 @@ def generate_trapi_ara_tests(metafunc, kp_edges, trapi_version, biolink_version)
                 edge: dict = kp_edge.copy()
 
                 edge['url'] = arajson['url']
+                edge['ara_test_data_location'] = arajson['location']
 
                 edge['ara_api_name'] = arajson['api_name']
 
@@ -756,7 +773,14 @@ def generate_trapi_ara_tests(metafunc, kp_edges, trapi_version, biolink_version)
                 else:
                     edge['query_opts'] = {}
 
-                idlist.append(f"{edge['ara_api_name']}|{edge['kp_api_name']}#{edge_i}")
+                # Start using the object_id of the Infores CURIEs of the ARA's and KP's, instead of their api_names...
+                # resource_id = f"{edge['ara_api_name']}|{edge['kp_api_name']}"
+                ara_id = edge['ara_source'].replace("infores:", "")
+                kp_id = edge['kp_source'].replace("infores:", "")
+                resource_id = f"{ara_id}|{kp_id}"
+
+                edge_id = generate_edge_id(resource_id, edge_i)
+                idlist.append(edge_id)
 
                 ara_edges.append(edge)
 

@@ -25,7 +25,8 @@ The request body consists of JSON data structure with two top level tag:
 The service may be run directly as a python module. It is suggested that a virtual environment first be created (using virtualenv, conda, within your IDE, or equivalent).  Then, certain additional SRI Testing project Python dependencies need to be installed, as follows:
 
 ```shell
-pip install -r requirements-service.txt
+pip install -r requirements.txt          # non-web dependencies
+pip install -r requirements-service.txt  # web service dependencies
 ```
 
 The module may afterwards be run, as follows:

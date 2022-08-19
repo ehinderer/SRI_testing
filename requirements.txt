@@ -1,15 +1,16 @@
 python-dateutil>=2.8.2
 deprecation
-requests>=2.27.1
-jsonschema~=3.2.0
+jsonschema
+pyyaml
+requests
 orjson
 httpx
-pyyaml
 biothings-explorer>=1.1.0
-bmt>=0.8.4
-reasoner-validator>=2.2.7
 pytest>=7.1.1
 pytest-asyncio
 pytest-harvest
-kgx
 pymongo
+kgx
+# bmt>=0.8.4
+git+https://github.com/biolink/biolink-model-toolkit.git@v0.8.4-patch-release#egg=bmt
+reasoner-validator>=2.2.10
