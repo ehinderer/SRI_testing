@@ -274,6 +274,58 @@ async def get_summary(test_run_id: str) -> TestRunSummary:
         raise HTTPException(status_code=404, detail=f"Summary for test run '{test_run_id}' is not (yet) available?")
 
 
+class TestRunResourceSummary(BaseModel):
+    summary: Dict
+
+
+@app.get(
+    "/resource/{test_run_id}/{component}/{resource_id}",
+    tags=['report'],
+    response_model=TestRunResourceSummary,
+    summary="Retrieve the test result summary for a specified SRI Testing Run ARA or KP Resource."
+)
+async def get_resource_summary(test_run_id: str, component: str, resource_id: str) -> TestRunResourceSummary:
+    """
+    Return result summary for a specific ARA or KP resource in an
+     identified test run, identified by the following query path parameters:
+
+    - **test_run_id**: test run being accessed.
+    - **component**: Translator component being tested: 'ARA' or 'KP'.
+    - **resource_id**: identifier of the resource being tested, may be single KP identifier (i.e. 'Some_KP')
+                       or a hyphen-delimited 2-Tuple composed of an ARA and an associated KP identifier
+                       (i.e. 'Some_ARA-Some_KP') as found in the JSON hierarchy of the test run summary.
+
+    \f
+    :param test_run_id: test run identifier (as returned by /run_tests endpoint).
+    :param component: Translator component being tested: 'ARA' or 'KP'.
+    :param resource_id: identifier of the resource being tested (may be single KP identifier (i.e. 'Some_KP') or a
+                        hyphen-delimited 2-Tuple composed of an ARA and an associated KP identifier
+                        (i.e. 'Some_ARA-Some_KP') as found in the JSON hierarchy of the test run summary.
+
+    :return: TestRunResourceSummary, echoing input parameters alongside the requested 'details', the latter which is a
+                                 details JSON document for the specified unit test.
+
+    :raises: HTTPException(404) if the requested edge unit test details are not (yet?) available.
+    """
+    assert test_run_id, "Null or empty Test Run Identifier?"
+    assert component, "Null or empty Translator Component?"
+    assert resource_id, "Null or empty Resource Identifier?"
+
+    summary: Optional[Dict] = OneHopTestHarness(test_run_id=test_run_id).get_resource_summary(
+        component=component,
+        resource_id=resource_id
+    )
+
+    if summary is not None:
+        return TestRunResourceSummary(summary=summary)
+    else:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Summary for {component} '{resource_id}', " +
+                   f"from test run '{test_run_id}', is not (yet) available?"
+        )
+
+
 class TestRunEdgeDetails(BaseModel):
     details: Dict
 
@@ -286,9 +338,10 @@ class TestRunEdgeDetails(BaseModel):
 )
 async def get_details(test_run_id: str, component: str, resource_id: str, edge_num: str) -> TestRunEdgeDetails:
     """
-    Return edge details for a specified unit test in an
-     identified test run defined by the following query path parameters:
+    Retrieve the test result details for a specified ARA or KP resource
+    in a given test run defined by the following query path parameters:
 
+    - **test_run_id**: test run being accessed.
     - **component**: Translator component being tested: 'ARA' or 'KP'.
     - **resource_id**: identifier of the resource being tested, may be single KP identifier (i.e. 'Some_KP')
                        or a hyphen-delimited 2-Tuple composed of an ARA and an associated KP identifier
@@ -346,6 +399,7 @@ async def get_response(
     Return full TRAPI response message as a streamed downloadable text file, if available, for a specified unit test
     of an edge, as identified test run defined by the following query path parameters:
 
+    - **test_run_id**: test run being accessed.
     - **component**: Translator component being tested: 'ARA' or 'KP'
     - **resource_id**: identifier of the resource being tested (may be single KP identifier (i.e. 'Some_KP') or a
                         hyphen-delimited 2-Tuple composed of an ARA and an associated KP identifier
