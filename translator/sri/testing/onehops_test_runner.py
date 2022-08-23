@@ -170,7 +170,7 @@ class OneHopTestHarness:
     _test_report_database: TestReportDatabase = get_test_report_database()
 
     @staticmethod
-    def _generate_test_run_id() -> str:
+    def generate_test_run_id() -> str:
         return datetime.now().strftime("%F_%H-%M-%S")
 
     def __init__(self, test_run_id: Optional[str] = None):
@@ -190,7 +190,7 @@ class OneHopTestHarness:
             self._reload_run_parameters()
         else:
             # new (or 'local') test run? no run parameters to reload?
-            self._test_run_id = self._generate_test_run_id()
+            self._test_run_id = self.generate_test_run_id()
             self._test_run_id_2_worker_process[self._test_run_id] = {}
 
         # Retrieve the associated test run report object

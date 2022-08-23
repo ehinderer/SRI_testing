@@ -1,7 +1,7 @@
 """
 Configure one hop tests
 """
-from typing import Optional, Union, List, Set, Dict, Any
+from typing import Optional, Union, List, Set, Dict, Any, Tuple
 from sys import stderr
 from os import path, walk, sep
 from collections import defaultdict
@@ -55,6 +55,7 @@ def _new_kp_test_case_summary(trapi_version: str, biolink_version: str) -> Dict[
         'results': dict()
     }
     return new_test_case_summary
+
 
 def _new_unit_test_statistics() -> Dict[str, int]:
     """
@@ -576,20 +577,36 @@ def get_kp_edge(resource_id: str, edge_idx: int) -> Optional[Dict[str, Any]]:
     return None
 
 
-def generate_trapi_kp_tests(metafunc, trapi_version: str, biolink_version: str) -> List:
+def _get_run_parameters(metafunc) -> Tuple[str, str, str]:
+    # The TestRunId ought to be set by this time?
+    test_run_id: Optional[str] = metafunc.config.getoption('test_run_id')
+    if not test_run_id:
+        test_run_id = metafunc.config.option['test_run_id'] = OneHopTestHarness.generate_test_run_id()
+    logger.debug(f"generate_trapi_kp_tests(): command line specified 'test_run_id' == {str(test_run_id)}")
+
+    # KP/ARA TRAPI version may be overridden
+    # on the command line; maybe 'None' => no override
+    trapi_version: Optional[str] = metafunc.config.getoption('TRAPI_Version')
+    logger.debug(f"generate_trapi_kp_tests(): 'TRAPI_Version' == {str(trapi_version)}")
+
+    # KP/ARA Biolink Model version may be overridden
+    # on the command line; maybe 'None' => no override
+    biolink_version: Optional[str] = metafunc.config.getoption('Biolink_Version')
+    logger.debug(f"generate_trapi_kp_tests(): command line specified 'Biolink_Version' == {str(biolink_version)}")
+
+    return test_run_id, trapi_version, biolink_version
+
+
+def generate_trapi_kp_tests(metafunc) -> List:
     """
     Generate set of TRAPI Knowledge Provider unit tests with test data edges.
 
     :param metafunc: Dict, diverse One Step Pytest metadata
-    :param trapi_version, str, TRAPI release set to be used in the validation
-    :param biolink_version, str, Biolink Model release set to be used in the validation
     """
+    test_run_id, trapi_version, biolink_version = _get_run_parameters(metafunc)
+
     edges: List = []
     idlist: List = []
-
-    # TODO: test_run_id is currently unused in this method; it is otherwise an
-    #       optional user session identifier for the test (can be an empty string)
-    # test_run_id = metafunc.config.getoption('test_run_id')
 
     triple_source = metafunc.config.getoption('triple_source')
 
@@ -743,15 +760,15 @@ def generate_trapi_kp_tests(metafunc, trapi_version: str, biolink_version: str) 
 
 
 # Once the smartapi tests are up, we'll want to pass them in here as well
-def generate_trapi_ara_tests(metafunc, kp_edges, trapi_version, biolink_version):
+def generate_trapi_ara_tests(metafunc, kp_edges):
     """
     Generate set of TRAPI Autonomous Relay Agents (ARA) unit tests with KP test data edges.
 
     :param metafunc: Dict, diverse One Step Pytest metadata
     :param kp_edges: List, list of knowledge provider test edges from knowledge providers associated
-    :param trapi_version, str, TRAPI release set to be used in the validation
-    :param biolink_version, str, Biolink Model release set to be used in the validation
     """
+    test_run_id, trapi_version, biolink_version = _get_run_parameters(metafunc)
+
     kp_dict = defaultdict(list)
     for e in kp_edges:
         # We connect ARA's to their KPs by infores (== kp_source) now...
@@ -853,26 +870,7 @@ def pytest_generate_tests(metafunc):
     for each test_* function, and you can only parameterize an argument to that specific test_* function.
     However, for the ARA tests, we still need to get the KP data, since that is where the triples live."""
 
-    # KP/ARA TRAPI version may be overridden
-    # on the command line; maybe 'None' => no override
-    trapi_version = metafunc.config.getoption('TRAPI_Version')
-    logger.debug(f"pytest_generate_tests(): TRAPI_Version == {str(trapi_version)}")
-
-    # KP/ARA Biolink Model version may be overridden
-    # on the command line; maybe 'None' => no override
-    biolink_version = metafunc.config.getoption('Biolink_Version')
-    logger.debug(f"pytest_generate_tests(): command line specified Biolink_Version == {str(biolink_version)}")
-
-    trapi_kp_edges = generate_trapi_kp_tests(
-        metafunc,
-        trapi_version=trapi_version,
-        biolink_version=biolink_version
-    )
+    trapi_kp_edges = generate_trapi_kp_tests(metafunc)
 
     if metafunc.definition.name == 'test_trapi_aras':
-        generate_trapi_ara_tests(
-            metafunc,
-            trapi_kp_edges,
-            trapi_version=trapi_version,
-            biolink_version=biolink_version
-        )
+        generate_trapi_ara_tests(metafunc, trapi_kp_edges)
