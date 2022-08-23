@@ -146,3 +146,6 @@ dmypy.json
 # Mac OSX ignored
 .DS_Store
 ._.DS_Store
+
+# Ignore Nix
+shell.nix
