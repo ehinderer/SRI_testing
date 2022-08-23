@@ -371,7 +371,7 @@ class FileReportDatabase(TestReportDatabase):
         test_results_directory = self.get_test_results_path()
         test_run_list: List[str] = [
             identifier for identifier in listdir(test_results_directory)
-            if self.get_test_report(identifier).exists_document("test_summary.json")
+            if self.get_test_report(identifier).exists_document("test_run_summary.json")
         ]
         return test_run_list
 

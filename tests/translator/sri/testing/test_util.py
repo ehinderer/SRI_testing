@@ -2,13 +2,36 @@
 Unit tests for OneHop unit test processing functions
 """
 import pytest
-import shutil
 
 from translator.sri.testing.onehops_test_runner import (
-    OneHopTestHarness,
     parse_unit_test_name,
-    build_edge_details_document_key
+    build_resource_summary_key,
+    build_edge_details_key
 )
+
+
+@pytest.mark.parametrize(
+    "query",
+    [
+        (
+            "KP",
+            None,
+            "Some_KP",
+            "KP/Some_KP/summary"
+        ),
+        (
+            "ARA",
+            "Some_ARA",
+            "Some_KP",
+            "ARA/Some_ARA/Some_KP/summary"
+        )
+    ]
+)
+def test_get_resource_summary_key(query):
+    edge_details_file_path = build_resource_summary_key(
+        component=query[0], ara_id=query[1], kp_id=query[2]
+    )
+    assert edge_details_file_path == query[3]
 
 
 @pytest.mark.parametrize(
@@ -30,8 +53,8 @@ from translator.sri.testing.onehops_test_runner import (
         )
     ]
 )
-def test_get_edge_details_file_path(query):
-    edge_details_file_path = build_edge_details_document_key(
+def test_get_edge_details_key(query):
+    edge_details_file_path = build_edge_details_key(
         component=query[0], ara_id=query[1], kp_id=query[2], edge_num=query[3]
     )
     assert edge_details_file_path == query[4]

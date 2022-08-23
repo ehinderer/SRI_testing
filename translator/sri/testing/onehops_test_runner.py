@@ -2,6 +2,7 @@
 SRI Testing Report utility functions.
 """
 from typing import Optional, Dict, Tuple, List, Generator
+from os import sep
 from datetime import datetime
 
 import re
@@ -40,7 +41,34 @@ TEST_CASE_PATTERN = re.compile(
 PERCENTAGE_COMPLETION_SUFFIX_PATTERN = re.compile(r"(\[\s*(?P<percentage_completion>\d+)%])?$")
 
 
-def build_edge_details_document_key(component: str, ara_id: Optional[str], kp_id: str, edge_num: str) -> str:
+def build_resource_key(component: str, ara_id: Optional[str], kp_id: str) -> str:
+    """
+    Returns a key identifier ('path') to an test summary document of a given ARA and/or KP resource.
+
+    :param component:
+    :param ara_id:
+    :param kp_id:
+    :return: str, resource-centric document key
+    """
+    resource_key: str = component
+    resource_key += f"{sep}{ara_id}" if ara_id else ""
+    resource_key += f"{sep}{kp_id}"
+    return resource_key
+
+
+def build_resource_summary_key(component: str, ara_id: Optional[str], kp_id: str) -> str:
+    """
+    Returns a key identifier ('path') to an test summary document of a given ARA and/or KP resource.
+
+    :param component:
+    :param ara_id:
+    :param kp_id:
+    :return: str, resource-centric document key
+    """
+    return f"{build_resource_key(component,ara_id,kp_id)}{sep}resource_summary"
+
+
+def build_edge_details_key(component: str, ara_id: Optional[str], kp_id: str, edge_num: str) -> str:
     """
     Returns a key identifier ('path') to an edge details related document.
 
@@ -48,12 +76,9 @@ def build_edge_details_document_key(component: str, ara_id: Optional[str], kp_id
     :param ara_id:
     :param kp_id:
     :param edge_num:
-    :return: str, document key
+    :return: str, edge-centric document key
     """
-    document_key: str = component
-    document_key += f"/{ara_id}" if ara_id else ""
-    document_key += f"/{kp_id}/{kp_id}-{edge_num}"
-    return document_key
+    return f"{build_resource_key(component,ara_id,kp_id)}{sep}{kp_id}-{edge_num}"
 
 
 def parse_unit_test_name(unit_test_key: str) -> Tuple[str, str, str, int, str, str]:
@@ -93,21 +118,13 @@ def parse_unit_test_name(unit_test_key: str) -> Tuple[str, str, str, int, str, s
                                 kp_id,
                                 int(edge_num),
                                 test_id,
-                                build_edge_details_document_key(component, ara_id, kp_id, edge_num)
+                                build_edge_details_key(component, ara_id, kp_id, edge_num)
                             )
 
     raise RuntimeError(f"parse_unit_test_name() '{unit_test_key}' has unknown format?")
 
 
-def _get_details_document_key(component: str, resource_id: str, edge_num: str) -> str:
-    """
-    Web-wrapped version of the translator.sri.testing.report.get_edge_details_file_path() method.
-
-    :param component:
-    :param resource_id:
-    :param edge_num:
-    :return:
-    """
+def _get_resource_components(resource_id: str) -> Tuple[str, str]:
     rid_part: List[str] = resource_id.split("-")
     if len(rid_part) > 1:
         ara_id = rid_part[0]
@@ -115,10 +132,34 @@ def _get_details_document_key(component: str, resource_id: str, edge_num: str) -
     else:
         ara_id = None
         kp_id = rid_part[0]
+    return ara_id, kp_id
 
-    edge_details_file_path: str = build_edge_details_document_key(component, ara_id, kp_id, edge_num)
 
-    return edge_details_file_path
+def _get_resources_summary_document_key(component: str, resource_id: str) -> str:
+    """
+    Web-wrapped version of the translator.sri.testing.report.build_resource_summary_key() method.
+
+    :param component:
+    :param resource_id:
+    :return:
+    """
+    ara_id, kp_id = _get_resource_components(resource_id)
+    resource_summary_key: str = build_resource_summary_key(component, ara_id, kp_id)
+    return resource_summary_key
+
+
+def _get_details_document_key(component: str, resource_id: str, edge_num: str) -> str:
+    """
+    Web-wrapped version of the translator.sri.testing.report.build_edge_details_key() method.
+
+    :param component:
+    :param resource_id:
+    :param edge_num:
+    :return:
+    """
+    ara_id, kp_id = _get_resource_components(resource_id)
+    edge_details_key: str = build_edge_details_key(component, ara_id, kp_id, edge_num)
+    return edge_details_key
 
 
 class OneHopTestHarness:
@@ -333,9 +374,31 @@ class OneHopTestHarness:
         :return: Optional[str], JSON structured document summary of unit test results. 'None' if not (yet) available.
         """
         summary: Optional[Dict] = self.get_test_report().retrieve_document(
-            document_type="Summary", document_key="test_summary"
+            document_type="Summary", document_key="test_run_summary"
         )
         return summary
+
+    def get_resource_summary(
+            self,
+            component: str,
+            resource_id: str
+    ) -> Optional[Dict]:
+        """
+        Returns test result summary across all edges for given resource component.
+
+        :param component: str, Translator component being tested: 'ARA' or 'KP'
+        :param resource_id: str, identifier of the resource being tested (may be single KP identifier (i.e. 'Some_KP')
+                            or a hyphen-delimited 2-Tuple composed of an ARA and an associated KP identifier
+                            (i.e. 'Some_ARA-Some_KP') as found in the JSON hierarchy of the test run summary.
+
+        :return: Optional[Dict], JSON structured document of test details for a specified test edge of a
+                                 KP or ARA resource, or 'None' if the details are not (yet) available.
+        """
+        document_key: str = _get_resources_summary_document_key(component, resource_id)
+        resource_summary: Optional[Dict] = self.get_test_report().retrieve_document(
+            document_type="Resource Summary", document_key=document_key
+        )
+        return resource_summary
 
     def get_details(
             self,
