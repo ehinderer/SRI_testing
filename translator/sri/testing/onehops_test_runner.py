@@ -374,7 +374,7 @@ class OneHopTestHarness:
         :return: Optional[str], JSON structured document summary of unit test results. 'None' if not (yet) available.
         """
         summary: Optional[Dict] = self.get_test_report().retrieve_document(
-            document_type="Summary", document_key="test_summary"
+            document_type="Summary", document_key="test_run_summary"
         )
         return summary
 
@@ -396,7 +396,7 @@ class OneHopTestHarness:
         """
         document_key: str = _get_resources_summary_document_key(component, resource_id)
         resource_summary: Optional[Dict] = self.get_test_report().retrieve_document(
-            document_type="Details", document_key=document_key
+            document_type="Resource Summary", document_key=document_key
         )
         return resource_summary
 
