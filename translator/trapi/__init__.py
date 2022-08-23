@@ -1,4 +1,4 @@
-from typing import Optional, Dict, List
+from typing import Optional, Dict, List, Tuple
 
 from json import dumps
 
@@ -49,7 +49,7 @@ def get_latest_trapi_version() -> str:
     return latest.get(DEFAULT_TRAPI_VERSION)
 
 
-def is_valid_trapi(instance, trapi_version):
+def is_valid_trapi(instance, trapi_version) -> Tuple[bool, str]:
     """Make sure that the Message is valid using reasoner_validator"""
     try:
         validate(
@@ -57,12 +57,12 @@ def is_valid_trapi(instance, trapi_version):
             component="Query",
             trapi_version=trapi_version
         )
-        return True
+        return True, ""
     except ValidationError as e:
         # import json
         # print(dumps(response_json, sort_keys=False, indent=4))
         print(e)
-        return False
+        return False, str(e)
 
 
 class TestReport:
@@ -298,9 +298,10 @@ def execute_trapi_lookup(case, creator, rbag, test_report: TestReport):
     # query use cases pertain to a particular TRAPI version
     trapi_version = case['trapi_version']  # get_trapi_version() - we now record TRAPI version within the 'case'
 
+    is_valid, error = is_valid_trapi(trapi_request, trapi_version=trapi_version)
     test_report.test(
-        is_valid_trapi(trapi_request, trapi_version=trapi_version),
-        f"{error_msg_prefix} the query request is not compliant to TRAPI version '{trapi_version}'?"
+        is_valid,
+        f"{error_msg_prefix} the query request is not compliant to TRAPI version '{trapi_version}'? Error: {error}"
     )
 
     trapi_response = call_trapi(case['url'], case['query_opts'], trapi_request)
@@ -315,10 +316,10 @@ def execute_trapi_lookup(case, creator, rbag, test_report: TestReport):
     )
 
     # Validate that we got back valid TRAPI Response
-    valid_trapi_response = is_valid_trapi(trapi_response['response_json'], trapi_version=trapi_version)
+    is_valid, error = is_valid_trapi(trapi_response['response_json'], trapi_version=trapi_version)
     test_report.test(
-        valid_trapi_response,
-        f"{error_msg_prefix} for expected TRAPI version '{trapi_version}', TRAPI response is not TRAPI compliant?"
+        is_valid,
+        f"{error_msg_prefix} TRAPI response is not TRAPI '{trapi_version}' version compliant? Error: {error}"
     )
 
     response_message = trapi_response['response_json']['message']

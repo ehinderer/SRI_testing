@@ -274,17 +274,13 @@ async def get_summary(test_run_id: str) -> TestRunSummary:
         raise HTTPException(status_code=404, detail=f"Summary for test run '{test_run_id}' is not (yet) available?")
 
 
-class TestRunResourceSummary(BaseModel):
-    summary: Dict
-
-
 @app.get(
     "/resource/{test_run_id}/{component}/{resource_id}",
     tags=['report'],
-    response_model=TestRunResourceSummary,
+    response_model=TestRunSummary,
     summary="Retrieve the test result summary for a specified SRI Testing Run ARA or KP Resource."
 )
-async def get_resource_summary(test_run_id: str, component: str, resource_id: str) -> TestRunResourceSummary:
+async def get_resource_summary(test_run_id: str, component: str, resource_id: str) -> TestRunSummary:
     """
     Return result summary for a specific ARA or KP resource in an
      identified test run, identified by the following query path parameters:
@@ -317,7 +313,7 @@ async def get_resource_summary(test_run_id: str, component: str, resource_id: st
     )
 
     if summary is not None:
-        return TestRunResourceSummary(summary=summary)
+        return TestRunSummary(test_run_id=test_run_id, summary=summary)
     else:
         raise HTTPException(
             status_code=404,

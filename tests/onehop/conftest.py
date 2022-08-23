@@ -3,7 +3,7 @@ Configure one hop tests
 """
 from typing import Optional, Union, List, Set, Dict, Any
 from sys import stderr
-from os import path, walk
+from os import path, walk, sep
 from collections import defaultdict
 
 import json
@@ -56,7 +56,6 @@ def _new_kp_test_case_summary(trapi_version: str, biolink_version: str) -> Dict[
     }
     return new_test_case_summary
 
-
 def _new_unit_test_statistics() -> Dict[str, int]:
     """
     Initialize a dictionary to capture statistics for a single unit test category.
@@ -94,6 +93,25 @@ def _tally_unit_test_result(test_case_summary: Dict, test_id: str, edge_num: int
     results[test_id][test_result] += 1
 
 
+##########################################################################################
+# JSON Test Reports are emitted in this pytest_sessionfinish() postprocessor as follows:
+#
+# 1. Test Summary:  summary statistics of entire test run, indexed by ARA and KP resources
+# 2. Resource Summary: ARA or KP level summary across all edges
+# 3. Edge Details: details of test results for one edge in a given resource test dataset
+# 4. Response: TRAPI JSON response message (may be huge; use file streaming to access!)
+##########################################################################################
+
+# Selective list of Resource Summary fields
+RESOURCE_SUMMARY_FIELDS = [
+    "subject_category",
+    "object_category",
+    "predicate",
+    "subject",
+    "object"
+]
+
+
 def pytest_sessionfinish(session):
     """ Gather all results and save them to a csv.
     Works both on worker and master nodes, and also with xdist disabled
@@ -108,8 +126,8 @@ def pytest_sessionfinish(session):
 
     session_results = get_session_results_dct(session)
 
-    test_summary: Dict = dict()
-
+    test_run_summary: Dict = dict()
+    resource_summaries: Dict = dict()
     case_details: Dict = dict()
 
     for unit_test_key, details in session_results.items():
@@ -119,7 +137,7 @@ def pytest_sessionfinish(session):
         # sanity check: clean up MS Windoze EOL characters, when present in results_bag keys
         rb = {key.strip("\r\n"): value for key, value in rb.items()}
 
-        # TODO: sanity check? Missing 'case' would seem like an SRI Testing logical bug?
+        # Sanity check? Missing 'case' would seem like an SRI Testing logical bug?
         assert 'case' in rb
         test_case = rb['case']
 
@@ -128,70 +146,85 @@ def pytest_sessionfinish(session):
             unit_test_key=unit_test_key
         )
 
-        # TODO: Sanity check: missing 'url' is likely a logical bug in SRI Testing?
+        # Sanity check: missing 'url' is likely a logical bug in SRI Testing?
         assert 'url' in test_case
         url: str = test_case['url']
 
-        # TODO: Sanity check: missing TRAPI version is likely a logical bug in SRI Testing?
+        # Sanity check: missing TRAPI version is likely a logical bug in SRI Testing?
         assert 'trapi_version' in test_case
         trapi_version: Optional[str] = test_case['trapi_version']
 
-        # TODO: Sanity check: missing Biolink Model version is likely a logical bug in SRI Testing?
+        # Sanity check: missing Biolink Model version is likely a logical bug in SRI Testing?
         assert 'biolink_version' in test_case
         biolink_version: Optional[str] = test_case['biolink_version']
 
         ##############################################################
         # Summary file indexed by component, resources and edge cases
         ##############################################################
-        if component not in test_summary:
-            test_summary[component] = dict()
+        if component not in test_run_summary:
+            test_run_summary[component] = dict()
+
+            # Set up indexed resource summaries in parallel
+            resource_summaries[component] = dict()
 
         case_summary: Dict
         if ara_id:
-            if ara_id not in test_summary[component]:
-                test_summary[component][ara_id] = dict()
+            if ara_id not in test_run_summary[component]:
+                test_run_summary[component][ara_id] = dict()
+                resource_summaries[component][ara_id] = dict()
 
             # TODO: echo the ARA 'url' and 'test_data_location' here
-            test_summary[component][ara_id]['url'] = url
-            test_summary[component][ara_id]['test_data_location'] = test_case['ara_test_data_location']
+            test_run_summary[component][ara_id]['url'] = url
+            test_run_summary[component][ara_id]['test_data_location'] = test_case['ara_test_data_location']
 
-            if kp_id not in test_summary[component][ara_id]:
-                test_summary[component][ara_id][kp_id] = _new_kp_test_case_summary(
+            if kp_id not in test_run_summary[component][ara_id]:
+                test_run_summary[component][ara_id][kp_id] = _new_kp_test_case_summary(
                     trapi_version=trapi_version,
                     biolink_version=biolink_version
                 )
-            case_summary = test_summary[component][ara_id][kp_id]
+                resource_summaries[component][ara_id][kp_id] = dict()
+            case_summary = test_run_summary[component][ara_id][kp_id]
+            resource_summary = resource_summaries[component][ara_id][kp_id]
         else:
-            if kp_id not in test_summary[component]:
-                test_summary[component][kp_id] = _new_kp_test_case_summary(
+            if kp_id not in test_run_summary[component]:
+                test_run_summary[component][kp_id] = _new_kp_test_case_summary(
                     trapi_version=trapi_version,
                     biolink_version=biolink_version
                 )
+                test_run_summary[component][kp_id]['url'] = url
+                test_run_summary[component][kp_id]['test_data_location'] = test_case['kp_test_data_location']
+                resource_summaries[component][kp_id] = dict()
 
-                # TODO: echo the KP 'url' and 'test_data_location' here
-                test_summary[component][kp_id]['url'] = url
-                test_summary[component][kp_id]['test_data_location'] = test_case['kp_test_data_location']
+            case_summary = test_run_summary[component][kp_id]
+            resource_summary = resource_summaries[component][kp_id]
 
-            case_summary = test_summary[component][kp_id]
-
-        # TODO: the 'case_summary' data structure will
-        #       no longer track results by edge 'idx'...
-        # while edge_num >= len(case_summary):
-        #     case_summary.append(dict())
-        #
-        # if 'idx' not in case_summary[edge_num]:
-        #     case_summary[edge_num]['idx'] = edge_num
-        #
-        # if test_id not in case_summary[edge_num]:
-        #     # Top level summary reporting 'PASSED, FAILED, SKIPPED' for each unit test
-        #     case_summary[edge_num][test_id] = details['status']
-
-        # TODO: ... rather, we will simply tally the results of the various test_id's
+        # Tally up the number of test results of a given 'status' across 'test_id' unit test categories
         _tally_unit_test_result(case_summary, test_id, edge_num, details['status'])
 
-        ############################################################
-        # However, full test details will still be indexed by edge #
-        ############################################################
+        # TODO: merge case details here into a Cartesian product table of edges
+        #       and unit test id's for a given resource indexed by ARA and KP
+        idx: str = str(test_case['idx'])
+
+        if idx not in resource_summary:
+            resource_summary[idx] = {
+                'test_data': dict(),
+                'results': dict()
+            }
+
+        for field in RESOURCE_SUMMARY_FIELDS:
+            if field not in resource_summary[idx]['test_data'] and field in test_case:
+                resource_summary[idx]['test_data'][field] = test_case[field]
+
+        if test_id not in resource_summary[idx]['results']:
+            resource_summary[idx]['results'][test_id] = dict()
+        resource_summary[idx]['results'][test_id]['outcome'] = details['status']
+
+        if 'errors' in rb and len(rb['errors']) > 0:
+            resource_summary[idx]['results'][test_id]['errors'] = rb['errors']
+
+        ###################################################
+        # Full test details will still be indexed by edge #
+        ###################################################
         if edge_details_key not in case_details:
 
             # TODO: this is a bit memory intensive... may need a
@@ -199,7 +232,7 @@ def pytest_sessionfinish(session):
             case_details[edge_details_key] = dict()
 
             if 'case' in rb and 'case' not in case_details[edge_details_key]:
-                case_details[edge_details_key] = rb['case']
+                case_details[edge_details_key] = test_case
 
             if 'results' not in case_details[edge_details_key]:
                 case_details[edge_details_key]['results'] = dict()
@@ -213,7 +246,7 @@ def pytest_sessionfinish(session):
         # for each unit test, here in the detailed report
         test_details['outcome'] = details['status']
 
-        # Print out errors - we assume they are only reported once for any given test?
+        # Capture list of errors - we assume they are only reported once for any given test?
         if 'errors' in rb and len(rb['errors']) > 0:
             test_details['errors'] = rb['errors']
 
@@ -229,7 +262,7 @@ def pytest_sessionfinish(session):
 
             if 'response' in rb:
                 case_response: Dict = dict()
-                case_response['url'] = rb['case']['url'] if 'url' in rb['case'] else "Unknown?!"
+                case_response['url'] = test_case['url'] if 'url' in test_case else "Unknown?!"
                 case_response['unit_test_key'] = unit_test_key
                 case_response['http_status_code'] = rb["response"]["status_code"]
                 case_response['response'] = rb['response']['response_json']
@@ -255,7 +288,7 @@ def pytest_sessionfinish(session):
     #       By "almost", one means that a document already written out could be read back into memory
     #       then updated, but if one is doing this, why not rather use a (document) database?
     #
-    # Print out the cached details of each edge test case
+    # Save the cached details of each edge test case
     for edge_details_key in case_details:
         test_run.save_json_document(
             document_type="Details",
@@ -263,11 +296,39 @@ def pytest_sessionfinish(session):
             document_key=edge_details_key
         )
 
+    #
+    # Save the various resource test summaries
+    #
+    # All KP's individually
+    if "KP" in resource_summaries:
+        kp_summaries = resource_summaries["KP"]
+        for kp in kp_summaries:
+            # Save Test Run Summary
+            document_key: str = f"KP{sep}{kp}{sep}resource_summary"
+            test_run.save_json_document(
+                document_type="Direct KP Summary",
+                document=kp_summaries[kp],
+                document_key=document_key
+            )
+
+    # All KP's called by ARA's
+    if "ARA" in resource_summaries:
+        ara_summaries = resource_summaries["ARA"]
+        for ara in ara_summaries:
+            for kp in ara_summaries[ara]:
+                # Save embedded KP Resource Summary
+                document_key: str = f"ARA{sep}{ara}{sep}{kp}{sep}resource_summary"
+                test_run.save_json_document(
+                    document_type="ARA Embedded KP Summary",
+                    document=ara_summaries[ara][kp],
+                    document_key=document_key
+                )
+
     # Save Test Run Summary
     test_run.save_json_document(
-        document_type="Summary",
-        document=test_summary,
-        document_key="test_summary"
+        document_type="Test Run Summary",
+        document=test_run_summary,
+        document_key="test_run_summary"
     )
 
 
@@ -334,7 +395,7 @@ def _build_filelist(entry):
                 # SKIP specific test files, if so tagged
                 if f.endswith("SKIP"):
                     continue
-                kpfile = f'{real_dirpath}/{f}'
+                kpfile = f'{real_dirpath}{sep}{f}'
                 filelist.append(kpfile)
     
     return filelist
@@ -441,6 +502,7 @@ def load_test_data_source(
 
         metadata['location'] = source
 
+        # the api_name extracted from a URL path
         api_name: str = source.split('/')[-1]
         # remove the trailing file extension
         metadata['api_name'] = api_name.replace(".json", "")

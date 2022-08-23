@@ -2,6 +2,7 @@
 SRI Testing Report utility functions.
 """
 from typing import Optional, Dict, Tuple, List, Generator
+from os import sep
 from datetime import datetime
 
 import re
@@ -50,8 +51,8 @@ def build_resource_key(component: str, ara_id: Optional[str], kp_id: str) -> str
     :return: str, resource-centric document key
     """
     resource_key: str = component
-    resource_key += f"/{ara_id}" if ara_id else ""
-    resource_key += f"/{kp_id}"
+    resource_key += f"{sep}{ara_id}" if ara_id else ""
+    resource_key += f"{sep}{kp_id}"
     return resource_key
 
 
@@ -64,7 +65,7 @@ def build_resource_summary_key(component: str, ara_id: Optional[str], kp_id: str
     :param kp_id:
     :return: str, resource-centric document key
     """
-    return f"{build_resource_key(component,ara_id,kp_id)}/summary"
+    return f"{build_resource_key(component,ara_id,kp_id)}{sep}resource_summary"
 
 
 def build_edge_details_key(component: str, ara_id: Optional[str], kp_id: str, edge_num: str) -> str:
@@ -77,7 +78,7 @@ def build_edge_details_key(component: str, ara_id: Optional[str], kp_id: str, ed
     :param edge_num:
     :return: str, edge-centric document key
     """
-    return f"{build_resource_key(component,ara_id,kp_id)}/{kp_id}-{edge_num}"
+    return f"{build_resource_key(component,ara_id,kp_id)}{sep}{kp_id}-{edge_num}"
 
 
 def parse_unit_test_name(unit_test_key: str) -> Tuple[str, str, str, int, str, str]:
