@@ -225,7 +225,7 @@ class TestRunList(BaseModel):
 
 
 @app.get(
-    "/list",
+    "/test_runs",
     tags=['report'],
     response_model=TestRunList,
     summary="Retrieve the list of completed test runs."
