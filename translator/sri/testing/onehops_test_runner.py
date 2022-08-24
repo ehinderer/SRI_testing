@@ -376,19 +376,20 @@ class OneHopTestHarness:
         summary: Optional[Dict] = self.get_test_report().retrieve_document(
             document_type="Summary", document_key="test_run_summary"
         )
-        # Sanity check for existence...
+        # Sanity check for existence of the summary...
         if not summary:
             return None
 
-        # We extract the 'index' from the available 'summary' document
+        # We extract the 'index' from the available 'test_run_summary' document
         index: Dict = dict()
-        if "KP" in summary:
+        if "KP" in summary and summary["KP"]:
             index["KP"] = [str(key) for key in summary["KP"].keys()]
-        if "ARA" in summary:
+        if "ARA" in summary and summary["ARA"]:
             index["ARA"] = dict()
-            for ara_id, kps in summary["ARA"].items():
-                # TODO: list comprehension will change if the test_run_summary.json document KPs list structure changes
-                index["ARA"][ara_id] = [str(key) for key in kps.keys() if key not in ('url', 'test_data_location')]
+            for ara_id, ara in summary["ARA"].items():
+                if "kps" in ara and ara["kps"]:
+                    kps: Dict = ara["kps"]
+                    index["ARA"][ara_id] = [str(key) for key in kps.keys()]
 
         return index
 

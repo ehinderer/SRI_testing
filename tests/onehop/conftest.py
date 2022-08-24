@@ -56,6 +56,7 @@ def _new_kp_test_case_summary(trapi_version: str, biolink_version: str) -> Dict[
     }
     return new_test_case_summary
 
+
 def _new_unit_test_statistics() -> Dict[str, int]:
     """
     Initialize a dictionary to capture statistics for a single unit test category.
@@ -171,20 +172,22 @@ def pytest_sessionfinish(session):
         if ara_id:
             if ara_id not in test_run_summary[component]:
                 test_run_summary[component][ara_id] = dict()
+                test_run_summary[component][ara_id]['url'] = url
+                test_run_summary[component][ara_id]['test_data_location'] = test_case['ara_test_data_location']
+                test_run_summary[component][ara_id]['kps'] = dict()
+
                 resource_summaries[component][ara_id] = dict()
 
-            # TODO: echo the ARA 'url' and 'test_data_location' here
-            test_run_summary[component][ara_id]['url'] = url
-            test_run_summary[component][ara_id]['test_data_location'] = test_case['ara_test_data_location']
-
-            if kp_id not in test_run_summary[component][ara_id]:
-                test_run_summary[component][ara_id][kp_id] = _new_kp_test_case_summary(
+            if kp_id not in test_run_summary[component][ara_id]['kps']:
+                test_run_summary[component][ara_id]['kps'][kp_id] = _new_kp_test_case_summary(
                     trapi_version=trapi_version,
                     biolink_version=biolink_version
                 )
                 resource_summaries[component][ara_id][kp_id] = dict()
-            case_summary = test_run_summary[component][ara_id][kp_id]
+
+            case_summary = test_run_summary[component][ara_id]['kps'][kp_id]
             resource_summary = resource_summaries[component][ara_id][kp_id]
+
         else:
             if kp_id not in test_run_summary[component]:
                 test_run_summary[component][kp_id] = _new_kp_test_case_summary(
