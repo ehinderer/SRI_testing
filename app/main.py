@@ -191,6 +191,13 @@ async def run_tests(test_parameters: Optional[TestRunParameters] = None) -> Test
 
     return TestRunSession(test_run_id=test_harness.get_test_run_id())
 
+# Qhe way that we distinguish between the various types of ARA/KP data access is
+# simply by the presence or absence of the ara_id and kp_id:
+# Case 1 - non-empty kp_id, empty ara_id == just return the KP related resource
+# Case 2 - non-empty ara_id, non-empty kp_id == return the one KP accessed by the specified ARA
+# Case 3 - non-empty ara_id, empty kp_id == return all the KP's accessed by the specified ARA
+# Case 4 - empty ara_id and kp_id == error condition... at least one or the other ID needs to be provided.
+#          Alternately, all the Kps of all the ARAs can be sent back (but this may be a bad idea... too much data?)
 
 def _validate_parameters(parameter: Dict):
     for tag in parameter.keys():
