@@ -124,31 +124,6 @@ def parse_unit_test_name(unit_test_key: str) -> Tuple[str, str, str, int, str, s
     raise RuntimeError(f"parse_unit_test_name() '{unit_test_key}' has unknown format?")
 
 
-def _get_resource_components(resource_id: str) -> Tuple[str, str]:
-    rid_part: List[str] = resource_id.split("-")
-    if len(rid_part) > 1:
-        ara_id = rid_part[0]
-        kp_id = rid_part[1]
-    else:
-        ara_id = None
-        kp_id = rid_part[0]
-    return ara_id, kp_id
-
-
-def _get_details_document_key(component: str, resource_id: str, edge_num: str) -> str:
-    """
-    Web-wrapped version of the translator.sri.testing.report.build_edge_details_key() method.
-
-    :param component:
-    :param resource_id:
-    :param edge_num:
-    :return:
-    """
-    ara_id, kp_id = _get_resource_components(resource_id)
-    edge_details_key: str = build_edge_details_key(component, ara_id, kp_id, edge_num)
-    return edge_details_key
-
-
 class OneHopTestHarness:
 
     # Caching of processes, indexed by test_run_id (timestamp identifier as string)
@@ -416,22 +391,22 @@ class OneHopTestHarness:
     def get_details(
             self,
             component: str,
-            resource_id: str,
             edge_num: str,
+            kp_id: str,
+            ara_id: Optional[str] = None
     ) -> Optional[Dict]:
         """
         Returns test result details for given resource component and edge identities.
 
         :param component: str, Translator component being tested: 'ARA' or 'KP'
-        :param resource_id: str, identifier of the resource being tested (may be single KP identifier (i.e. 'Some_KP')
-                            or a hyphen-delimited 2-Tuple composed of an ARA and an associated KP identifier
-                            (i.e. 'Some_ARA-Some_KP') as found in the JSON hierarchy of the test run summary.
         :param edge_num: str, target input 'edge_num' edge number, as indexed as an edge of the JSON test run summary.
+        :param kp_id: str, identifier of a KP resource being accessed.
+        :param ara_id: Optional[str], identifier of the ARA resource being accessed. May be missing or None
 
         :return: Optional[Dict], JSON structured document of test details for a specified test edge of a
                                  KP or ARA resource, or 'None' if the details are not (yet) available.
         """
-        document_key: str = _get_details_document_key(component, resource_id, edge_num)
+        document_key: str = build_edge_details_key(component, ara_id, kp_id, edge_num)
         details: Optional[Dict] = self.get_test_report().retrieve_document(
             document_type="Details", document_key=document_key
         )
@@ -440,24 +415,24 @@ class OneHopTestHarness:
     def get_streamed_response_file(
             self,
             component: str,
-            resource_id: str,
             edge_num: str,
             test_id: str,
+            kp_id: str,
+            ara_id: Optional[str] = None
     ) -> Generator:
         """
         Returns the TRAPI Response file path for given resource component, edge and unit test identities.
 
         :param component: str, Translator component being tested: 'ARA' or 'KP'
-        :param resource_id: str, identifier of the resource being tested (may be single KP identifier (i.e. 'Some_KP')
-                                 or a hyphen-delimited 2-Tuple composed of an ARA and an associated KP identifier
-                            (i.e. 'Some_ARA-Some_KP') as found in the JSON hierarchy of the test run summary.
         :param edge_num: str, target input 'edge_num' edge number, as indexed as an edge of the JSON test run summary.
         :param test_id: str, target unit test identifier, one of the values noted in the
                              edge leaf nodes of the JSON test run summary (e.g. 'by_subject', etc.).
+        :param kp_id: str, identifier of a KP resource being accessed.
+        :param ara_id: Optional[str], identifier of the ARA resource being accessed. May be missing or None
 
         :return: str, TRAPI Response text data file path (generated, but not tested here for file existence)
         """
-        document_key: str = _get_details_document_key(component, resource_id, edge_num)
+        document_key: str = build_edge_details_key(component, ara_id, kp_id, edge_num)
         return self.get_test_report().stream_document(
             document_type="Details", document_key=f"{document_key}-{test_id}"
         )
