@@ -213,7 +213,8 @@ async def get_status(test_run_id: str) -> TestRunStatus:
     :return: TestRunStatus, with fields 'test_run_id' and 'percent_complete', the latter being
                              an integer 0..100 indicating the percentage completion of the test run.
     """
-    assert test_run_id, "Null or empty Test Run Identifier?"
+    if not test_run_id:
+        raise HTTPException(status_code=400, detail="Null or empty Test Run Identifier?")
 
     percent_complete: int = OneHopTestHarness(test_run_id=test_run_id).get_status()
 
@@ -248,14 +249,14 @@ class TestRunSummary(BaseModel):
 
 
 @app.get(
-    "/summary/{test_run_id}",
+    "/index/{test_run_id}",
     tags=['report'],
     response_model=TestRunSummary,
-    summary="Retrieve the summary of a completed specified OneHopTestHarness test run."
+    summary="Retrieve the index - KP and ARA resource tags - of a completed specified OneHopTestHarness test run."
 )
-async def get_summary(test_run_id: str) -> TestRunSummary:
+async def get_index(test_run_id: str) -> TestRunSummary:
     """
-    Returns a JSON summary report of results for a completed **test_run_id**-identified OneHopTestHarness test run.
+    Returns a JSON index  - KP and ARA resource tags - for a completed OneHopTestHarness test run.
 
     \f
     :param test_run_id: test_run_id: test run identifier (as returned by /run_tests endpoint).
@@ -264,7 +265,36 @@ async def get_summary(test_run_id: str) -> TestRunSummary:
                              JSON document summary of available unit test results.
     :raises: HTTPException(404) if the summary is not (yet?) available.
     """
-    assert test_run_id, "Null or empty Test Run Identifier?"
+    if not test_run_id:
+        raise HTTPException(status_code=400, detail="Null or empty Test Run Identifier?")
+
+    index: Optional[Dict] = OneHopTestHarness(test_run_id=test_run_id).get_index()
+
+    if index is not None:
+        return TestRunSummary(test_run_id=test_run_id, summary=index)
+    else:
+        raise HTTPException(status_code=404, detail=f"Index for test run '{test_run_id}' is not (yet) available?")
+
+
+@app.get(
+    "/summary/{test_run_id}",
+    tags=['report'],
+    response_model=TestRunSummary,
+    summary="Retrieve the summary of a completed specified OneHopTestHarness test run."
+)
+async def get_summary(test_run_id: str) -> TestRunSummary:
+    """
+    Returns a JSON summary report of results for a completed OneHopTestHarness test run.
+
+    \f
+    :param test_run_id: test_run_id: test run identifier (as returned by /run_tests endpoint).
+
+    :return: TestRunSummary, with fields 'test_run_id' and 'summary', the latter being a
+                             JSON document summary of available unit test results.
+    :raises: HTTPException(404) if the summary is not (yet?) available.
+    """
+    if not test_run_id:
+        raise HTTPException(status_code=400, detail="Null or empty Test Run Identifier?")
 
     summary: Optional[Dict] = OneHopTestHarness(test_run_id=test_run_id).get_summary()
 
@@ -303,9 +333,12 @@ async def get_resource_summary(test_run_id: str, component: str, resource_id: st
 
     :raises: HTTPException(404) if the requested edge unit test details are not (yet?) available.
     """
-    assert test_run_id, "Null or empty Test Run Identifier?"
-    assert component, "Null or empty Translator Component?"
-    assert resource_id, "Null or empty Resource Identifier?"
+    if not test_run_id:
+        raise HTTPException(status_code=400, detail="Null or empty Test Run Identifier?")
+    if not component:
+        raise HTTPException(status_code=400, detail="Null or empty Translator Component?")
+    if not resource_id:
+        raise HTTPException(status_code=400, detail="Null or empty Resource Identifier?")
 
     summary: Optional[Dict] = OneHopTestHarness(test_run_id=test_run_id).get_resource_summary(
         component=component,
@@ -357,10 +390,14 @@ async def get_details(test_run_id: str, component: str, resource_id: str, edge_n
 
     :raises: HTTPException(404) if the requested edge unit test details are not (yet?) available.
     """
-    assert test_run_id, "Null or empty Test Run Identifier?"
-    assert component, "Null or empty Translator Component?"
-    assert resource_id, "Null or empty Resource Identifier?"
-    assert edge_num, "Null or empty Edge Number?"
+    if not test_run_id:
+        raise HTTPException(status_code=400, detail="Null or empty Test Run Identifier?")
+    if not component:
+        raise HTTPException(status_code=400, detail="Null or empty Translator Component?")
+    if not resource_id:
+        raise HTTPException(status_code=400, detail="Null or empty Resource Identifier?")
+    if not edge_num:
+        raise HTTPException(status_code=400, detail="Null or empty Edge Number?")
 
     details: Optional[Dict] = OneHopTestHarness(test_run_id=test_run_id).get_details(
         component=component,
@@ -417,11 +454,16 @@ async def get_response(
 
     :raise: HTTPException(404) if the requested TRAPI response JSON text data file is not (yet?) available.
     """
-    assert test_run_id, "Null or empty Test Run Identifier?"
-    assert component, "Null or empty Translator Component?"
-    assert resource_id, "Null or empty Resource Identifier?"
-    assert edge_num, "Null or empty Edge Number?"
-    assert test_id, "Null or empty Unit Test Identifier?"
+    if not test_run_id:
+        raise HTTPException(status_code=400, detail="Null or empty Test Run Identifier?")
+    if not component:
+        raise HTTPException(status_code=400, detail="Null or empty Translator Component?")
+    if not resource_id:
+        raise HTTPException(status_code=400, detail="Null or empty Resource Identifier?")
+    if not edge_num:
+        raise HTTPException(status_code=400, detail="Null or empty Edge Number?")
+    if not test_id:
+        raise HTTPException(status_code=400, detail="Null or empty Test Identifier?")
 
     try:
         content_generator: Generator = OneHopTestHarness(

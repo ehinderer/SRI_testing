@@ -1,7 +1,7 @@
 """
 SRI Testing Report utility functions.
 """
-from typing import Optional, Dict, Tuple, List, Generator
+from typing import Optional, Dict, Tuple, List, Generator, Union
 from os import sep
 from datetime import datetime
 
@@ -367,11 +367,36 @@ class OneHopTestHarness:
         """
         return cls._test_report_database.get_available_reports()
 
+    def get_index(self) -> Optional[Dict]:
+        """
+        If available, returns a test result index - KP and ARA tags - for the most recent OneHopTestHarness run.
+
+        :return: Optional[str], JSON document KP/ARA index of unit test results. 'None' if not (yet) available.
+        """
+        summary: Optional[Dict] = self.get_test_report().retrieve_document(
+            document_type="Summary", document_key="test_run_summary"
+        )
+        # Sanity check for existence...
+        if not summary:
+            return None
+
+        # We extract the 'index' from the available 'summary' document
+        index: Dict = dict()
+        if "KP" in summary:
+            index["KP"] = [str(key) for key in summary["KP"].keys()]
+        if "ARA" in summary:
+            index["ARA"] = dict()
+            for ara_id, kps in summary["ARA"].items():
+                # TODO: list comprehension will change if the test_run_summary.json document KPs list structure changes
+                index["ARA"][ara_id] = [str(key) for key in kps.keys() if key not in ('url', 'test_data_location')]
+
+        return index
+
     def get_summary(self) -> Optional[Dict]:
         """
         If available, returns a test result summary for the most recent OneHopTestHarness run.
 
-        :return: Optional[str], JSON structured document summary of unit test results. 'None' if not (yet) available.
+        :return: Optional[str], JSON document summary of unit test results. 'None' if not (yet) available.
         """
         summary: Optional[Dict] = self.get_test_report().retrieve_document(
             document_type="Summary", document_key="test_run_summary"
