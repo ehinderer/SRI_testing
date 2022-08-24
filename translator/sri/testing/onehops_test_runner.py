@@ -1,7 +1,7 @@
 """
 SRI Testing Report utility functions.
 """
-from typing import Optional, Dict, Tuple, List, Generator
+from typing import Optional, Dict, Tuple, List, Generator, Union
 from os import sep
 from datetime import datetime
 
@@ -367,11 +367,37 @@ class OneHopTestHarness:
         """
         return cls._test_report_database.get_available_reports()
 
+    def get_index(self) -> Optional[Dict]:
+        """
+        If available, returns a test result index - KP and ARA tags - for the most recent OneHopTestHarness run.
+
+        :return: Optional[str], JSON document KP/ARA index of unit test results. 'None' if not (yet) available.
+        """
+        summary: Optional[Dict] = self.get_test_report().retrieve_document(
+            document_type="Summary", document_key="test_run_summary"
+        )
+        # Sanity check for existence of the summary...
+        if not summary:
+            return None
+
+        # We extract the 'index' from the available 'test_run_summary' document
+        index: Dict = dict()
+        if "KP" in summary and summary["KP"]:
+            index["KP"] = [str(key) for key in summary["KP"].keys()]
+        if "ARA" in summary and summary["ARA"]:
+            index["ARA"] = dict()
+            for ara_id, ara in summary["ARA"].items():
+                if "kps" in ara and ara["kps"]:
+                    kps: Dict = ara["kps"]
+                    index["ARA"][ara_id] = [str(key) for key in kps.keys()]
+
+        return index
+
     def get_summary(self) -> Optional[Dict]:
         """
         If available, returns a test result summary for the most recent OneHopTestHarness run.
 
-        :return: Optional[str], JSON structured document summary of unit test results. 'None' if not (yet) available.
+        :return: Optional[str], JSON document summary of unit test results. 'None' if not (yet) available.
         """
         summary: Optional[Dict] = self.get_test_report().retrieve_document(
             document_type="Summary", document_key="test_run_summary"
