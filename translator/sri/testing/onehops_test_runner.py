@@ -46,8 +46,8 @@ def build_resource_key(component: str, ara_id: Optional[str], kp_id: str) -> str
     Returns a key identifier ('path') to an test summary document of a given ARA and/or KP resource.
 
     :param component:
-    :param ara_id:
-    :param kp_id:
+    :param ara_id: str, may be empty (if the resource is directly a KP)
+    :param kp_id: str, should not be empty either when directly accessed or indirectly via an ARA
     :return: str, resource-centric document key
     """
     resource_key: str = component
@@ -133,19 +133,6 @@ def _get_resource_components(resource_id: str) -> Tuple[str, str]:
         ara_id = None
         kp_id = rid_part[0]
     return ara_id, kp_id
-
-
-def _get_resources_summary_document_key(component: str, resource_id: str) -> str:
-    """
-    Web-wrapped version of the translator.sri.testing.report.build_resource_summary_key() method.
-
-    :param component:
-    :param resource_id:
-    :return:
-    """
-    ara_id, kp_id = _get_resource_components(resource_id)
-    resource_summary_key: str = build_resource_summary_key(component, ara_id, kp_id)
-    return resource_summary_key
 
 
 def _get_details_document_key(component: str, resource_id: str, edge_num: str) -> str:
@@ -407,20 +394,20 @@ class OneHopTestHarness:
     def get_resource_summary(
             self,
             component: str,
-            resource_id: str
+            kp_id: str,
+            ara_id: Optional[str] = None
     ) -> Optional[Dict]:
         """
         Returns test result summary across all edges for given resource component.
 
         :param component: str, Translator component being tested: 'ARA' or 'KP'
-        :param resource_id: str, identifier of the resource being tested (may be single KP identifier (i.e. 'Some_KP')
-                            or a hyphen-delimited 2-Tuple composed of an ARA and an associated KP identifier
-                            (i.e. 'Some_ARA-Some_KP') as found in the JSON hierarchy of the test run summary.
+        :param kp_id: str, identifier of a KP resource being accessed.
+        :param ara_id: Optional[str], identifier of the ARA resource being accessed. May be missing or None
 
         :return: Optional[Dict], JSON structured document of test details for a specified test edge of a
                                  KP or ARA resource, or 'None' if the details are not (yet) available.
         """
-        document_key: str = _get_resources_summary_document_key(component, resource_id)
+        document_key: str = build_resource_summary_key(component, ara_id, kp_id)
         resource_summary: Optional[Dict] = self.get_test_report().retrieve_document(
             document_type="Resource Summary", document_key=document_key
         )

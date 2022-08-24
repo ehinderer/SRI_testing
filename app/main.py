@@ -192,13 +192,19 @@ async def run_tests(test_parameters: Optional[TestRunParameters] = None) -> Test
     return TestRunSession(test_run_id=test_harness.get_test_run_id())
 
 
+def _validate_parameters(parameter: Dict):
+    for tag in parameter.keys():
+        if not parameter[tag]:
+            raise HTTPException(status_code=400, detail=f"Null or empty '{tag}' parameter?")
+
+
 class TestRunStatus(BaseModel):
     test_run_id: str
     percent_complete: int
 
 
 @app.get(
-    "/status/{test_run_id}",
+    "/status",
     tags=['report'],
     response_model=TestRunStatus,
     summary="Retrieve the summary of a specified SRI Testing run."
@@ -213,8 +219,7 @@ async def get_status(test_run_id: str) -> TestRunStatus:
     :return: TestRunStatus, with fields 'test_run_id' and 'percent_complete', the latter being
                              an integer 0..100 indicating the percentage completion of the test run.
     """
-    if not test_run_id:
-        raise HTTPException(status_code=400, detail="Null or empty Test Run Identifier?")
+    _validate_parameters({"test_run_id": test_run_id})
 
     percent_complete: int = OneHopTestHarness(test_run_id=test_run_id).get_status()
 
@@ -249,7 +254,7 @@ class TestRunSummary(BaseModel):
 
 
 @app.get(
-    "/index/{test_run_id}",
+    "/index",
     tags=['report'],
     response_model=TestRunSummary,
     summary="Retrieve the index - KP and ARA resource tags - of a completed specified OneHopTestHarness test run."
@@ -265,8 +270,7 @@ async def get_index(test_run_id: str) -> TestRunSummary:
                              JSON document summary of available unit test results.
     :raises: HTTPException(404) if the summary is not (yet?) available.
     """
-    if not test_run_id:
-        raise HTTPException(status_code=400, detail="Null or empty Test Run Identifier?")
+    _validate_parameters({"test_run_id": test_run_id})
 
     index: Optional[Dict] = OneHopTestHarness(test_run_id=test_run_id).get_index()
 
@@ -277,7 +281,7 @@ async def get_index(test_run_id: str) -> TestRunSummary:
 
 
 @app.get(
-    "/summary/{test_run_id}",
+    "/summary",
     tags=['report'],
     response_model=TestRunSummary,
     summary="Retrieve the summary of a completed specified OneHopTestHarness test run."
@@ -293,8 +297,7 @@ async def get_summary(test_run_id: str) -> TestRunSummary:
                              JSON document summary of available unit test results.
     :raises: HTTPException(404) if the summary is not (yet?) available.
     """
-    if not test_run_id:
-        raise HTTPException(status_code=400, detail="Null or empty Test Run Identifier?")
+    _validate_parameters({"test_run_id": test_run_id})
 
     summary: Optional[Dict] = OneHopTestHarness(test_run_id=test_run_id).get_summary()
 
@@ -305,44 +308,38 @@ async def get_summary(test_run_id: str) -> TestRunSummary:
 
 
 @app.get(
-    "/resource/{test_run_id}/{component}/{resource_id}",
+    "/resource/kp",
     tags=['report'],
     response_model=TestRunSummary,
-    summary="Retrieve the test result summary for a specified SRI Testing Run ARA or KP Resource."
+    summary="Retrieve the test result summary for a KP Resource in a specified SRI Testing Run."
 )
-async def get_resource_summary(test_run_id: str, component: str, resource_id: str) -> TestRunSummary:
+async def get_kp_resource_summary(test_run_id: str, kp_id: str) -> TestRunSummary:
     """
-    Return result summary for a specific ARA or KP resource in an
-     identified test run, identified by the following query path parameters:
+    Return result summary for a specific KP resource in an
+    identified test run, identified by the following query parameters:
 
     - **test_run_id**: test run being accessed.
-    - **component**: Translator component being tested: 'ARA' or 'KP'.
-    - **resource_id**: identifier of the resource being tested, may be single KP identifier (i.e. 'Some_KP')
-                       or a hyphen-delimited 2-Tuple composed of an ARA and an associated KP identifier
-                       (i.e. 'Some_ARA-Some_KP') as found in the JSON hierarchy of the test run summary.
+    - **kp_id**: identifier of the KP resource being tested.
 
     \f
     :param test_run_id: test run identifier (as returned by /run_tests endpoint).
-    :param component: Translator component being tested: 'ARA' or 'KP'.
-    :param resource_id: identifier of the resource being tested (may be single KP identifier (i.e. 'Some_KP') or a
-                        hyphen-delimited 2-Tuple composed of an ARA and an associated KP identifier
-                        (i.e. 'Some_ARA-Some_KP') as found in the JSON hierarchy of the test run summary.
+    :param kp_id: identifier of the KP resource being tested.
 
     :return: TestRunResourceSummary, echoing input parameters alongside the requested 'details', the latter which is a
                                  details JSON document for the specified unit test.
 
     :raises: HTTPException(404) if the requested edge unit test details are not (yet?) available.
     """
-    if not test_run_id:
-        raise HTTPException(status_code=400, detail="Null or empty Test Run Identifier?")
-    if not component:
-        raise HTTPException(status_code=400, detail="Null or empty Translator Component?")
-    if not resource_id:
-        raise HTTPException(status_code=400, detail="Null or empty Resource Identifier?")
+    _validate_parameters(
+        {
+            "test_run_id": test_run_id,
+            "kp_id": kp_id
+        }
+    )
 
     summary: Optional[Dict] = OneHopTestHarness(test_run_id=test_run_id).get_resource_summary(
-        component=component,
-        resource_id=resource_id
+        component="KP",
+        kp_id=kp_id
     )
 
     if summary is not None:
@@ -350,8 +347,60 @@ async def get_resource_summary(test_run_id: str, component: str, resource_id: st
     else:
         raise HTTPException(
             status_code=404,
-            detail=f"Summary for {component} '{resource_id}', " +
-                   f"from test run '{test_run_id}', is not (yet) available?"
+            detail=f"Summary for KP '{kp_id}', from test run '{test_run_id}', is not (yet) available?"
+        )
+
+
+@app.get(
+    "/resource/ara",
+    tags=['report'],
+    response_model=TestRunSummary,
+    summary="Retrieve the test result summary for a specified SRI Testing Run ARA or KP Resource."
+)
+async def get_ara_resource_summary(test_run_id: str, ara_id: str, kp_id: Optional[str] = None) -> TestRunSummary:
+    """
+    Return result summary for a specific ARA resource in a completed test run, looked up with the following parameters:
+
+    - **test_run_id**: str, identifier test run being accessed.
+    - **ara_id**: str, identifier of the ARA resource being accessed. Mandatory non-empty string identifier.
+    - **kp_id**: str, identifier of the ARA resource being accessed. Optional. If not given, then the endpoint
+                      returns the test data for all KPs accessed via the given ARA TRAPI web service.
+
+    \f
+    :param test_run_id: str, test run identifier (as returned by /run_tests endpoint).
+    :param ara_id: str, identifier of the ARA resource being accessed. Mandatory non-empty string.
+    :param kp_id: str, identifier of the KP resource being accessed. Optional (default: all KPs returned from ARA)
+
+    :return: TestRunResourceSummary, detailed JSON 'tabular' summary for the specified resource set of unit tests.
+
+    :raises: HTTPException(404) if the requested edge unit test details are not (yet?) available.
+    """
+    _validate_parameters(
+        {
+            "test_run_id": test_run_id,
+            "resource_id": ara_id
+            # kp_id may eventually be allowed to be empty...
+        }
+    )
+
+    summary: Optional[Dict]
+    if kp_id:
+        # ... but not yet: classical version of this call: assumes that *both*the ara_id and kp_id are specified
+        summary = OneHopTestHarness(test_run_id=test_run_id).get_resource_summary(
+            component="ARA",
+            ara_id=ara_id,
+            kp_id=kp_id
+        )
+    else:
+        # TODO: Merged ARA implementation without a specific kp_id, needs a bit more thought.
+        raise HTTPException(status_code=400, detail="Null kp_id parameter is not yet supported?")
+
+    if summary is not None:
+        return TestRunSummary(test_run_id=test_run_id, summary=summary)
+    else:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Summary for ARA '{ara_id}', from test run '{test_run_id}', is not (yet) available?"
         )
 
 
@@ -390,14 +439,14 @@ async def get_details(test_run_id: str, component: str, resource_id: str, edge_n
 
     :raises: HTTPException(404) if the requested edge unit test details are not (yet?) available.
     """
-    if not test_run_id:
-        raise HTTPException(status_code=400, detail="Null or empty Test Run Identifier?")
-    if not component:
-        raise HTTPException(status_code=400, detail="Null or empty Translator Component?")
-    if not resource_id:
-        raise HTTPException(status_code=400, detail="Null or empty Resource Identifier?")
-    if not edge_num:
-        raise HTTPException(status_code=400, detail="Null or empty Edge Number?")
+    _validate_parameters(
+        {
+            "test_run_id": test_run_id,
+            "component": component,
+            "resource_id": resource_id,
+            "edge_num": edge_num
+        }
+    )
 
     details: Optional[Dict] = OneHopTestHarness(test_run_id=test_run_id).get_details(
         component=component,
@@ -454,16 +503,15 @@ async def get_response(
 
     :raise: HTTPException(404) if the requested TRAPI response JSON text data file is not (yet?) available.
     """
-    if not test_run_id:
-        raise HTTPException(status_code=400, detail="Null or empty Test Run Identifier?")
-    if not component:
-        raise HTTPException(status_code=400, detail="Null or empty Translator Component?")
-    if not resource_id:
-        raise HTTPException(status_code=400, detail="Null or empty Resource Identifier?")
-    if not edge_num:
-        raise HTTPException(status_code=400, detail="Null or empty Edge Number?")
-    if not test_id:
-        raise HTTPException(status_code=400, detail="Null or empty Test Identifier?")
+    _validate_parameters(
+        {
+            "test_run_id": test_run_id,
+            "component": component,
+            "resource_id": resource_id,
+            "edge_num": edge_num,
+            "test_id": test_id
+        }
+    )
 
     try:
         content_generator: Generator = OneHopTestHarness(
