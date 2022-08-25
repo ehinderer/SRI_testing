@@ -172,20 +172,22 @@ def pytest_sessionfinish(session):
         if ara_id:
             if ara_id not in test_run_summary[component]:
                 test_run_summary[component][ara_id] = dict()
+                test_run_summary[component][ara_id]['url'] = url
+                test_run_summary[component][ara_id]['test_data_location'] = test_case['ara_test_data_location']
+                test_run_summary[component][ara_id]['kps'] = dict()
+
                 resource_summaries[component][ara_id] = dict()
 
-            # TODO: echo the ARA 'url' and 'test_data_location' here
-            test_run_summary[component][ara_id]['url'] = url
-            test_run_summary[component][ara_id]['test_data_location'] = test_case['ara_test_data_location']
-
-            if kp_id not in test_run_summary[component][ara_id]:
-                test_run_summary[component][ara_id][kp_id] = _new_kp_test_case_summary(
+            if kp_id not in test_run_summary[component][ara_id]['kps']:
+                test_run_summary[component][ara_id]['kps'][kp_id] = _new_kp_test_case_summary(
                     trapi_version=trapi_version,
                     biolink_version=biolink_version
                 )
                 resource_summaries[component][ara_id][kp_id] = dict()
-            case_summary = test_run_summary[component][ara_id][kp_id]
+
+            case_summary = test_run_summary[component][ara_id]['kps'][kp_id]
             resource_summary = resource_summaries[component][ara_id][kp_id]
+
         else:
             if kp_id not in test_run_summary[component]:
                 test_run_summary[component][kp_id] = _new_kp_test_case_summary(
@@ -305,7 +307,7 @@ def pytest_sessionfinish(session):
         kp_summaries = resource_summaries["KP"]
         for kp in kp_summaries:
             # Save Test Run Summary
-            document_key: str = f"KP{sep}{kp}{sep}resource_summary"
+            document_key: str = f"KP/{kp}/resource_summary"
             test_run.save_json_document(
                 document_type="Direct KP Summary",
                 document=kp_summaries[kp],
@@ -318,7 +320,7 @@ def pytest_sessionfinish(session):
         for ara in ara_summaries:
             for kp in ara_summaries[ara]:
                 # Save embedded KP Resource Summary
-                document_key: str = f"ARA{sep}{ara}{sep}{kp}{sep}resource_summary"
+                document_key: str = f"ARA/{ara}/{kp}/resource_summary"
                 test_run.save_json_document(
                     document_type="ARA Embedded KP Summary",
                     document=ara_summaries[ara][kp],

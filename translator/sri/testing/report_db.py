@@ -29,7 +29,6 @@ RUNNING_INSIDE_DOCKER = environ.get('RUNNING_INSIDE_DOCKER', False)
 class TestReportDatabaseException(RuntimeError):
     pass
 
-
 class TestReportDatabase:
 
     LOG_NAME = "logs"
