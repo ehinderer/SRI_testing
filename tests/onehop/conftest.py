@@ -307,7 +307,7 @@ def pytest_sessionfinish(session):
         kp_summaries = resource_summaries["KP"]
         for kp in kp_summaries:
             # Save Test Run Summary
-            document_key: str = f"KP{sep}{kp}{sep}resource_summary"
+            document_key: str = f"KP/{kp}/resource_summary"
             test_run.save_json_document(
                 document_type="Direct KP Summary",
                 document=kp_summaries[kp],
@@ -320,7 +320,7 @@ def pytest_sessionfinish(session):
         for ara in ara_summaries:
             for kp in ara_summaries[ara]:
                 # Save embedded KP Resource Summary
-                document_key: str = f"ARA{sep}{ara}{sep}{kp}{sep}resource_summary"
+                document_key: str = f"ARA/{ara}/{kp}/resource_summary"
                 test_run.save_json_document(
                     document_type="ARA Embedded KP Summary",
                     document=ara_summaries[ara][kp],

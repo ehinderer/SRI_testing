@@ -2,7 +2,7 @@
 FastAPI web service wrapper for SRI Testing harness
 (i.e. for reports to a Translator Runtime Status Dashboard)
 """
-from typing import Optional, Dict, List, Generator
+from typing import Optional, Dict, List, Generator, Union
 
 from os.path import dirname, abspath
 
@@ -12,8 +12,8 @@ import uvicorn
 
 import logging
 
-from fastapi import FastAPI, HTTPException
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi import FastAPI
+from fastapi.responses import FileResponse, StreamingResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 
 from reasoner_validator.util import (
@@ -241,6 +241,10 @@ async def get_test_run_list() -> TestRunList:
     return TestRunList(test_runs=test_runs)
 
 
+class Message(BaseModel):
+    message: str
+
+
 class TestRunSummary(BaseModel):
     test_run_id: str
     summary: Dict
@@ -250,9 +254,10 @@ class TestRunSummary(BaseModel):
     "/index",
     tags=['report'],
     response_model=TestRunSummary,
-    summary="Retrieve the index - KP and ARA resource tags - of a completed specified OneHopTestHarness test run."
+    summary="Retrieve the index - KP and ARA resource tags - of a completed specified OneHopTestHarness test run.",
+    responses={404: {"model": Message}}
 )
-async def get_index(test_run_id: str) -> TestRunSummary:
+async def get_index(test_run_id: str) -> Union[TestRunSummary, JSONResponse]:
     """
     Returns a JSON index  - KP and ARA resource tags - for a completed OneHopTestHarness test run.
 
@@ -269,16 +274,21 @@ async def get_index(test_run_id: str) -> TestRunSummary:
     if index is not None:
         return TestRunSummary(test_run_id=test_run_id, summary=index)
     else:
-        raise HTTPException(status_code=404, detail=f"Index for test run '{test_run_id}' is not (yet) available?")
-
+        return JSONResponse(
+            status_code=404,
+            content={
+                "message": f"Index for test run '{test_run_id}' is not (yet) available?"
+            }
+        )
 
 @app.get(
     "/summary",
     tags=['report'],
     response_model=TestRunSummary,
-    summary="Retrieve the summary of a completed specified OneHopTestHarness test run."
+    summary="Retrieve the summary of a completed specified OneHopTestHarness test run.",
+    responses={404: {"model": Message}}
 )
-async def get_summary(test_run_id: str) -> TestRunSummary:
+async def get_summary(test_run_id: str) -> Union[TestRunSummary, JSONResponse]:
     """
     Returns a JSON summary report of results for a completed OneHopTestHarness test run.
 
@@ -295,29 +305,26 @@ async def get_summary(test_run_id: str) -> TestRunSummary:
     if summary is not None:
         return TestRunSummary(test_run_id=test_run_id, summary=summary)
     else:
-        raise HTTPException(status_code=404, detail=f"Summary for test run '{test_run_id}' is not (yet) available?")
+        return JSONResponse(
+            status_code=404,
+            content={
+                "message": f"Summary for test run '{test_run_id}' is not (yet) available?"
+            }
+        )
 
 
-# For all endpoints which previously have the 'component' path argument, the alternate way that we distinguish
-# between the various types of ARA/KP data access is simply by the presence or absence of the ara_id and kp_id:
-#
-# Case 1 - non-empty kp_id, empty ara_id == just return the KP related resource
-# Case 2 - non-empty ara_id, non-empty kp_id == return the one KP accessed by the specified ARA
-# Case 3 - non-empty ara_id, empty kp_id == return all the KP's accessed by the specified ARA
-# Case 4 - empty ara_id and kp_id == error condition... at least one or the other ID needs to be provided.
-#          Alternately, all the Kps of all the ARAs can be sent back (but this may be a bad idea... too much data?)
-#
 @app.get(
     "/resource",
     tags=['report'],
     response_model=TestRunSummary,
-    summary="Retrieve the test result summary for a specified resource from a specified SRI Testing Run."
+    summary="Retrieve the test result summary for a specified resource from a specified SRI Testing Run.",
+    responses={400: {"model": Message}, 404: {"model": Message}}
 )
 async def get_kp_resource_summary(
         test_run_id: str,
         ara_id: Optional[str] = None,
         kp_id: Optional[str] = None
-) -> TestRunSummary:
+) -> Union[TestRunSummary, JSONResponse]:
     """
     Return result summary for a specific KP resource in an
     identified test run, identified by a specific set of query parameters:
@@ -345,6 +352,7 @@ async def get_kp_resource_summary(
 
     :raises: HTTPException(404) if the requested edge unit test details are not (yet?) available.
     """
+    # TODO: maybe we can validate the ara_id and kp_id against the /index catalog?
     summary: Optional[Dict]
     if ara_id:
         if kp_id:
@@ -357,7 +365,7 @@ async def get_kp_resource_summary(
         else:
             # Case 3: return all the KPs being tested under the specified ARA
             # TODO: Merged ARA implementation without a specific kp_id, needs a bit more thought.
-            raise HTTPException(status_code=400, detail="Null kp_id parameter is not yet supported?")
+            return JSONResponse(status_code=400, content={"message": "Null kp_id parameter is not yet supported?"})
     else:  # empty 'ara_id'
         if kp_id:
             # Case 1: just return the summary of the one directly tested KP resource
@@ -367,15 +375,19 @@ async def get_kp_resource_summary(
             )
         else:
             # Case 4: error...at least one of 'ara_id' and 'kp_id' needs to be provided.
-            raise HTTPException(status_code=400, detail="The 'ara_id' and 'kp_id' cannot both be empty parameters!")
-
+            return JSONResponse(
+                status_code=400,
+                content={"message": "The 'ara_id' and 'kp_id' cannot both be empty parameters!"}
+            )
     if summary is not None:
         return TestRunSummary(test_run_id=test_run_id, summary=summary)
     else:
-        raise HTTPException(
+        return JSONResponse(
             status_code=404,
-            detail=f"Resource summary, for ara_id '{str(ara_id)}' and kp_id '{str(kp_id)}', " +
-                   f"is not (yet) available from test run '{test_run_id}'?"
+            content={
+                "message": f"Resource summary, for ara_id '{str(ara_id)}' and kp_id '{str(kp_id)}', " +
+                           f"is not (yet) available from test run '{test_run_id}'?"
+            }
         )
 
 
@@ -387,14 +399,15 @@ class TestRunEdgeDetails(BaseModel):
     "/details",
     tags=['report'],
     response_model=TestRunEdgeDetails,
-    summary="Retrieve the test result details for a specified SRI Testing Run input edge."
+    summary="Retrieve the test result details for a specified SRI Testing Run input edge.",
+    responses={400: {"model": Message}, 404: {"model": Message}}
 )
 async def get_details(
     test_run_id: str,
     edge_num: str,
     ara_id: Optional[str] = None,
     kp_id: Optional[str] = None
-) -> TestRunEdgeDetails:
+) -> Union[TestRunEdgeDetails, JSONResponse]:
     """
     Retrieve the test result details for a specified ARA or KP resource
     in a given test run defined by the following query path parameters:
@@ -421,9 +434,10 @@ async def get_details(
 
     :return: TestRunEdgeDetails, echoing input parameters alongside the requested 'details', the latter which is a
                                  details JSON document for the specified unit test.
-
-    :raises: HTTPException(404) if the requested edge unit test details are not (yet?) available.
+             or HTTP Status Code(400) unsupported parameter configuration.
+             or HTTP Status Code(404) if the requested TRAPI response JSON text data file is not (yet?) available.
     """
+    # TODO: maybe we can validate the ara_id and kp_id against the /index catalog?
     details: Optional[Dict]
     if ara_id:
         if kp_id:
@@ -437,7 +451,7 @@ async def get_details(
         else:
             # Case 3: return all the KPs being tested under the specified ARA
             # TODO: Merged ARA implementation without a specific kp_id, needs a bit more thought.
-            raise HTTPException(status_code=400, detail="Null kp_id parameter is not yet supported?")
+            return JSONResponse(status_code=400, content={"message": "Null kp_id parameter is not yet supported?"})
     else:  # empty 'ara_id'
         if kp_id:
             # Case 1: just return the summary of the one directly tested KP resource
@@ -448,15 +462,17 @@ async def get_details(
             )
         else:
             # Case 4: error...at least one of 'ara_id' and 'kp_id' needs to be provided.
-            raise HTTPException(status_code=400, detail="The 'ara_id' and 'kp_id' cannot both be empty parameters!")
+            return JSONResponse(status_code=400, content={"message": "At least a 'kp_id' must be specified!"})
 
     if details is not None:
         return TestRunEdgeDetails(details=details)
     else:
-        raise HTTPException(
+        return JSONResponse(
             status_code=404,
-            detail=f"Edge details, for ara_id '{str(ara_id)}' and kp_id '{str(kp_id)}', " +
-                   f"are not (yet) available from test run '{test_run_id}'?"
+            content={
+                "message": f"Edge details, for ara_id '{str(ara_id)}' and kp_id '{str(kp_id)}', " +
+                           f"are not (yet) available from test run '{test_run_id}'?"
+            }
         )
 
 
@@ -464,7 +480,8 @@ async def get_details(
     "/response",
     tags=['report'],
     summary="Directly stream the TRAPI response JSON message for a " +
-            "specified SRI Testing unit test of a given input edge."
+            "specified SRI Testing unit test of a given input edge.",
+    responses={400: {"model": Message}, 404: {"model": Message}}
 )
 async def get_response(
         test_run_id: str,
@@ -472,7 +489,7 @@ async def get_response(
         test_id: str,
         ara_id: Optional[str] = None,
         kp_id: Optional[str] = None
-) -> StreamingResponse:
+) -> Union[StreamingResponse, JSONResponse]:
     """
     Return full TRAPI response message as a streamed downloadable text file, if available, for a specified unit test
     of an edge, as identified test run defined by the following query path parameters:
@@ -501,10 +518,11 @@ async def get_response(
         - Case 3 - non-empty ara_id, empty kp_id == error... option not provided here ... too much bandwidth!
         - Case 4 - empty ara_id and kp_id == error ...At least a 'kp_id' must be specified!
 
-    :return: StreamingResponse, downloadable text file of TRAPI response
-
-    :raise: HTTPException(404) if the requested TRAPI response JSON text data file is not (yet?) available.
+    :return: StreamingResponse, HTTP status code 200 with downloadable text file of TRAPI response
+             or HTTP Status Code(400) unsupported parameter configuration.
+             or HTTP Status Code(404) if the requested TRAPI response JSON text data file is not (yet?) available.
     """
+    # TODO: maybe we can validate the ara_id and kp_id against the /index catalog?
     try:
         content_generator: Generator
         if ara_id:
@@ -519,7 +537,10 @@ async def get_response(
                 )
             else:
                 # Case 3: error... option not provided here ... too much bandwidth!
-                raise HTTPException(status_code=400, detail="Null 'kp_id' is not supported with a non-null 'ara_id'!")
+                return JSONResponse(
+                    status_code=400,
+                    content={"message": "Null 'kp_id' is not supported with a non-null 'ara_id'!"}
+                )
         else:  # empty 'ara_id'
             if kp_id:
                 # Case 1: just return the summary of the one directly tested KP resource
@@ -531,18 +552,20 @@ async def get_response(
                 )
             else:
                 # Case 4: error...at least 'kp_id' needs to be provided.
-                raise HTTPException(status_code=400, detail="At least a 'kp_id' must be specified!")
+                return JSONResponse(status_code=400, content={"message": "At least a 'kp_id' must be specified!"})
 
         return StreamingResponse(
             content=content_generator,
             media_type="application/json"
         )
     except RuntimeError:
-        raise HTTPException(
+        return JSONResponse(
             status_code=404,
-            detail=f"TRAPI Response JSON text file for unit test {test_id} for edge {edge_num} " +
-                   f"for ara_id '{str(ara_id)}' and kp_id '{str(kp_id)}', " +
-                   f"from test run '{test_run_id}', is not (yet) available?"
+            content={
+                "message": f"TRAPI Response JSON text file for unit test {test_id} for edge {edge_num} " +
+                           f"for ara_id '{str(ara_id)}' and kp_id '{str(kp_id)}', " +
+                           f"from test run '{test_run_id}', is not (yet) available?"
+            }
         )
 
 
