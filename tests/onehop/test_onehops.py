@@ -80,6 +80,7 @@ def test_trapi_kps(kp_trapi_case, trapi_creator, results_bag):
 
     if not ('biolink_errors' in kp_trapi_case or in_excluded_tests(test=trapi_creator, test_case=kp_trapi_case)):
         execute_trapi_lookup(case=kp_trapi_case, creator=trapi_creator, rbag=results_bag, test_report=test_report)
+        test_report.assert_errors()
     else:
         _report_and_skip_edge("KP", test=trapi_creator, test_case=kp_trapi_case, test_report=test_report)
 
@@ -113,5 +114,7 @@ def test_trapi_aras(ara_trapi_case, trapi_creator, results_bag):
         )
         if response_message is not None:
             check_provenance(ara_case=ara_trapi_case, ara_response=response_message, test_report=test_report)
+
+        test_report.assert_errors()
     else:
         _report_and_skip_edge("ARA", test=trapi_creator, test_case=ara_trapi_case, test_report=test_report)
