@@ -21,7 +21,7 @@ DEFAULT_TRAPI_POST_TIMEOUT = 600.0
 
 # Maximum number of edges to scrutinize in
 # TRAPI response knowledge graph, during edge content tests
-MAX_NO_OF_EDGES = 10
+TEST_DATA_SAMPLE_SIZE = 10
 
 # Default is actually specifically 1.2.0 as of March 2022,
 # but the reasoner_validator should discern this
@@ -49,12 +49,20 @@ def get_latest_trapi_version() -> str:
     return latest.get(DEFAULT_TRAPI_VERSION)
 
 
-def is_valid_trapi(instance, trapi_version) -> Tuple[bool, str]:
-    """Make sure that the Message is valid using reasoner_validator"""
+def is_valid_trapi(instance, trapi_version: str, component: str = "Query") -> Tuple[bool, str]:
+    """
+    Make sure that the Message is valid using reasoner_validator.
+
+    :param instance: Dict, data instance
+    :param trapi_version: str, SemVer of target TRAPI version
+    :param component: str, name of TRAPI Message schemata (sub)component to be validated
+
+    :return: Tuple[bool,str], validation status (True / False) and (optional) validation message if 'False' status
+    """
     try:
         validate(
             instance=instance,
-            component="Query",
+            component=component,
             trapi_version=trapi_version
         )
         return True, ""
@@ -70,18 +78,20 @@ class TestReport:
     def __init__(self, errors: List[str]):
         self.errors = errors
 
-    def test(self, is_true: bool, message: str):
+    def test(self, is_true: bool, message: str, data_dump: Optional[str] = None):
         """
         Error test report.
 
         :param is_true: test predicate, triggering error message report if False
         :param message: error message reported when 'is_true' is False
+        :param data_dump: optional extra information about a test failure (e.g. details about the object that failed)
         :raises: AssertionError when 'is_true' flag has value False
         """
         if not is_true:
             logger.error(message)
+            if data_dump:
+                logger.debug(data_dump)
             self.errors.append(message)
-            assert False, message
 
     def skip(self, message: str):
         """
@@ -91,6 +101,14 @@ class TestReport:
         """
         self.errors.append(message)
         pytest.skip(message)
+
+    def assert_errors(self):
+        """
+        Error failure report wrapper.
+        :return:
+        """
+        if self.errors:
+            pytest.fail(_output(self.errors))
 
 
 def generate_test_error_msg_prefix(case: Dict, test_name: str) -> str:
@@ -223,7 +241,7 @@ def check_provenance(ara_case, ara_response, test_report: TestReport):
         # provenance but only sample a subset, making the assumption that
         # defects in provenance will be systemic, thus will show up early
         number_of_edges_viewed += 1
-        if number_of_edges_viewed >= MAX_NO_OF_EDGES:
+        if number_of_edges_viewed >= TEST_DATA_SAMPLE_SIZE:
             break
 
 
@@ -276,6 +294,32 @@ def generate_edge_id(resource_id: str, edge_i: int) -> str:
     return f"{resource_id}#{str(edge_i)}"
 
 
+def sample_results(results: List) -> List:
+    sample_size = min(TEST_DATA_SAMPLE_SIZE, len(results))
+    result_subsample = results[0:sample_size]
+    return result_subsample
+
+
+def sample_graph(graph: Dict) -> Dict:
+    kg_sample: Dict = {
+        "nodes": dict(),
+        "edges": dict()
+    }
+    sample_size = min(TEST_DATA_SAMPLE_SIZE, len(graph["edges"]))
+    n = 0
+    for key, edge in graph['edges'].items():
+        kg_sample['edges'][key] = edge
+        if 'subject' in edge and edge['subject'] in graph['nodes']:
+            kg_sample['nodes'][edge['subject']] = graph['nodes'][edge['subject']]
+        if 'object' in edge and edge['object'] in graph['nodes']:
+            kg_sample['nodes'][edge['object']] = graph['nodes'][edge['object']]
+        n += 1
+        if n > sample_size:
+            break
+
+    return kg_sample
+
+
 def execute_trapi_lookup(case, creator, rbag, test_report: TestReport):
     """
     Method to execute a TRAPI lookup, using the 'creator' test template.
@@ -289,11 +333,13 @@ def execute_trapi_lookup(case, creator, rbag, test_report: TestReport):
     error_msg_prefix = generate_test_error_msg_prefix(case, test_name=creator.__name__)
 
     trapi_request, output_element, output_node_binding = creator(case)
-
+    is_valid: bool = trapi_request is not None
     test_report.test(
-        trapi_request is not None,
+        is_valid,
         f"{error_msg_prefix} message creator could not generate a valid TRAPI query request object?"
     )
+    if not is_valid:
+        return None
 
     # query use cases pertain to a particular TRAPI version
     trapi_version = case['trapi_version']  # get_trapi_version() - we now record TRAPI version within the 'case'
@@ -301,8 +347,12 @@ def execute_trapi_lookup(case, creator, rbag, test_report: TestReport):
     is_valid, error = is_valid_trapi(trapi_request, trapi_version=trapi_version)
     test_report.test(
         is_valid,
-        f"{error_msg_prefix} the query request is not compliant to TRAPI version '{trapi_version}'? Error: {error}"
+        f"{error_msg_prefix} the input Query request is not compliant " +
+        f"to TRAPI version '{trapi_version}'?",
+        data_dump=f"TRAPI Request: {trapi_request},\nError: {error}"
     )
+    if not is_valid:
+        return None
 
     trapi_response = call_trapi(case['url'], case['query_opts'], trapi_request)
 
@@ -310,47 +360,84 @@ def execute_trapi_lookup(case, creator, rbag, test_report: TestReport):
     rbag.request = trapi_request
     rbag.response = trapi_response
 
-    test_report.test(
-        trapi_response['status_code'] == 200,
-        f"{error_msg_prefix} TRAPI response has an unexpected HTTP status code: '{str(trapi_response['status_code'])}'?"
-    )
-
-    # Validate that we got back valid TRAPI Response
-    is_valid, error = is_valid_trapi(trapi_response['response_json'], trapi_version=trapi_version)
+    is_valid = trapi_response['status_code'] == 200
     test_report.test(
         is_valid,
-        f"{error_msg_prefix} TRAPI response is not TRAPI '{trapi_version}' version compliant? Error: {error}"
+        f"{error_msg_prefix} TRAPI response has an unexpected HTTP status code: '{str(trapi_response['status_code'])}'?"
     )
+    if not is_valid:
+        return None
 
     response_message = trapi_response['response_json']['message']
 
-    # Verify that the response had some results...
+    # Generally validate to top level structure of the Knowledge Graph...
+    kg = response_message['knowledge_graph']
+    is_valid = len(kg) > 0 and "nodes" in kg and len(kg["nodes"]) > 0 and "edges" in kg and len(kg["edges"]) > 0
     test_report.test(
-        len(response_message['results']) > 0,
-        f"{error_msg_prefix} TRAPI response returned an empty TRAPI Message Result?"
-    )
-
-    # ...Then, validate the associated Knowledge Graph...
-    test_report.test(
-        len(response_message['knowledge_graph']) > 0,
+        is_valid,
         f"{error_msg_prefix} returned an empty TRAPI Message Knowledge Graph?"
     )
+    if not is_valid:
+        return None
 
-    # Verify that the TRAPI message output knowledge graph
-    # is compliant to the applicable Biolink Model release
+    # ...then if not empty, validate a sample subgraph of the associated Knowledge Graph...
+    kg_sample = sample_graph(response_message['knowledge_graph'])
+    is_valid, error = is_valid_trapi(
+        instance=kg_sample,
+        trapi_version=trapi_version,
+        component="KnowledgeGraph"
+    )
+    test_report.test(
+        is_valid,
+        f"{error_msg_prefix} TRAPI response Knowledge Graph sample " +
+        f"is not compliant to TRAPI '{trapi_version}'?",
+        data_dump=f"Sample subgraph: {_output(kg_sample)}\nErrors: {error}"
+    )
+    if not is_valid:
+        return None
+
+    # Verify that the sample of the sample knowledge graph is
+    # compliant to the currently applicable Biolink Model release
     model_version, errors = \
         check_biolink_model_compliance_of_knowledge_graph(
-            graph=response_message['knowledge_graph'],
+            graph=kg_sample,
             biolink_version=case['biolink_version']
         )
     test_report.test(
         not errors,
-        f"{error_msg_prefix} TRAPI response is not compliant to " +
-        f"Biolink Model release '{model_version}': {_output(errors, flat=True)}?"
+        f"{error_msg_prefix} TRAPI response Knowledge Graph sample is not compliant to " +
+        f"Biolink Model release '{model_version}': {_output(errors, flat=True)}?",
+        data_dump=_output(kg_sample)
     )
 
-    # Finally, check that the Results contained the object of the query
-    object_ids = [r['node_bindings'][output_node_binding][0]['id'] for r in response_message['results']]
+    # ...Verify that the response had some results...
+    is_valid = len(response_message['results']) > 0
+    test_report.test(
+        is_valid,
+        f"{error_msg_prefix} TRAPI response returned an empty TRAPI Message Result?"
+    )
+
+    if not is_valid:
+        return None
+
+    # Validate a subsample of the Message.Result data returned
+    results_sample = sample_results(response_message['results'])
+    is_valid, error = is_valid_trapi(results_sample, trapi_version=trapi_version, component="Result")
+    test_report.test(
+        is_valid,
+        f"{error_msg_prefix} TRAPI response Results " +
+        f"are not compliant to TRAPI '{trapi_version}'?",
+        data_dump=f"Sample Results: {_output(results_sample)}\nError: {error}"
+    )
+
+    if not is_valid:
+        return None
+
+    # TODO: here, we might wish to compare the Results against the content of the KnowledgeGraph,
+    #       but this is tricky to do solely with the subsamples, which may not completely overlap.
+
+    # ...Finally, check that the sample Results contained the object of the query
+    object_ids = [r['node_bindings'][output_node_binding][0]['id'] for r in results_sample]
     if case[output_element] not in object_ids:
         # The 'get_aliases' method uses the Translator NodeNormalizer to check if any of
         # the aliases of the case[output_element] identifier are in the object_ids list
@@ -358,8 +445,9 @@ def execute_trapi_lookup(case, creator, rbag, test_report: TestReport):
         test_report.test(
             any([alias == object_id for alias in output_aliases for object_id in object_ids]),
             f"{error_msg_prefix}: neither the input id '{case[output_element]}' nor resolved aliases " +
-            f"[{','.join(output_aliases)}] were returned in the Result object IDs " +
-            f"{_output(object_ids,flat=True)} for node '{output_node_binding}' binding?"
+            f"were returned in the Result object IDs for node '{output_node_binding}' binding?",
+            data_dump=f"Resolved aliases:\n{','.join(output_aliases)}\n" +
+                      f"Result object IDs:\n{_output(object_ids,flat=True)}"
         )
 
     return response_message
