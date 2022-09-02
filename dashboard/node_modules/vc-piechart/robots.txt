@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://vc-piechart.wemakesites.net/sitemap.xml

@@ -11,6 +11,11 @@ services:
     volumes:
     - results:/code/tests/onehop/results
 
+  dashboard:
+    build: "./dashboard"
+    ports:
+    - "8080:8080"
+      
   mongo:
     image: mongo
     restart: always
