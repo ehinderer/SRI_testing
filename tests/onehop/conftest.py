@@ -20,7 +20,7 @@ from translator.registry import (
     get_the_registry_data,
     extract_component_test_metadata_from_registry
 )
-from translator.trapi import generate_edge_id, get_latest_trapi_version
+from translator.trapi import generate_edge_id, DEFAULT_TRAPI_VERSION
 
 from tests.onehop import util as oh_util
 from tests.onehop.util import (
@@ -450,7 +450,7 @@ def get_test_data_sources(source: str, component_type: str) -> Dict[str, Dict[st
             "component": component_type,
             "infores": None,
             "biolink_version": None,
-            "trapi_version": get_latest_trapi_version()
+            "trapi_version": DEFAULT_TRAPI_VERSION
         }
         service_metadata = {name: metadata_template.copy() for name in filelist}
 

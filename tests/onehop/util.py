@@ -6,7 +6,7 @@ from reasoner_validator.biolink import get_biolink_model_toolkit
 from translator.sri.testing.util import ontology_kp
 
 
-def create_one_hop_message(edge, look_up_subject=False):
+def create_one_hop_message(edge, look_up_subject=False) -> Dict:
     """Given a complete edge, create a valid TRAPI message for "one hop" querying for the edge.
     If the look_up_subject is False (default) then the object id is not included, (lookup object
     by subject) and if the look_up_subject is True, then the subject id is not included (look up
@@ -15,7 +15,7 @@ def create_one_hop_message(edge, look_up_subject=False):
     #       the core message structure evolved between various TRAPI versions,
     #       e.g. category string => categories list; predicate string => predicates list
     #
-    query_graph = {
+    query_graph: Dict = {
         "nodes": {
             'a': {
                 "categories": [edge['subject_category']]
@@ -36,7 +36,15 @@ def create_one_hop_message(edge, look_up_subject=False):
         query_graph['nodes']['b']['ids'] = [edge['object']]
     else:
         query_graph['nodes']['a']['ids'] = [edge['subject']]
-    message = {"message": {"query_graph": query_graph, 'knowledge_graph': {"nodes": {}, "edges": {}, }, 'results': []}}
+    message: Dict = {
+        "message": {
+            "query_graph": query_graph,
+            'knowledge_graph': {
+                "nodes": {}, "edges": {},
+            },
+            'results': []
+        }
+    }
     return message
 
 

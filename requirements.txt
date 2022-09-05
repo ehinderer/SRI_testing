@@ -11,6 +11,9 @@ pytest-asyncio
 pytest-harvest
 pymongo
 kgx
+
 # bmt>=0.8.4
 git+https://github.com/biolink/biolink-model-toolkit.git@v0.8.4-patch-release#egg=bmt
-reasoner-validator>=2.2.14
+
+# reasoner-validator>=2.2.14
+-e git+https://github.com/NCATSTranslator/reasoner-validator.git@trapi-response-validator-method#egg=reasoner-validator

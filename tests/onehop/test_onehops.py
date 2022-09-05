@@ -10,15 +10,13 @@ Existing KP Unit Tests (defined in onehop.util module):
 - raise_object_by_subject
 - raise_predicate_by_subject
 
-Also, for ARA Unit tests:
-- check_provenance (defined in translator.trapi module)
 """
 from typing import List, Dict
 
 import pytest
 
 from tests.onehop.util import in_excluded_tests
-from translator.trapi import check_provenance, execute_trapi_lookup, TestReport
+from translator.trapi import execute_trapi_lookup, TestReport
 from tests.onehop import util as oh_util
 
 import logging
@@ -106,15 +104,13 @@ def test_trapi_aras(ara_trapi_case, trapi_creator, results_bag):
     test_report = TestReport(results_bag.errors)
 
     if not ('biolink_errors' in ara_trapi_case or in_excluded_tests(test=trapi_creator, test_case=ara_trapi_case)):
-        response_message = execute_trapi_lookup(
+        execute_trapi_lookup(
             case=ara_trapi_case,
             creator=trapi_creator,
             rbag=results_bag,
-            test_report=test_report
+            test_report=test_report,
+            validate_provenance=True
         )
-        if response_message is not None:
-            check_provenance(ara_case=ara_trapi_case, ara_response=response_message, test_report=test_report)
-
         test_report.assert_errors()
     else:
         _report_and_skip_edge("ARA", test=trapi_creator, test_case=ara_trapi_case, test_report=test_report)
