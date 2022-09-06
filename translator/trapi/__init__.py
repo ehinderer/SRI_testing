@@ -1,3 +1,4 @@
+import warnings
 from typing import Optional, Dict, List
 
 from json import dumps
@@ -28,9 +29,15 @@ def _output(json, flat=False):
     return dumps(json, sort_keys=False, indent=None if flat else 4)
 
 
-class TestReport:
+class TrapiValidationWarning(UserWarning):
+    pass
 
-    def __init__(self, errors: List[str]):
+
+class TestReport(ValidationReporter):
+
+    def __init__(self, test_case: Dict, test_name: str, errors: List[str]):
+        error_msg_prefix = generate_test_error_msg_prefix(test_case, test_name=test_name)
+        ValidationReporter.__init__(self, prefix=error_msg_prefix)
         self.errors = errors
 
     def test(self, is_true: bool, message: str, data_dump: Optional[str] = None):
@@ -46,7 +53,7 @@ class TestReport:
             logger.error(message)
             if data_dump:
                 logger.debug(data_dump)
-            self.errors.append(message)
+            self.error(message)
 
     def skip(self, message: str):
         """
@@ -55,18 +62,30 @@ class TestReport:
         :raises: AssertionError when 'is_true' flag has value False
         """
         self.errors.append(message)
-        pytest.skip(message)
+        pytest.skip(reason=message)
 
-    def assert_errors(self):
+    def assert_test_outcome(self):
         """
-        Error failure report wrapper.
-        :return:
+        Pytest Assertion wrapper: assert the Pytest outcome relative
+        to the most severe ValidationReporter messages.
         """
-        if self.errors:
-            pytest.fail(_output(self.errors))
-
-    def record(self, results: ValidationReporter):
-        raise NotImplementedError("Implement TestReport capture of the ValidationReporter messages!")
+        if self.has_errors():
+            err_msg = self.dump_errors(flat=True)
+            logger.error(err_msg)
+            pytest.fail(reason=err_msg)
+        elif self.has_warnings():
+            wrn_msg = self.dump_warnings(flat=True)
+            logger.error(wrn_msg)
+            with pytest.warns(TrapiValidationWarning):
+                warnings.warn(
+                    TrapiValidationWarning(wrn_msg),
+                    TrapiValidationWarning
+                )
+        elif self.has_information():
+            logger.info(self.dump_info(flat=True))
+            pass  # not yet sure what else to do here?
+        else:
+            pass  # do nothing... just PASSing through...
 
 
 def generate_test_error_msg_prefix(case: Dict, test_name: str) -> str:
@@ -151,47 +170,45 @@ def execute_trapi_lookup(case, creator, rbag, test_report: TestReport, validate_
 
     :return: None
     """
-    error_msg_prefix = generate_test_error_msg_prefix(case, test_name=creator.__name__)
-
-    results: ValidationReporter = ValidationReporter(prefix=error_msg_prefix)
-
     trapi_request: Optional[Dict]
     output_element: Optional[str]
     output_node_binding: Optional[str]
 
     trapi_request, output_element, output_node_binding = creator(case)
     if not trapi_request:
-        results.error("Message creator could not generate a valid TRAPI query request object?")
+        test_report.error("Message creator could not generate a valid TRAPI query request object?")
     else:
         # query use cases pertain to a particular TRAPI version
         trapi_version = case['trapi_version']
         biolink_version = case['biolink_version']
 
-        results.merge(check_trapi_validity(trapi_request, trapi_version=trapi_version))
-        if not results.has_messages():
-            # if no messages are reported, then continue the validation
+        # sanity check: verify first that the TRAPI request is well-formed by the creator(case)
+        test_report.merge(check_trapi_validity(trapi_request, trapi_version=trapi_version))
+        if not test_report.has_messages():
+            # if no messages are reported, then continue with the validation
 
-            # Make the TRAPI query to the Case targeted KP or ARA resource,
-            # using the Case-documented input test edge
+            # Make the TRAPI call to the Case targeted KP or ARA resource, using the case-documented input test edge
             trapi_response = call_trapi(case['url'], case['query_opts'], trapi_request)
 
             # Record the raw TRAPI query input and output for later test harness reference
             rbag.request = trapi_request
             rbag.response = trapi_response
 
-            # First, check if the web service (HTTP) call was successful
+            # Second sanity check: was the web service (HTTP) call itself successful?
             web_status: int = trapi_response['status_code']
             if web_status != 200:
-                results.error(f"TRAPI response has an unexpected HTTP status code: '{web_status}'?")
+                test_report.error(f"TRAPI response has an unexpected HTTP status code: '{web_status}'?")
             else:
-                ########################################################
-                # Now, validate the "Semantic" quality of the response #
-                ########################################################
+                ##########################################
+                # Looks good so far, so now validate     #
+                # the "Semantic" quality of the response #
+                ##########################################
                 response_message: Optional[Dict] = trapi_response['response_json']['message']
 
                 if response_message:
                     model_version: str
-                    model_version, results = \
+                    biolink_validation_report: ValidationReporter
+                    model_version, biolink_validation_report = \
                         check_biolink_model_compliance_of_trapi_response(
                             message=response_message,
                             output_element=output_element,
@@ -200,5 +217,4 @@ def execute_trapi_lookup(case, creator, rbag, test_report: TestReport, validate_
                             trapi_version=trapi_version,
                             biolink_version=biolink_version
                         )
-
-    test_report.record(results)
+                    test_report.merge(biolink_validation_report)

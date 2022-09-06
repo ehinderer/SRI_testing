@@ -74,11 +74,16 @@ def test_trapi_kps(kp_trapi_case, trapi_creator, results_bag):
     results_bag.location = kp_trapi_case['kp_test_data_location']
     results_bag.case = kp_trapi_case
     results_bag.errors = list()
-    test_report = TestReport(results_bag.errors)
+
+    test_report = TestReport(
+        test_case=kp_trapi_case,
+        test_name=trapi_creator.__name__,
+        errors=results_bag.errors
+    )
 
     if not ('biolink_errors' in kp_trapi_case or in_excluded_tests(test=trapi_creator, test_case=kp_trapi_case)):
         execute_trapi_lookup(case=kp_trapi_case, creator=trapi_creator, rbag=results_bag, test_report=test_report)
-        test_report.assert_errors()
+        test_report.assert_test_outcome()
     else:
         _report_and_skip_edge("KP", test=trapi_creator, test_case=kp_trapi_case, test_report=test_report)
 
@@ -101,7 +106,12 @@ def test_trapi_aras(ara_trapi_case, trapi_creator, results_bag):
     results_bag.location = ara_trapi_case['ara_test_data_location']
     results_bag.case = ara_trapi_case
     results_bag.errors = list()
-    test_report = TestReport(results_bag.errors)
+
+    test_report = TestReport(
+        test_case=ara_trapi_case,
+        test_name=trapi_creator.__name__,
+        errors=results_bag.errors
+    )
 
     if not ('biolink_errors' in ara_trapi_case or in_excluded_tests(test=trapi_creator, test_case=ara_trapi_case)):
         execute_trapi_lookup(
@@ -111,6 +121,6 @@ def test_trapi_aras(ara_trapi_case, trapi_creator, results_bag):
             test_report=test_report,
             validate_provenance=True
         )
-        test_report.assert_errors()
+        test_report.assert_test_outcome()
     else:
         _report_and_skip_edge("ARA", test=trapi_creator, test_case=ara_trapi_case, test_report=test_report)

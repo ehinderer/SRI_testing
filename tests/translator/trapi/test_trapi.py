@@ -15,37 +15,37 @@ logger = logging.getLogger(__name__)
     [
         (
                 {
-                    "kp_api_name": "Test_KP_1",
+                    "kp_source": "infores:test-kp-1",
                     "idx": "2",
                 },
                 "test_name",
-                "test_onehops.py::test_trapi_kps[Test_KP_1#2-test_name] FAILED"
+                "test_onehops.py::test_trapi_kps[test-kp-1#2-test_name] FAILED"
         ),
         (
                 {
-                    "kp_api_name": "Test_KP_1",
+                    "kp_source": "infores:test-kp-1",
                     "idx": "2",
                 },
                 None,
-                "test_onehops.py::test_trapi_kps[Test_KP_1#2-input] FAILED"
+                "test_onehops.py::test_trapi_kps[test-kp-1#2-input] FAILED"
         ),
         (
                 {
-                    "ara_api_name": "Test_ARA",
-                    "kp_api_name": "Test_KP_1",
+                    "ara_source": "infores:test-ara",
+                    "kp_source": "infores:test-kp-1",
                     "idx": "2",
                 },
                 "test_name",
-                "test_onehops.py::test_trapi_aras[Test_ARA|Test_KP_1#2-test_name] FAILED"
+                "test_onehops.py::test_trapi_aras[test-ara|test-kp-1#2-test_name] FAILED"
         ),
         (
                 {
-                    "ara_api_name": "Test_ARA",
-                    "kp_api_name": "Test_KP_1",
+                    "ara_source": "infores:test-ara",
+                    "kp_source": "infores:test-kp-1",
                     "idx": "2",
                 },
                 None,
-                "test_onehops.py::test_trapi_aras[Test_ARA|Test_KP_1#2-input] FAILED"
+                "test_onehops.py::test_trapi_aras[test-ara|test-kp-1#2-input] FAILED"
         )
     ]
 )

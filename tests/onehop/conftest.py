@@ -828,8 +828,13 @@ def generate_trapi_ara_tests(metafunc, kp_edges, trapi_version, biolink_version)
                         "is missing its ARA 'infores' field.  We infer one from "
                         "the ARA 'api_name', but edge provenance may not be properly tested?"
                     )
+                    # create a pseudo-infores from a lower cased and hyphenated API name
                     ara_api_name: str = edge['ara_api_name']
-                    edge['ara_source'] = f"infores:{ara_api_name.lower()}"
+                    if not ara_api_name:
+                        logger.warning("generate_trapi_ara_tests(): ARA API Name is missing? Skipping entry...")
+                        continue
+                    ara_infores_object_id = ara_api_name.lower().replace("_", "-")
+                    edge['ara_source'] = f"infores:{ara_infores_object_id}"
 
                 if 'kp_source' in kp_edge:
                     edge['kp_source'] = kp_edge['kp_source']
