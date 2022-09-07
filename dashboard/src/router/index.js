@@ -3,7 +3,7 @@ import Router from 'vue-router'
 
 Vue.use(Router)
 
-// TODO: Elminate
+// TODO: Eliminate
 const Home = { template: '<div>Home {{ $route.params.id }} </div>' }
 const About = { template: '<div>About {{ $route.params.id }} </div>' }
 

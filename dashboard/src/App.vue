@@ -2,7 +2,7 @@
 <div>
   <v-app-bar class="app-bar" dense>
     <v-app-bar-title>
-      SRI Schema Compliance Validator
+      TRAPI Resource Validator
     </v-app-bar-title>
  </v-app-bar>
 
