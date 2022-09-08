@@ -417,12 +417,12 @@
                             bottom>
                             <template v-slot:activator="{ on, attrs }">
                               <div v-bind="attrs" v-on="on">
-                                <v-chip small outlined>{{formatCurie(result.subject_category)}}</v-chip>--<v-chip small outlined>{{formatCurie(result.predicate)}}</v-chip>→<v-chip small outlined>{{formatCurie(result.object_category)}}</v-chip>
+                                <v-chip small outlined>{{formatCurie(result.subject_category)}}</v-chip>--<v-chip small outlined>{{formatCurie(result.predicate)}}</v-chip>-><v-chip small outlined>{{formatCurie(result.object_category)}}</v-chip>
                               </div>
                             </template>
                             <b>Test Edge:</b>
                             <span>
-                              ({{result.subject}})--[{{result.predicate}}]→({{result.object}})<br>
+                              ({{result.subject}})--[{{result.predicate}}]->({{result.object}})<br>
                             </span>
                           </v-tooltip>
                         </span>
@@ -471,8 +471,6 @@ import { Cartesian, Line, Bar } from 'laue'
 import axios, { MOCK_TEST_RUN_ID } from "./api.js";
 import { PYTEST_REPORT, MOLEPRO_REPORT } from "./__mocks__/test_data.js";
 
-
-const API_HOST = "http://localhost";
 const MOCK = process.env.isAxiosMock;
 const _FEATURE_RUN_TESTS = process.env._FEATURE_RUN_TESTS;
 
@@ -488,7 +486,6 @@ export default {
   data() {
     return {
       MOCK,
-      API_HOST,
       _FEATURE_RUN_TESTS,
       hover: false,
       id: null,
@@ -524,16 +521,16 @@ export default {
   async created () {
 
     // initialize application
-    await axios.get(`${API_HOST}/test_runs`).then(async response => {
+    await axios.get(`/test_runs`).then(async response => {
       const test_runs = response.data.test_runs;
       if (!!test_runs && test_runs.length > 0) {
         console.log(test_runs)
         this.test_runs_selections = response.data.test_runs;
         this.id = test_runs[0];
       } else {
-        await axios.post(`${API_HOST}/run_tests`, {}).then(response => {
+        await axios.post(`/run_tests`, {}).then(response => {
           this.id = response.data.test_run_id;
-          axios.get(`${API_HOST}/test_runs`).then(response => {
+          axios.get(`/test_runs`).then(response => {
             this.test_runs_selections = response.data.test_runs;
           })
        })
@@ -542,9 +539,9 @@ export default {
 
     // Mock initialization
     // if (MOCK) {
-    //     await axios.post(`${API_HOST}/run_tests`, {}).then(response => {
+    //     await axios.post(`/run_tests`, {}).then(response => {
     //         this.id = response.data.test_run_id;
-    //         axios.get(`${API_HOST}/test_runs`).then(response => {
+    //         axios.get(`/test_runs`).then(response => {
     //             this.test_runs_selections = response.data.test_runs;
     //         })
     //    })
@@ -554,7 +551,7 @@ export default {
   watch: {
     id(id, oldId) {
       this.loading = true;
-      this.status_interval = setInterval(() => axios.get(`${API_HOST}/status?test_run_id=${id}`).then(response => {
+      this.status_interval = setInterval(() => axios.get(`/status?test_run_id=${id}`).then(response => {
         this.status = response.data.percent_complete;
         if (this.status >= 100) {
           window.clearInterval(this.status_interval)
@@ -563,10 +560,10 @@ export default {
     },
     status(newStatus, oldStatus) {
       if (newStatus >= 100 && (this.headers.length === 0 && this.cells.length === 0)) {
-        axios.get(`${API_HOST}/index?test_run_id=${this.id}`).then(response => {
+        axios.get(`/index?test_run_id=${this.id}`).then(response => {
           this.index = response.data.summary;
         })
-        axios.get(`${API_HOST}/summary?test_run_id=${this.id}`).then(response => {
+        axios.get(`/summary?test_run_id=${this.id}`).then(response => {
           this.stats_summary = response.data.summary;
         })
         this.loading = false;
@@ -647,7 +644,7 @@ export default {
           if (!!a.status && !!b.status)
             return a.status.localeCompare(b.status)
           if (!!a.spec && !!b.spec)
-            return `${a.spec.subject}--${a.spec.predicate}→${a.spec.object}`.localeCompare(`${b.spec.subject}--${b.spec.predicate}→${b.spec.object}`)
+            return `${a.spec.subject}--${a.spec.predicate}->${a.spec.object}`.localeCompare(`${b.spec.subject}--${b.spec.predicate}->${b.spec.object}`)
           else
             return a - b;
         }
@@ -700,12 +697,12 @@ export default {
   },
   methods: {
     async triggerReloadTestRunSelections() {
-      await axios.get(`${API_HOST}/test_runs`).then(response => {
+      await axios.get(`/test_runs`).then(response => {
         this.test_runs_selections = response.data.test_runs;
       })
     },
     async triggerTestRun() {
-      axios.post(`${API_HOST}/run_tests`, {}).then(response => {
+      axios.post(`/run_tests`, {}).then(response => {
         this.id = response.data.test_run_id;
       }).then(() => {
         // refresh the test runs list
@@ -797,13 +794,13 @@ export default {
 
       }
       index.KP.forEach(async kp_id => {
-        await axios.get(`${API_HOST}/resource?test_run_id=${id}&kp_id=${kp_id}`)
+        await axios.get(`/resource?test_run_id=${id}&kp_id=${kp_id}`)
                    .then(response => addFromKPs(kp_id, response.data.summary))
       });
       Object.keys(index.ARA)
             .forEach(ara_id => {
               index.ARA[ara_id].forEach(async kp_id => {
-                await axios.get(`${API_HOST}/resource?test_run_id=${id}&kp_id=${kp_id}&ara_id=${ara_id}`)
+                await axios.get(`/resource?test_run_id=${id}&kp_id=${kp_id}&ara_id=${ara_id}`)
                            .then(response => addFromKPs(`${ara_id}_${kp_id}`, response.data.summary))
               })
             });
@@ -819,10 +816,10 @@ export default {
     },
     async makeTableData(id) {
       // TODO: refactor to use index
-      const report = axios.get(`${API_HOST}/summary?test_run_id=${id}`)
+      const report = axios.get(`/summary?test_run_id=${id}`)
                           .then(response => {
                             const kp_details = Object.entries(response.data.summary.KP).map(([resource_id, value]) => {
-                              return axios.get(`${API_HOST}/resource?test_run_id=${this.id}&kp_id=${resource_id}`).then(el => {
+                              return axios.get(`/resource?test_run_id=${this.id}&kp_id=${resource_id}`).then(el => {
                                 return {
                                   resource_id,  // inject the resource_id into the response
                                   ...el,
@@ -831,7 +828,7 @@ export default {
                       });
                       const ara_details = Object.entries(response.data.summary.ARA).map(([resource_id, value]) => {
                           return Object.keys(value.kps)
-                              .map(key => axios.get(`${API_HOST}/resource?test_run_id=${this.id}&ara_id=${resource_id}&kp_id=${key}`)
+                              .map(key => axios.get(`/resource?test_run_id=${this.id}&ara_id=${resource_id}&kp_id=${key}`)
                                    .then(el => {
                                        return {
                                            resource_id: `${resource_id}>${key}`,
@@ -917,7 +914,7 @@ export default {
             return state
         },
         formatEdge (result) {
-            return `(${this.formatCurie(result.subject_category)})--[${this.formatCurie(result.predicate)}]→(${this.formatCurie(result.object_category)})`
+            return `(${this.formatCurie(result.subject_category)})--[${this.formatCurie(result.predicate)}]->(${this.formatCurie(result.object_category)})`
         },
         formatCurie (curie) {
             return curie.split(':')[1];
