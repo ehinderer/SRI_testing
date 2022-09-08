@@ -41,17 +41,32 @@ Go to  http://localhost/docs to see the service documentation and to use the sim
 
 The SRI Testing web service may be run inside a docker container, using Docker Compose.
 
-Assuming that you have installed both [Docker (or rather, Docker Desktop)](https://docs.docker.com/get-docker/) and [Docker-Compose](https://docs.docker.com/compose/install/) (Note: Docker Desktop now conveniently installs both...), then the following commands may be run:
+Assuming that you have installed both [Docker (or rather, Docker Desktop)](https://docs.docker.com/get-docker/) and [Docker-Compose](https://docs.docker.com/compose/install/) (Note: Docker Desktop now conveniently installs both...), then the following commands may be run from the root folder of the project:
 
-First, from the root directory of the project, build the local docker container
+### Database for the Test Results
+
+You will generally want to have the backend persist its test results in a MongoDb database(*), so first start up a Mongo instance as so:
+
+```shell
+docker-compose -f run-mongodb.yaml up -d
+```
+
+Note that the application will default to use the filing system for its test run under a local **results** directory, if the MongoDb container is not running.  The application will start a bit more slowly in such a situation as it awaits the timeout of the attempted connection to a MongoDb database.
+
+If the database is running, the Mongo-Express container may be run to look at it:
+
+```shell
+docker-compose -f run-mongodb-monitor.yaml up -d
+```
+
+Mongo-Express web page is available at http://localhost:8081.  It is generally not a good idea to run this on a production server.
+
+# Testing Engine and Web Dashboard
+
+Next, build then start up the services consisting of Docker containers for the testing dashboard and backend engine - defined in the default _Dockerfile_ - using **Docker Compose**, by the root directory of the project, build the local docker container
 
 ```shell
 docker-compose build
-```
-
-Then, run the service using **Docker Compose**:
-
-```shell
 docker-compose up -d
 ```
 
@@ -61,10 +76,11 @@ Once again, go to  http://localhost/docs to see the service documentation.  Dock
 docker-compose logs -f
 ```
 
-To stop the docker container web service:
+To stop the Docker containers:
 
 ```shell
 docker-compose down
+docker-compose -f run-mongodb.yaml down
 ```
 
 Of course, the above `docker-compose` commands may be overridden by the user to suit their needs. Note that the docker implementation assumes the use of uvicorn (installed as a dependency).

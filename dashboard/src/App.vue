@@ -121,9 +121,8 @@
               <v-skeleton-loader
                 v-if="loading === true"
                 v-bind="attrs"
-                type="table"
+                type="actions,article,card,chip"
                 ></v-skeleton-loader>
-
               <div v-else-if="stats_summary !== null && loading === false">
                 <h2>Test Results</h2>
                 <h3>All providers</h3><br>
@@ -398,9 +397,9 @@
                           bottom>
                           <template v-slot:activator="{ on, attrs }">
                             <div v-bind="attrs" v-on="on">
-                              <router-link :to="{ name: 'about_test', params: { id: item['_id'],  idx: item['idx'], test: test } }">
+                              <a>
                                 {{ stateIcon(result.status) }} {{ !!result && !!result.messages & !!result.messages.length ? `(${result.messages.length})` : '' }}
-                              </router-link>
+                              </a>
                             </div>
                           </template>
                           <span>

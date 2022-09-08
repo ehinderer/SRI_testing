@@ -2,16 +2,6 @@ version: '3.9'
 
 services:
 
-  mongo:
-    image: mongo
-    restart: always
-    ports:
-      - 27017:27017
-    environment:
-      # TODO: parameterized better Mongodb configuration / secrets
-      MONGO_INITDB_ROOT_USERNAME: root
-      MONGO_INITDB_ROOT_PASSWORD: example
-
   # TODO: For diagnostics - should not be deployed in production
   mongo-express:
     image: mongo-express
