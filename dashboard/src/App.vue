@@ -44,7 +44,7 @@
   </v-container>
   <v-container>
     <h1>{{ id }}</h1>
-    <h3 v-if="loading === true">This may take a minute.</h3>
+    <h3 v-if="loading === true">This may take a few minutes.</h3>
     <v-tabs v-if="!(loading === null)" v-model="tab">
       <v-tab
         v-for="item in ['Overview', 'Details']"
