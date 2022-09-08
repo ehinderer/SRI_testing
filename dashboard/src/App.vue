@@ -8,7 +8,7 @@
 
 <v-app>
 
-  <v-container id="page-header">
+  <v-container v-if="_FEATURE_RUN_TESTS" id="page-header">
     <v-row>
       <h1>Run Tests</h1>
     </v-row>
@@ -27,7 +27,6 @@
                 dense>
       </v-select>
 
-
       <v-progress-circular
         v-if="loading"
         color="teal"
@@ -37,14 +36,26 @@
         :indeterminate="status < 1">
         {{ status > 0 ? status : '' }}
       </v-progress-circular>
-
-    </v-row>
-    <v-row>
     </v-row>
   </v-container>
+
   <v-container>
     <h1>{{ id }}</h1>
     <h3 v-if="loading === true">This may take a minute.</h3>
+    <span v-else>
+
+      <v-chip-group>
+        <span class="subheading"><strong>BioLink: &nbsp;</strong></span>
+        <v-chip small v-for="biolink_version in biolink_range.split(',')" :key="biolink_version">
+          {{biolink_version}}
+        </v-chip>
+        <span class="subheading"><strong>TRAPI: &nbsp;</strong></span>
+        <v-chip small v-for="trapi_version in trapi_range.split(',')" :key="trapi_version">
+          {{trapi_version}}
+        </v-chip>
+      </v-chip-group>
+
+    </span>
     <v-tabs v-if="!(loading === null)" v-model="tab">
       <v-tab
         v-for="item in ['Overview', 'Details']"
@@ -59,6 +70,30 @@
         :key="item"
         >
         <div v-if="tab === 0" >
+<v-row no-gutter>
+                  <v-col sl>
+                    <v-select label="Filter for subject categories"
+                              multiple
+                              :items="subject_categories"
+                              v-model="subject_category_filter"/>
+                  </v-col>
+                  <v-col sl>
+                    <v-select label="Filter for predicates"
+                              multiple
+                              :items="predicates"
+                              v-model="predicate_filter"/>
+                  </v-col>
+                  <v-col sl>
+                    <v-select label="Filter for object categories"
+                              multiple
+                              :items="object_categories"
+                              v-model="object_category_filter"/>
+                  </v-col>
+
+                </v-row>
+
+
+
           <v-container :key="`${id}_overview`" id="page-overview" v-if="loading !== null">
             <!-- <h1>Overview</h1> -->
             <!-- <h2>Summary statistics for different ARAs and KPs</h2> -->
@@ -94,29 +129,36 @@
                 </v-col>
               </v-row>
               <div>
-                <em>Subject categories</em><br>
+                <span class="subheading">Subject categories</span><br>
                 <v-chip-group>
                   <v-chip small outlined v-for="subject_category in Object.entries(countBy(subject_categories))" :key="`${kp}_${subject_category}`">
                     {{ formatCurie(subject_category[0]) }} ({{ subject_category[1] }})
                   </v-chip>
                 </v-chip-group>
-                <em>Object categories</em><br>
+                <span class="subheading">Object categories</span><br>
                 <v-chip-group>
                   <v-chip small outlined v-for="object_category in Object.entries(countBy(object_categories))" :key="`${kp}_${subject_category}`">
                     {{ formatCurie(object_category[0]) }} ({{ object_category[1] }})
                   </v-chip>
                 </v-chip-group>
-                <em>Predicates</em><br>
+                <span class="subheading">Predicates</span><br>
                 <v-chip-group>
                   <v-chip small outlined v-for="predicate in Object.entries(countBy(predicates))" :key="`${kp}_${predicate}`">
                     {{ formatCurie(predicate[0]) }} ({{ predicate[1] }})
                   </v-chip>
                 </v-chip-group>
               </div>
+
               <br><h2>ARAs</h2>
               <div v-for="ara in Object.keys(stats_summary['ARA'])" :key="ara">
                 <div v-for="kp in Object.keys(stats_summary['ARA'][ara].kps)" :key="kp">
-                  <br><h3>{{ ara }}: {{ kp }}</h3><br>
+
+                  <v-chip-group>
+                    <h3>{{ ara }}: {{ kp }}</h3>&nbsp;
+                    <v-chip small><strong>BioLink:&nbsp;</strong> {{ stats_summary.ARA[ara].kps[kp].biolink_version }}</v-chip>
+                    <v-chip small><strong>TRAPI:&nbsp;</strong> {{ stats_summary.ARA[ara].kps[kp].trapi_version }}</v-chip>
+                    <v-spacer/>
+                  </v-chip-group><br>
 
                   <v-row no-gutter>
                     <v-col>
@@ -140,19 +182,19 @@
                     </v-col>
                   </v-row>
                   <div>
-                    <em>Subject categories</em><br>
+                    <span class="subheading">Subject categories</span><br>
                     <v-chip-group>
                       <v-chip small outlined v-for="subject_category in Object.entries(countBy(categories_index[`${ara}_${kp}`].subject_category))" :key="`${ara}_${kp}_${subject_category}`">
                         {{ formatCurie(subject_category[0]) }} ({{ subject_category[1] }})
                       </v-chip>
                     </v-chip-group>
-                    <em>Object categories</em><br>
+                    <span class="subheading">Object categories</span><br>
                     <v-chip-group>
                       <v-chip small outlined v-for="object_category in Object.entries(countBy(categories_index[`${ara}_${kp}`].object_category))" :key="`${ara}_${kp}_${object_category}`">
                         {{ formatCurie(object_category[0]) }} ({{ object_category[1] }})
                       </v-chip>
                     </v-chip-group>
-                    <em>Predicates</em><br>
+                    <span class="subheading">Predicates</span><br>
                     <v-chip-group>
                       <v-chip small outlined v-for="predicate in Object.entries(countBy(categories_index[`${ara}_${kp}`].predicate))" :key="`${ara}_${kp}_${predicate}`">
                         {{ formatCurie(predicate[0]) }} ({{ predicate[1] }})
@@ -164,7 +206,14 @@
 
               <br><h2>KPs</h2>
               <div v-for="kp in Object.keys(stats_summary['KP'])" :key="kp" v-if="categories_index !== null && categories_index !== {}" >
-                <br><h3>{{ kp }}</h3><br>
+
+                <v-chip-group>
+                  <h3>{{ kp }}</h3>&nbsp;
+                  <v-spacer/>
+                  <v-chip small><strong>BioLink:&nbsp;</strong> {{ stats_summary.KP[kp].biolink_version }}</v-chip>
+                  <v-chip small><strong>TRAPI:&nbsp;</strong> {{ stats_summary.KP[kp].trapi_version }}</v-chip>
+                </v-chip-group><br>
+
                 <v-row no-gutter>
                   <v-col>
                     <vc-piechart
@@ -187,19 +236,19 @@
                   </v-col>
                 </v-row>
                 <div>
-                  <em>Subject categories</em><br>
+                  <span class="subheading">Subject categories</span><br>
                   <v-chip-group>
                     <v-chip small outlined v-for="subject_category in Object.entries(countBy(categories_index[kp].subject_category))" :key="`${kp}_${subject_category}`">
                       {{ formatCurie(subject_category[0]) }} ({{ subject_category[1] }})
                     </v-chip>
                   </v-chip-group>
-                  <em>Object categories</em><br>
+                  <span class="subheading">Object categories</span><br>
                   <v-chip-group>
                     <v-chip small outlined v-for="object_category in Object.entries(countBy(categories_index[kp].object_category))" :key="`${kp}_${object_category}`">
                       {{ formatCurie(object_category[0]) }} ({{ object_category[1] }})
                     </v-chip>
                   </v-chip-group>
-                  <em>Predicates</em><br>
+                  <span class="subheading">Predicates</span><br>
                   <v-chip-group>
                     <v-chip small outlined v-for="predicate in Object.entries(countBy(categories_index[kp].predicate))" :key="`${kp}_${predicate}`">
                       {{ formatCurie(predicate[0]) }} ({{ predicate[1] }})
@@ -230,7 +279,7 @@
                 <!--   single-line -->
                 <!--   hide-details -->
                 <!--   ></v-text-field> -->
-                <v-row no-gutter>
+                 <v-row no-gutter>
                   <v-col sl>
                     <v-select label="Filter for subject categories"
                               multiple
@@ -273,7 +322,7 @@
                   </v-col>
                 </v-row>
 
-                <v-data-table
+               <v-data-table
                   :headers="_headers"
                   :items="kp_selections.length > 0 || ara_selections.length > 0 ?
                           denormalized_cells
@@ -288,7 +337,14 @@
                   :search="search"
                   :custom-filter="searchMatches"
                   dense>
-                  <template v-slot:item="{ item }">
+
+                  <!-- TODO: group title formatting and tooltip. potentially just put in the summary? -->
+                  <template v-slot:group.summary="{ group }">
+                    <!-- <span>Biolink Compliant</span><br> -->
+                    <!-- <span>TRAPI Compliant</span> -->
+                  </template>
+
+                 <template v-slot:item="{ item }">
                     <tr>
                       <td v-for="[test, result] in Object.entries(omit('_id')(item))"
                           v-bind:key="`${hash([test, result])}`"
@@ -374,9 +430,12 @@ import { Cartesian, Line, Bar } from 'laue'
 import axios, { MOCK_TEST_RUN_ID } from "./api.js";
 import { PYTEST_REPORT, MOLEPRO_REPORT } from "./__mocks__/test_data.js";
 
+
 const API_HOST = "http://localhost";
-// const MOCK = process.env.isAxiosMock;
-const MOCK = false;
+const MOCK = process.env.isAxiosMock;
+const _FEATURE_RUN_TESTS = process.env._FEATURE_RUN_TESTS;
+
+// const MOCK = false;
 
 export default {
   name: 'App',
@@ -387,8 +446,9 @@ export default {
   },
   data() {
     return {
-      API_HOST: API_HOST,
-      MOCK: MOCK,
+      MOCK,
+      API_HOST,
+      _FEATURE_RUN_TESTS,
       hover: false,
       id: null,
       loading: null,
@@ -419,19 +479,33 @@ export default {
     }
   },
   async created () {
+
     // initialize application
-    await axios.get(`${API_HOST}/test_runs`).then(response => {
-      this.test_runs_selections = response.data.test_runs;
+    await axios.get(`${API_HOST}/test_runs`).then(async response => {
+      const test_runs = response.data.test_runs;
+      if (!!test_runs && test_runs.length > 0) {
+        console.log(test_runs)
+        this.test_runs_selections = response.data.test_runs;
+        this.id = test_runs[0];
+      } else {
+        await axios.post(`${API_HOST}/run_tests`, {}).then(response => {
+          this.id = response.data.test_run_id;
+          axios.get(`${API_HOST}/test_runs`).then(response => {
+            this.test_runs_selections = response.data.test_runs;
+          })
+       })
+      }
     })
+
     // Mock initialization
-    if (MOCK) {
-      await axios.post(`${API_HOST}/run_tests`, {}).then(response => {
-        this.id = response.data.test_run_id;
-        axios.get(`${API_HOST}/test_runs`).then(response => {
-          this.test_runs_selections = response.data.test_runs;
-        })
-      })
-    }
+    // if (MOCK) {
+    //     await axios.post(`${API_HOST}/run_tests`, {}).then(response => {
+    //         this.id = response.data.test_run_id;
+    //         axios.get(`${API_HOST}/test_runs`).then(response => {
+    //             this.test_runs_selections = response.data.test_runs;
+    //         })
+    //    })
+    // }
 
   },
   watch: {
@@ -464,6 +538,22 @@ export default {
     }
   },
   computed: {
+    trapi_range() {
+      const trapi_versions = [];
+      if (this.stats_summary !== null) {
+        trapi_versions.push(Object.entries(this.stats_summary.KP).map(([_, entry]) => entry.trapi_version));
+        trapi_versions.push(Object.entries(this.stats_summary.ARA).map(([_, entry]) => entry.trapi_version));
+      }
+      return _(trapi_versions).flatten().uniq().omitBy(_.isUndefined).omitBy(_.isNull).sort().values()
+    },
+    biolink_range() {
+      const biolink_versions = [];
+      if (this.stats_summary !== null) {
+        biolink_versions.push(Object.entries(this.stats_summary.KP).map(([_, entry]) => entry.biolink_version));
+        biolink_versions.push(Object.entries(this.stats_summary.ARA).map(([_, entry]) => entry.biolink_version));
+      }
+      return _(biolink_versions).flatten().uniq().omitBy(_.isUndefined).omitBy(_.isNull).sort().values()
+    },
     all_categories() {
       if (!!this.id) {
         return this.getAllCategories(this.id, this.index)
