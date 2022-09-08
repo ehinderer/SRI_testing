@@ -5,8 +5,7 @@
   "author": "kennethbruskiewicz <kenneth.bruskiewicz@gmail.com>",
   "private": true,
   "scripts": {
-    "dev": "webpack-dev-server -p --define process.env.isAxiosMock=true --define process.env.apiHost='localhost' --inline --progress --config build/webpack.dev.conf.js --host 0.0.0.0",
-    "dev-live": "webpack-dev-server -p --define process.env.isAxiosMock=false --define process.env.apiHost='localhost' --inline --progress --config build/webpack.dev.conf.js --host 0.0.0.0",
+    "dev": "webpack-dev-server -p --inline --progress --config build/webpack.dev.conf.js --host 0.0.0.0",
     "start": "npm run dev",
     "unit": "jest --config test/unit/jest.conf.js --coverage",
     "e2e": "node test/e2e/runner.js",
@@ -85,6 +84,7 @@
     "selenium-server": "^3.0.1",
     "semver": "^5.3.0",
     "shelljs": "^0.7.6",
+    "source-map-loader": "^4.0.0",
     "uglifyjs-webpack-plugin": "^1.1.1",
     "url-loader": "^0.5.8",
     "vue-jest": "^1.0.2",
