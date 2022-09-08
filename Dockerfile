@@ -7,6 +7,6 @@ RUN pip install --no-cache-dir --upgrade -r /code/requirements.txt
 RUN pip install --no-cache-dir --upgrade -r /code/requirements-service.txt
 COPY translator /code/translator
 COPY tests /code/tests
-COPY api /code/app
+COPY api /code/api
 EXPOSE 80
 CMD ["uvicorn", "api.main:app", "--proxy-headers", "--host", "0.0.0.0", "--port", "80"]
