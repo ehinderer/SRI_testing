@@ -6,7 +6,7 @@ services:
     build:
       context: .
     ports:
-    - "80:80"
+    - "80:8090"
     # need to tie into code/tests/onehop/results VOLUME
     volumes:
     - results:/code/tests/onehop/results
