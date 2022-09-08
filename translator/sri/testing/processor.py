@@ -4,23 +4,21 @@ Utility module to support SRI Testing harness background processing
 The module launches the SRT Testing test harness using the Python 'multiprocessor' library.
 See https://docs.python.org/3/library/multiprocessing.html?highlight=multiprocessing for details.
 """
-import sys
-from sys import platform, stderr
+from typing import Optional, Generator
 
-from multiprocessing import Process, Pipe
+from sys import platform, executable, stderr
+from os import getpid, getppid
+
+from re import compile
+from time import sleep
+from queue import Empty
+
+from multiprocessing import Process, Pipe, Lock, Queue, get_context
 from multiprocessing.context import BaseContext
 from multiprocessing.connection import Connection
 
-from typing import Optional, Generator
+from subprocess import Popen, PIPE, STDOUT
 
-import multiprocessing as mp
-from queue import Empty
-from subprocess import (
-    Popen,
-    PIPE,
-    STDOUT
-)
-import os
 import logging
 
 from translator.sri.testing.report_db import (
@@ -36,26 +34,37 @@ if platform == "win32":
     CMD_DELIMITER = "&&"
     PWD_CMD = "cd"
     from pathlib import PureWindowsPath
-    PYTHON_PATH = PureWindowsPath(sys.executable).as_posix()
+    PYTHON_PATH = PureWindowsPath(executable).as_posix()
 elif platform in ["linux", "linux1", "linux2", "darwin"]:
     # *nix
     CMD_DELIMITER = ";"
     PWD_CMD = "pwd"
-    PYTHON_PATH = sys.executable
+    PYTHON_PATH = executable
 else:
     print(f"Warning: other OS platform '{platform}' encountered?")
     CMD_DELIMITER = ";"
     PWD_CMD = "pwd"
-    PYTHON_PATH = sys.executable
+    PYTHON_PATH = executable
 
 _test_report_database: TestReportDatabase = get_test_report_database()
+
+PERCENTAGE_COMPLETION_SUFFIX_PATTERN = compile(r"(\[\s*(?P<percentage_completion>\d+)%])?$")
+
+
+def _progress_monitor(line: str) -> Optional[str]:
+    logger.debug(f"Pytest output: {line}")
+    pc = PERCENTAGE_COMPLETION_SUFFIX_PATTERN.search(line)
+    if pc and pc.group():
+        return pc["percentage_completion"]
+    else:
+        return None
 
 
 def _worker_process(
         identifier: str,
-        pipe: mp.Pipe,
-        lock: mp.Lock,
-        queue: mp.Queue,
+        pipe: Pipe,
+        lock: Lock,
+        queue: Queue,
         command_line: str
 ):
     """
@@ -72,8 +81,8 @@ def _worker_process(
     lock.acquire()
     try:
         print('Module:', __name__, flush=True, file=stderr)
-        print('Parent process:', os.getppid(), flush=True, file=stderr)
-        process_id: int = os.getpid()
+        print('Parent process:', getppid(), flush=True, file=stderr)
+        process_id: int = getpid()
         print(f"Background process id: {process_id}", flush=True, file=stderr)
         msg: str = f'Executing Test Harness command "{command_line}"'
         print(msg, flush=True, file=stderr)
@@ -90,6 +99,8 @@ def _worker_process(
     report: TestReport = _test_report_database.get_test_report(identifier)
     report.open_logger()
 
+    previous_percentage_complete: int = 0
+
     try:
         with Popen(
                 args=command_line,
@@ -102,13 +113,20 @@ def _worker_process(
             for line in proc.stdout:
                 # Echo 'line' to report log
                 report.write_logger(line)
-
                 line = line.strip()
                 if line:
-                    # Simple-minded strategy of also shoving all the
-                    # Worker Process output into an interprocess pipe
-                    # for "just-in-time" processing
-                    pipe.send(line)
+                    # Simple-minded strategy of "just-in-time" processing of
+                    # progress_monitoring of percentage completion parsed out
+                    percentage_complete: Optional[str] = _progress_monitor(line)
+                    if percentage_complete is not None:
+                        if int(percentage_complete) > previous_percentage_complete:
+                            previous_percentage_complete = int(percentage_complete)
+
+                            pipe.send(percentage_complete)
+
+                            # sleep briefly to temporarily
+                            # relinquish control to other threads
+                            sleep(0.01)
 
         return_code = proc.returncode
         return_status = "Worker Process Completed?"
@@ -143,7 +161,7 @@ class WorkerProcess:
 
         self._parent_conn: Optional[Connection] = None
         self._child_conn: Optional[Connection] = None
-        self._ctx: BaseContext = mp.get_context('spawn')
+        self._ctx: BaseContext = get_context('spawn')
         self._queue = self._ctx.Queue()
         self._lock = self._ctx.Lock()
         self._process: Optional[Process] = None

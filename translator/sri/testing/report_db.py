@@ -309,8 +309,12 @@ class FileTestReport(TestReport):
         if self._log_file:
             self._log_file.write(line)
 
+            # Will this help log performance?
+            self._log_file.flush()
+
     def close_logger(self):
         if self._log_file:
+            self._log_file.flush()
             self._log_file.close()
             self._log_file = None
 

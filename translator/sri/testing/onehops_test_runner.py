@@ -1,10 +1,8 @@
 """
 SRI Testing Report utility functions.
 """
-from typing import Optional, Dict, Tuple, List, Generator, Union
-from os import sep
+from typing import Optional, Dict, Tuple, List, Generator
 from datetime import datetime
-
 import re
 
 from translator.sri.testing.processor import CMD_DELIMITER, WorkerProcess
@@ -37,8 +35,6 @@ UNIT_TEST_NAME_PATTERN = re.compile(
 TEST_CASE_PATTERN = re.compile(
     r"^(?P<resource_id>[^#]+)(#(?P<edge_num>\d+))?(-(?P<test_id>.+))?$"
 )
-
-PERCENTAGE_COMPLETION_SUFFIX_PATTERN = re.compile(r"(\[\s*(?P<percentage_completion>\d+)%])?$")
 
 
 def build_resource_key(component: str, ara_id: Optional[str], kp_id: str) -> str:
@@ -295,11 +291,9 @@ class OneHopTestHarness:
             return 100
 
         if 0 <= self._get_percentage_completion() < 100:
-            for line in self._process.get_output(timeout=1):
-                logger.debug(f"Pytest output: {line}")
-                pc = PERCENTAGE_COMPLETION_SUFFIX_PATTERN.search(line)
-                if pc and pc.group():
-                    self._set_percentage_completion(int(pc["percentage_completion"]))
+            for percentage_complete in self._process.get_output(timeout=1):
+                logger.debug(f"Pytest % completion: {percentage_complete}")
+                self._set_percentage_completion(int(percentage_complete))
 
         if self.test_run_complete():
             self._set_percentage_completion(100)
