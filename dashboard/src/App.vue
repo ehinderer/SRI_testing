@@ -417,12 +417,12 @@
                             bottom>
                             <template v-slot:activator="{ on, attrs }">
                               <div v-bind="attrs" v-on="on">
-                                <v-chip small outlined>{{formatCurie(result.subject_category)}}</v-chip>--<v-chip small outlined>{{formatCurie(result.predicate)}}</v-chip>-><v-chip small outlined>{{formatCurie(result.object_category)}}</v-chip>
+                                <v-chip small outlined>{{formatCurie(result.subject_category)}}</v-chip>--<v-chip small outlined>{{formatCurie(result.predicate)}}</v-chip>→<v-chip small outlined>{{formatCurie(result.object_category)}}</v-chip>
                               </div>
                             </template>
                             <b>Test Edge:</b>
                             <span>
-                              ({{result.subject}})--[{{result.predicate}}]->({{result.object}})<br>
+                              ({{result.subject}})--[{{result.predicate}}]→({{result.object}})<br>
                             </span>
                           </v-tooltip>
                         </span>
@@ -647,7 +647,7 @@ export default {
           if (!!a.status && !!b.status)
             return a.status.localeCompare(b.status)
           if (!!a.spec && !!b.spec)
-            return `${a.spec.subject}--${a.spec.predicate}->${a.spec.object}`.localeCompare(`${b.spec.subject}--${b.spec.predicate}->${b.spec.object}`)
+            return `${a.spec.subject}--${a.spec.predicate}→${a.spec.object}`.localeCompare(`${b.spec.subject}--${b.spec.predicate}→${b.spec.object}`)
           else
             return a - b;
         }
@@ -917,7 +917,7 @@ export default {
             return state
         },
         formatEdge (result) {
-            return `(${this.formatCurie(result.subject_category)})--[${this.formatCurie(result.predicate)}]->(${this.formatCurie(result.object_category)})`
+            return `(${this.formatCurie(result.subject_category)})--[${this.formatCurie(result.predicate)}]→(${this.formatCurie(result.object_category)})`
         },
         formatCurie (curie) {
             return curie.split(':')[1];
