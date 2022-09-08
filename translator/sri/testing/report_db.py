@@ -501,7 +501,7 @@ class MongoReportDatabase(TestReportDatabase):
             db_name: Optional[str] = None,
             user: str = environ.get('MONGO_INITDB_ROOT_USERNAME', "root"),
             password: str = environ.get('MONGO_INITDB_ROOT_PASSWORD', "example"),
-            host: str = "mongo" if RUNNING_INSIDE_DOCKER else "localhost",
+            host: str = environ.get('MONGO_INITDB_HOST', "localhost"),
             **kwargs
     ):
         """
