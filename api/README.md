@@ -20,9 +20,9 @@ The request body consists of JSON data structure with two top level tag:
 - An **optional** `biolink_version` tag can be given a value of the Biolink Model version against which the message knowledge graph semantic contents will be validated, expressed as a SemVer string (defaults to 'latest' Biolink Model Toolkit supported version, if omitted). 
 - A **mandatory** `message` tag should have as its value the complete TRAPI **Message** JSON data structure to be validated.
 
-## Running the Web Service Directly
+## Running the Web Service API Directly
 
-The service may be run directly as a python module. It is suggested that a virtual environment first be created (using virtualenv, conda, within your IDE, or equivalent).  Then, certain additional SRI Testing project Python dependencies need to be installed, as follows:
+The web service application may be run directly as a Python module. It is suggested that a virtual environment first be created (using virtualenv, conda, within your IDE, or equivalent).  Then, certain additional SRI Testing project Python dependencies need to be installed, as follows:
 
 ```shell
 pip install -r requirements.txt          # non-web dependencies
@@ -32,14 +32,14 @@ pip install -r requirements-service.txt  # web service dependencies
 The module may afterwards be run, as follows:
 
 ```shell
-python -m app.main
+python -m api.main
 ```
 
-Go to  http://localhost/docs to see the service documentation and to use the simple UI to input TRAPI messages for validation.
+Go to  http://localhost/docs to see the service documentation and to use the simple web page to test TRAPI services.
 
 ## Running the Web Service within Docker
 
-The SRI Testing web service may be run inside a docker container, using Docker Compose.
+The SRI Testing web service may be run inside a Docker container, using Docker Compose.
 
 Assuming that you have installed both [Docker (or rather, Docker Desktop)](https://docs.docker.com/get-docker/) and [Docker-Compose](https://docs.docker.com/compose/install/) (Note: Docker Desktop now conveniently installs both...), then the following commands may be run from the root folder of the project:
 

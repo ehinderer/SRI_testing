@@ -16,7 +16,7 @@ logger = logging.getLogger()
 
 SPACER = '\n' + '#'*120 + '\n'
 
-MAX_TRIES = 5  # we'll try just 5 x app.util.DEFAULT_WORKER_TIMEOUT
+MAX_TRIES = 5  # we'll try just 5 x api.util.DEFAULT_WORKER_TIMEOUT
 
 
 def _report_outcome(

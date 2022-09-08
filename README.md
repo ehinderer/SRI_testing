@@ -31,6 +31,6 @@ Simply run available [tests](tests) using Pytest, within your favorite modality 
 
 # SRI Testing as a Web Service
 
-The SRI Testing Harness may be run as a Web Service. See [here](app/README.md) for more details. 
+The SRI Testing Harness may be run as a Web Service. See [here](api/README.md) for more details. 
 
-The SRI Testing web service may also be [run within a Docker Compose managed container](app/README.md#running-the-web-service-within-docker).
+The SRI Testing web service may also be [run within a Docker Compose managed container](api/README.md#running-the-web-service-within-docker).
