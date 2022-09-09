@@ -294,6 +294,10 @@ class OneHopTestHarness:
                 # the system to truly finish processing and return the full test report
                 self._set_percentage_completion(int(round(float(percentage_complete)*0.95)))
 
+        # fail safe: sets completion if task is not running?
+        if self.test_run_complete():
+            self._set_percentage_completion(100)
+
         return self._get_percentage_completion()
 
     def save_json_document(self, document_type: str, document: Dict, document_key: str, is_big: bool = False):
