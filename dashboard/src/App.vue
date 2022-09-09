@@ -51,7 +51,7 @@
       </v-progress-linear>
       <span v-else>
 
-        <v-chip-group v-if="trapi_range.length > 0 && biolink_range.length > 0">
+        <v-chip-group>
           <span class="subheading"><strong>BioLink: &nbsp;</strong></span>
           <v-chip small
                   v-for="biolink_version in biolink_range.split(',')"
