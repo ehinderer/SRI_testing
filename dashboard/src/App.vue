@@ -55,12 +55,14 @@
         <v-chip-group>
           <span class="subheading"><strong>BioLink: &nbsp;</strong></span>
           <v-chip small
+                  v-if="!!biolink_range"
                   v-for="biolink_version in biolink_range.split(',')"
                   v-bind:key="`${biolink_version}_biolink`">
             {{biolink_version}}
           </v-chip>
           <span class="subheading"><strong>TRAPI: &nbsp;</strong></span>
           <v-chip small
+                  v-if="!!trapi_range"
                   v-for="trapi_version in trapi_range.split(',')"
                   v-bind:key="`${trapi_version}_trapi`">
             {{trapi_version}}
@@ -289,7 +291,7 @@
             </v-container>
           </div>
 
-          <div v-if="tab === 1">
+          <div v-if="tab === 1" v-memo="id">
             <v-container v-bind:key="`${id}_details`" id="page-details" v-if="loading !== null">
               <!-- <h1>Details</h1> -->
               <!-- <h2>Individual test results by Provider and Biolink Category</h2> -->
@@ -487,7 +489,6 @@ export default {
   data() {
     return {
       MOCK,
-      _FEATURE_RUN_TEST,
       _FEATURE_RUN_TEST_BUTTON,
       _FEATURE_RUN_TEST_SELECT,
       hover: false,
