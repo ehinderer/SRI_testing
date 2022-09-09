@@ -287,15 +287,15 @@ class OneHopTestHarness:
             # existing archived run assumed complete
             self._set_percentage_completion(100)
 
-        if 0 <= self._get_percentage_completion() < 100:
+        elif 0 <= self._get_percentage_completion() < 100:
             for percentage_complete in self._process.get_output(timeout=1):
                 logger.debug(f"Pytest % completion: {percentage_complete}")
                 # We deliberately hold back declaring 100% completion to allow
                 # the system to truly finish processing and return the full test report
                 self._set_percentage_completion(int(percentage_complete))
 
-        # fail safe: sets completion if task is not running?
-        if self.test_run_complete():
+        # fail safe: sets completion at 100% if the task is not (or no longer) running?
+        elif self.test_run_complete():
             self._set_percentage_completion(100)
 
         return self._get_percentage_completion()

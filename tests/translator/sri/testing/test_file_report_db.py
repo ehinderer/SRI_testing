@@ -39,7 +39,7 @@ def test_delete_file_report_db_database():
     assert "test-database" not in frd.list_databases()
 
 
-SAMPLE_DOCUMENT_KEY: str = "sample-document"
+SAMPLE_DOCUMENT_KEY: str = "test_run_summary"
 SAMPLE_DOCUMENT: Dict = {}
 
 
@@ -57,7 +57,7 @@ def sample_file_document_creation_and_insertion(
     assert identifier not in frd.get_available_reports()
 
     test_report.save_json_document(
-        document_type="test document",
+        document_type="Test Run Summary",
         document={},
         document_key=SAMPLE_DOCUMENT_KEY,
         is_big=is_big

@@ -582,7 +582,14 @@ class MongoReportDatabase(TestReportDatabase):
         completed_test_runs: List[str] = list()
         for test_run_id in self._mongo_db.list_collection_names(filter=non_system_collection_filter):
             test_run_reports: Collection = self._mongo_db.get_collection(test_run_id)
-            if test_run_reports.find({'document_key': "test_run_summary"}, {'_id': True}).limit(1).retrieved:
+            documents = [
+                document
+                for document in test_run_reports.find(
+                    filter={'document_key': "test_run_summary"},
+                    projection={'_id': True}
+                ).limit(1)
+            ]
+            if documents:
                 completed_test_runs.append(test_run_id)
         return completed_test_runs
 

@@ -62,8 +62,9 @@ def _report_outcome(
 
             details = OneHopTestHarness(session_id).get_details(
                 component="ARA",
-                resource_id="Test_ARA-Test_KP_2",
-                edge_num="1"
+                edge_num="1",
+                ara_id="Test_ARA",
+                kp_id="-Test_KP_2"
             )
 
         assert details, \
