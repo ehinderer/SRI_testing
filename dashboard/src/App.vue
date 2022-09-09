@@ -8,21 +8,22 @@
 
   <v-app>
 
-    <v-container v-if="_FEATURE_RUN_TESTS" id="page-header">
+    <v-container v-if="_FEATURE_RUN_TEST_BUTTON || _FEATURE_RUN_TEST_SELECT" id="page-header">
       <v-row>
         <h1>Run Tests</h1>
       </v-row>
       <v-row no-gutter>
-        <v-btn :class="['ml-36']"
+        <v-btn v-if="_FEATURE_RUN_TEST_BUTTON"
+               :class="['ml-36']"
                :disabled="loading === true"
                @click="triggerTestRun">Trigger new test run</v-btn>
-        <span>&nbsp;&nbsp;</span>
-        <span style="{ padding-top: 1px; }">OR</span>
-        <span>&nbsp;&nbsp;</span>
-        <v-select label="Test Run"
+        <span v-if="_FEATURE_RUN_TEST_BUTTON && _FEATURE_RUN_TEST_SELECT" style="{ padding-top: 1px; }"><span>&nbsp;&nbsp;</span>OR
+        <span>&nbsp;&nbsp;</span></span>
+        <v-select v-model="id"
+                  v-if="_FEATURE_RUN_TEST_SELECT"
+                  label="Test Run"
                   :items="test_runs_selections"
                   :hint="loading === null ? 'Choose a previous test run' : ''"
-                  v-model="id"
                   :disabled="loading === true"
                   @click="triggerReloadTestRunSelections"
                   dense>
@@ -468,11 +469,11 @@ import { Cartesian, Line, Bar } from 'laue'
 
 // API code in separate file so we can switch between live and mock instance,
 // also configure location for API in environment variables and build variables
-import axios, { MOCK_TEST_RUN_ID } from "./api.js";
-import { PYTEST_REPORT, MOLEPRO_REPORT } from "./__mocks__/test_data.js";
+import axios from "./api.js";
 
 const MOCK = process.env.isAxiosMock;
-const _FEATURE_RUN_TESTS = process.env._FEATURE_RUN_TESTS;
+const _FEATURE_RUN_TEST_BUTTON = process.env._FEATURE_RUN_BUTTON;
+const _FEATURE_RUN_TEST_SELECT = process.env._FEATURE_RUN_SELECT;
 
 // const MOCK = false;
 
@@ -486,7 +487,9 @@ export default {
   data() {
     return {
       MOCK,
-      _FEATURE_RUN_TESTS,
+      _FEATURE_RUN_TEST,
+      _FEATURE_RUN_TEST_BUTTON,
+      _FEATURE_RUN_TEST_SELECT,
       hover: false,
       id: null,
       loading: null,
