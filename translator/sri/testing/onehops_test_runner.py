@@ -292,7 +292,7 @@ class OneHopTestHarness:
                 logger.debug(f"Pytest % completion: {percentage_complete}")
                 # We deliberately hold back declaring 100% completion to allow
                 # the system to truly finish processing and return the full test report
-                self._set_percentage_completion(int(round(float(percentage_complete)*0.95)))
+                self._set_percentage_completion(int(percentage_complete))
 
         # fail safe: sets completion if task is not running?
         if self.test_run_complete():
