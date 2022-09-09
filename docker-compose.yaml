@@ -16,17 +16,7 @@ services:
   dashboard:
     build: ./dashboard
     ports:
-    - "80:8080"
-
-  mongo:
-    image: mongo
-    restart: always
-    ports:
-      - 27017:27017
-    environment:
-      # TODO: parameterized better Mongodb configuration / secrets
-      MONGO_INITDB_ROOT_USERNAME: root
-      MONGO_INITDB_ROOT_PASSWORD: example
+    - "8080:8080"
 
 volumes:
   results:
