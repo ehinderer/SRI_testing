@@ -8,36 +8,29 @@
 
   <v-app>
 
-    <v-container v-if="_FEATURE_RUN_TEST_BUTTON || _FEATURE_RUN_TEST_SELECT" id="page-header">
-      <v-row>
-        <h1>Run Tests</h1>
-      </v-row>
+    <v-container id="page-header">
       <v-row no-gutter>
         <v-btn v-if="_FEATURE_RUN_TEST_BUTTON"
                :class="['ml-36']"
-               :disabled="loading === true"
                @click="triggerTestRun">Trigger new test run</v-btn>
         <span v-if="_FEATURE_RUN_TEST_BUTTON && _FEATURE_RUN_TEST_SELECT" style="{ padding-top: 1px; }"><span>&nbsp;&nbsp;</span>OR
         <span>&nbsp;&nbsp;</span></span>
         <v-select v-model="id"
-                  v-if="_FEATURE_RUN_TEST_SELECT"
-                  label="Test Run"
+                  :label="loading === null ? 'Choose a previous test run' : ''"
                   :items="test_runs_selections"
-                  :hint="loading === null ? 'Choose a previous test run' : ''"
-                  :disabled="loading === true"
                   @click="triggerReloadTestRunSelections"
                   dense>
         </v-select>
 
-        <v-progress-circular
-          v-if="loading"
-          color="teal"
-          :size="35"
-          :width="5"
-          :value="status"
-          :indeterminate="status < 1">
-          {{ status > 0 ? status : '' }}
-        </v-progress-circular>
+        <!-- <v-progress-circular -->
+        <!--   v-if="loading" -->
+        <!--   color="teal" -->
+        <!--   :size="35" -->
+        <!--   :width="5" -->
+        <!--   :value="status" -->
+        <!--   :indeterminate="status < 1"> -->
+        <!--   {{ status > 0 ? status : '' }} -->
+        <!-- </v-progress-circular> -->
       </v-row>
     </v-container>
 
@@ -52,18 +45,18 @@
       </v-progress-linear>
       <span v-else>
 
-        <v-chip-group>
+        <v-chip-group v-if="id">
           <span class="subheading"><strong>BioLink: &nbsp;</strong></span>
           <v-chip small
-                  v-if="!!biolink_range"
-                  v-for="biolink_version in biolink_range.split(',')"
+                  v-if="biolink_range.length > 0"
+                  v-for="biolink_version in biolink_range"
                   v-bind:key="`${biolink_version}_biolink`">
             {{biolink_version}}
           </v-chip>
           <span class="subheading"><strong>TRAPI: &nbsp;</strong></span>
           <v-chip small
-                  v-if="!!trapi_range"
-                  v-for="trapi_version in trapi_range.split(',')"
+                  v-if="trapi_range.length > 0"
+                  v-for="trapi_version in trapi_range"
                   v-bind:key="`${trapi_version}_trapi`">
             {{trapi_version}}
           </v-chip>
@@ -474,8 +467,8 @@ import { Cartesian, Line, Bar } from 'laue'
 import axios from "./api.js";
 
 const MOCK = process.env.isAxiosMock;
-const _FEATURE_RUN_TEST_BUTTON = process.env._FEATURE_RUN_BUTTON;
-const _FEATURE_RUN_TEST_SELECT = process.env._FEATURE_RUN_SELECT;
+const _FEATURE_RUN_TEST_BUTTON = process.env._FEATURE_RUN_TEST_BUTTON;
+const _FEATURE_RUN_TEST_SELECT = process.env._FEATURE_RUN_TEST_SELECT;
 
 // const MOCK = false;
 
@@ -522,26 +515,24 @@ export default {
       categories_index: null,
     }
   },
-  async created () {
-
+  created () {
     // initialize application
-    await axios.get(`/test_runs`).then(async response => {
-      const test_runs = response.data.test_runs;
-      if (!!test_runs && test_runs.length > 0) {
-        console.log(test_runs)
+    if (!(this._FEATURE_RUN_TEST_BUTTON || this._FEATURE_RUN_TEST_SELECT)) {
+      axios.get(`/test_runs`).then(async response => {
+        const test_runs = response.data.test_runs;
         this.test_runs_selections = response.data.test_runs;
-        this.id = test_runs[0];
-      } else {
-        await axios.post(`/run_tests`, {}).then(response => {
-          this.id = response.data.test_run_id;
-          axios.get(`/test_runs`).then(response => {
-            this.test_runs_selections = response.data.test_runs;
-          })
-       })
-      }
-    })
-
-    // Mock initialization
+        // if (!!test_runs && test_runs.length > 0) {
+        // } else {
+        //   await axios.post(`/run_tests`, {}).then(response => {
+        //     this.id = response.data.test_run_id;
+        //     axios.get(`/test_runs`).then(response => {
+        //       this.test_runs_selections = response.data.test_runs;
+        //     })
+        //   })
+        // }
+      })
+     }
+        // Mock initialization
     // if (MOCK) {
     //     await axios.post(`/run_tests`, {}).then(response => {
     //         this.id = response.data.test_run_id;
@@ -551,6 +542,9 @@ export default {
     //    })
     // }
 
+  },
+  mounted() {
+    this.$forceUpdate()
   },
   watch: {
     id(id, oldId) {
