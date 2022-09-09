@@ -4,252 +4,342 @@
     <v-app-bar-title>
       TRAPI Resource Validator
     </v-app-bar-title>
- </v-app-bar>
+  </v-app-bar>
 
-<v-app>
+  <v-app>
 
-  <v-container id="page-header">
-    <v-row>
-      <h1>Run Tests</h1>
-    </v-row>
-    <v-row no-gutter>
-      <v-btn :class="['ml-36']"
-             :disabled="loading === true"
-             @click="triggerTestRun">Trigger new test run</v-btn>
-      <span>&nbsp;&nbsp;</span>
-      <span style="{ padding-top: 1px; }">OR</span>
-      <span>&nbsp;&nbsp;</span>
-      <v-select label="Test Run"
-                :items="test_runs_selections"
-                :hint="loading === null ? 'Choose a previous test run' : ''"
-                v-model="id"
-                :disabled="loading === true"
-                dense>
-      </v-select>
+    <v-container v-if="_FEATURE_RUN_TESTS" id="page-header">
+      <v-row>
+        <h1>Run Tests</h1>
+      </v-row>
+      <v-row no-gutter>
+        <v-btn :class="['ml-36']"
+               :disabled="loading === true"
+               @click="triggerTestRun">Trigger new test run</v-btn>
+        <span>&nbsp;&nbsp;</span>
+        <span style="{ padding-top: 1px; }">OR</span>
+        <span>&nbsp;&nbsp;</span>
+        <v-select label="Test Run"
+                  :items="test_runs_selections"
+                  :hint="loading === null ? 'Choose a previous test run' : ''"
+                  v-model="id"
+                  :disabled="loading === true"
+                  @click="triggerReloadTestRunSelections"
+                  dense>
+        </v-select>
 
+        <v-progress-circular
+          v-if="loading"
+          color="teal"
+          :size="35"
+          :width="5"
+          :value="status"
+          :indeterminate="status < 1">
+          {{ status > 0 ? status : '' }}
+        </v-progress-circular>
+      </v-row>
+    </v-container>
 
-      <v-progress-circular
+    <v-container>
+      <h1>{{ id }}</h1>
+      <div class="subheading" v-if="loading === true">This may take a minute.</div>
+      <v-progress-linear
         v-if="loading"
-        color="teal"
-        :size="35"
-        :width="5"
-        :value="status"
+        v-model="status"
+        :buffer-value="100"
         :indeterminate="status < 1">
-        {{ status > 0 ? status : '' }}
-      </v-progress-circular>
+      </v-progress-linear>
+      <span v-else>
 
-    </v-row>
-    <v-row>
-    </v-row>
-  </v-container>
-  <v-container>
-    <h1>{{ id }}</h1>
-    <h3 v-if="loading === true">This may take a few minutes.</h3>
-    <v-tabs v-if="!(loading === null)" v-model="tab">
-      <v-tab
-        v-for="item in ['Overview', 'Details']"
-        :key="item"
-        >
-        {{ item }}
-      </v-tab>
-    </v-tabs>
-    <v-tabs-items v-model="tab" >
-      <v-tab-item
-        v-for="item in ['Overview','Details']"
-        :key="item"
-        >
-        <div v-if="tab === 0" >
-          <v-container :key="`${id}_overview`" id="page-overview" v-if="loading !== null">
-            <!-- <h1>Overview</h1> -->
-            <!-- <h2>Summary statistics for different ARAs and KPs</h2> -->
-            <v-skeleton-loader
-              v-if="loading === true"
-              v-bind="attrs"
-              type="table"
-              ></v-skeleton-loader>
+        <v-chip-group v-if="trapi_range.length > 0 && biolink_range.length > 0">
+          <span class="subheading"><strong>BioLink: &nbsp;</strong></span>
+          <v-chip small
+                  v-for="biolink_version in biolink_range.split(',')"
+                  v-bind:key="`${biolink_version}_biolink`">
+            {{biolink_version}}
+          </v-chip>
+          <span class="subheading"><strong>TRAPI: &nbsp;</strong></span>
+          <v-chip small
+                  v-for="trapi_version in trapi_range.split(',')"
+                  v-bind:key="`${trapi_version}_trapi`">
+            {{trapi_version}}
+          </v-chip>
+        </v-chip-group>
 
-            <div v-else-if="stats_summary !== null && loading === false">
-              <h2>Test Results</h2>
-              <h3>All providers</h3><br>
+      </span>
+      <v-tabs v-if="!(loading === null)" v-model="tab">
+        <v-tab
+          v-for="item in ['Overview', 'Details']"
+          v-bind:key="`${item}_tab`"
+          >
+          {{ item }}
+        </v-tab>
+      </v-tabs>
+      <v-tabs-items v-model="tab" >
+        <v-tab-item
+          v-for="item in ['Overview','Details']"
+          v-bind:key="`${item}_tab_item`"
+          >
+          <div v-if="tab === 0" >
 
-              <v-row no-gutter>
-                <v-col>
-                  <vc-piechart
-                    :data="reduced_stats_summary"/>
-                </v-col>
-                <v-col>
-                  <strong style="{ marginBottom: 5px }"># edges vs tests</strong>
-                  <la-cartesian narrow stacked
-                                :bound="[0]"
-                                :data="reduce_provider_by_group(combine_provider_summaries(stats_summary))"
-                                :colors="[status_color('passed'), status_color('failed'), status_color('skipped')]"
-                                :width="820">
-                    <la-bar label="passed" prop="passed" :color="status_color('passed')"></la-bar>
-                    <la-bar label="failed" prop="failed" :color="status_color('failed')"></la-bar>
-                    <la-bar label="skipped" prop="skipped" :color="status_color('skipped')"></la-bar>
-                    <la-x-axis font-size="10" prop="name"></la-x-axis>
-                    <la-y-axis></la-y-axis>
-                    <la-tooltip></la-tooltip>
-                  </la-cartesian>
-                </v-col>
-              </v-row>
-              <div>
-                <em>Subject categories</em><br>
-                <v-chip-group>
-                  <v-chip small outlined v-for="subject_category in Object.entries(countBy(subject_categories))" :key="`${kp}_${subject_category}`">
-                    {{ formatCurie(subject_category[0]) }} ({{ subject_category[1] }})
-                  </v-chip>
-                </v-chip-group>
-                <em>Object categories</em><br>
-                <v-chip-group>
-                  <v-chip small outlined v-for="object_category in Object.entries(countBy(object_categories))" :key="`${kp}_${subject_category}`">
-                    {{ formatCurie(object_category[0]) }} ({{ object_category[1] }})
-                  </v-chip>
-                </v-chip-group>
-                <em>Predicates</em><br>
-                <v-chip-group>
-                  <v-chip small outlined v-for="predicate in Object.entries(countBy(predicates))" :key="`${kp}_${predicate}`">
-                    {{ formatCurie(predicate[0]) }} ({{ predicate[1] }})
-                  </v-chip>
-                </v-chip-group>
-              </div>
-              <br><h2>ARAs</h2>
-              <div v-for="ara in Object.keys(stats_summary['ARA'])" :key="ara">
-                <div v-for="kp in Object.keys(stats_summary['ARA'][ara].kps)" :key="kp">
-                  <br><h3>{{ ara }}: {{ kp }}</h3><br>
+            <v-row no-gutter>
+              <v-col v-if="index !== null" sl>
+                <v-select label="Filter by ARA"
+                          multiple
+                          v-model="ara_filter"
+                          :items="Object.keys(index.ARA)"/>
+              </v-col>
+              <v-col v-if="index !== null" sl>
+                <v-select label="Filter by KP"
+                          multiple
+                          v-model="kp_filter"
+                          :items="index.KP"/>
+              </v-col>
+              <v-col sl>
+                <v-select label="Filter subject categories"
+                          multiple
+                          :items="subject_categories"
+                          v-model="subject_category_filter"/>
+              </v-col>
+              <v-col sl>
+                <v-select label="Filter predicates"
+                          multiple
+                          :items="predicates"
+                          v-model="predicate_filter"/>
+              </v-col>
+              <v-col sl>
+                <v-select label="Filter object categories"
+                          multiple
+                          :items="object_categories"
+                          v-model="object_category_filter"/>
+              </v-col>
 
-                  <v-row no-gutter>
-                    <v-col>
-                      <vc-piechart
-                        :data="reduce_provider_summary(denormalize_provider_summary(stats_summary['ARA'][ara].kps[kp]))"/>
-                    </v-col>
-                    <v-col>
-                      <strong style="{ marginBottom: 5px }"># edges vs tests</strong>
-                      <la-cartesian narrow stacked
-                                    :bound="[0]"
-                                    :data="Object.entries(stats_summary['ARA'][ara].kps[kp].results).map(el => ({ 'name': el[0], ...el[1]}))"
-                                    :colors="[status_color('passed'), status_color('failed'), status_color('skipped')]"
-                                    :width="820">
-                        <la-bar label="passed" prop="passed" :color="status_color('passed')"></la-bar>
-                        <la-bar label="failed" prop="failed" :color="status_color('failed')"></la-bar>
-                        <la-bar label="skipped" prop="skipped" :color="status_color('skipped')"></la-bar>
-                        <la-x-axis font-size="10" prop="name"></la-x-axis>
-                        <la-y-axis></la-y-axis>
-                        <la-tooltip></la-tooltip>
-                      </la-cartesian>
-                    </v-col>
-                  </v-row>
-                  <div>
-                    <em>Subject categories</em><br>
-                    <v-chip-group>
-                      <v-chip small outlined v-for="subject_category in Object.entries(countBy(categories_index[`${ara}_${kp}`].subject_category))" :key="`${ara}_${kp}_${subject_category}`">
-                        {{ formatCurie(subject_category[0]) }} ({{ subject_category[1] }})
-                      </v-chip>
-                    </v-chip-group>
-                    <em>Object categories</em><br>
-                    <v-chip-group>
-                      <v-chip small outlined v-for="object_category in Object.entries(countBy(categories_index[`${ara}_${kp}`].object_category))" :key="`${ara}_${kp}_${object_category}`">
-                        {{ formatCurie(object_category[0]) }} ({{ object_category[1] }})
-                      </v-chip>
-                    </v-chip-group>
-                    <em>Predicates</em><br>
-                    <v-chip-group>
-                      <v-chip small outlined v-for="predicate in Object.entries(countBy(categories_index[`${ara}_${kp}`].predicate))" :key="`${ara}_${kp}_${predicate}`">
-                        {{ formatCurie(predicate[0]) }} ({{ predicate[1] }})
-                      </v-chip>
-                    </v-chip-group>
-                  </div>
-                </div>
-              </div>
+            </v-row>
+            <v-container v-bind:key="`${id}_overview`" id="page-overview" v-if="loading !== null">
+              <!-- <h1>Overview</h1> -->
+              <!-- <h2>Summary statistics for different ARAs and KPs</h2> -->
+              <v-skeleton-loader
+                v-if="loading === true"
+                v-bind="attrs"
+                type="actions,article,card,chip"
+                ></v-skeleton-loader>
+              <div v-else-if="stats_summary !== null && loading === false">
+                <h2>Test Results</h2>
+                <h3>All providers</h3><br>
 
-              <br><h2>KPs</h2>
-              <div v-for="kp in Object.keys(stats_summary['KP'])" :key="kp" v-if="categories_index !== null && categories_index !== {}" >
-                <br><h3>{{ kp }}</h3><br>
                 <v-row no-gutter>
                   <v-col>
                     <vc-piechart
-                      :data="reduce_provider_summary(denormalize_provider_summary(stats_summary['KP'][kp]))"/>
+                      :data="reduced_stats_summary"/>
                   </v-col>
                   <v-col>
                     <strong style="{ marginBottom: 5px }"># edges vs tests</strong>
                     <la-cartesian narrow stacked
                                   :bound="[0]"
-                                  :data="Object.entries(stats_summary['KP'][kp].results).map(el => ({ 'name': el[0], ...el[1]}))"
-                                  :width="820"
-                                  :colors="[status_color('passed'), status_color('failed'), status_color('skipped')]">
+                                  :data="reduce_provider_by_group(combine_provider_summaries(stats_summary))"
+                                  :colors="[status_color('passed'), status_color('failed'), status_color('skipped')]"
+                                  :width="820">
                       <la-bar label="passed" prop="passed" :color="status_color('passed')"></la-bar>
                       <la-bar label="failed" prop="failed" :color="status_color('failed')"></la-bar>
                       <la-bar label="skipped" prop="skipped" :color="status_color('skipped')"></la-bar>
-                      <la-x-axis font-size="10" prop="name"></la-x-axis>
+                      <la-x-axis :font-size="10" prop="name"></la-x-axis>
                       <la-y-axis></la-y-axis>
                       <la-tooltip></la-tooltip>
                     </la-cartesian>
                   </v-col>
                 </v-row>
-                <div>
-                  <em>Subject categories</em><br>
+                <div  v-if="categories_index !== null && categories_index !== {}">
+                  <span class="subheading">Subject categories</span><br>
                   <v-chip-group>
-                    <v-chip small outlined v-for="subject_category in Object.entries(countBy(categories_index[kp].subject_category))" :key="`${kp}_${subject_category}`">
+                    <v-chip small outlined v-for="subject_category in Object.entries(countBy(subject_categories))" v-bind:key="`${kp}_${subject_category}_all`">
                       {{ formatCurie(subject_category[0]) }} ({{ subject_category[1] }})
                     </v-chip>
                   </v-chip-group>
-                  <em>Object categories</em><br>
+                  <span class="subheading">Object categories</span><br>
                   <v-chip-group>
-                    <v-chip small outlined v-for="object_category in Object.entries(countBy(categories_index[kp].object_category))" :key="`${kp}_${object_category}`">
+                    <v-chip small outlined v-for="object_category in Object.entries(countBy(object_categories))" v-bind:key="`${kp}_${object_category}_all`">
                       {{ formatCurie(object_category[0]) }} ({{ object_category[1] }})
                     </v-chip>
                   </v-chip-group>
-                  <em>Predicates</em><br>
+                  <span class="subheading">Predicates</span><br>
                   <v-chip-group>
-                    <v-chip small outlined v-for="predicate in Object.entries(countBy(categories_index[kp].predicate))" :key="`${kp}_${predicate}`">
+                    <v-chip small outlined v-for="predicate in Object.entries(countBy(predicates))" v-bind:key="`${kp}_${predicate}_all`">
                       {{ formatCurie(predicate[0]) }} ({{ predicate[1] }})
                     </v-chip>
                   </v-chip-group>
                 </div>
-              </div>
-            </div>
-          </v-container>
-        </div>
 
-        <div v-if="tab === 1">
-          <v-container :key="`${id}_details` "id="page-details" v-if="loading !== null">
-            <!-- <h1>Details</h1> -->
-            <!-- <h2>Individual test results by Provider and Biolink Category</h2> -->
-            <v-row v-if="loading !== null" no-gutter>
-              <v-col v-if="loading === true">
-                <v-skeleton-loader
-                  v-bind="attrs"
-                  type="table"
-                  ></v-skeleton-loader>
-              </v-col>
-              <v-col v-else-if="loading === false">
-                <!-- <v-text-field -->
-                <!--   v-model="search" -->
-                <!--   append-icon="mdi-magnify" -->
-                <!--   label="Search" -->
-                <!--   single-line -->
-                <!--   hide-details -->
-                <!--   ></v-text-field> -->
-                <v-row no-gutter>
-                  <v-col sl>
-                    <v-select label="Filter for subject categories"
-                              multiple
-                              :items="subject_categories"
-                              v-model="subject_category_filter"/>
-                  </v-col>
-                  <v-col sl>
-                    <v-select label="Filter for predicates"
-                              multiple
-                              :items="predicates"
-                              v-model="predicate_filter"/>
-                  </v-col>
-                  <v-col sl>
-                    <v-select label="Filter for object categories"
-                              multiple
-                              :items="object_categories"
-                              v-model="object_category_filter"/>
-                  </v-col>
-                  <v-col lg>
+                <span v-if="!(kp_filter.length > 0 && ara_filter.length === 0)">
+                  <br><h2>ARAs</h2>
+                  <div v-for="ara in Object.keys(stats_summary['ARA']).filter(ara => ara_filter.length > 0 ? ara_filter.includes(ara) : true)" v-bind:key="ara">
+                    <div v-for="kp in Object.keys(stats_summary['ARA'][ara].kps).filter(kp => kp_filter.length > 0 ? kp_filter.includes(kp) : true)" v-bind:key="`${ara}_${kp}`">
+
+                      <v-chip-group>
+                        <h3>{{ ara }}: {{ kp }}</h3>&nbsp;
+                        <v-chip small><strong>BioLink:&nbsp;</strong> {{ stats_summary.ARA[ara].kps[kp].biolink_version }}</v-chip>
+                        <v-chip small><strong>TRAPI:&nbsp;</strong> {{ stats_summary.ARA[ara].kps[kp].trapi_version }}</v-chip>
+                      </v-chip-group><br>
+
+                      <v-row no-gutter>
+                        <v-col>
+                          <vc-piechart
+                            :data="reduce_provider_summary(denormalize_provider_summary(stats_summary['ARA'][ara].kps[kp]))"/>
+                        </v-col>
+                        <v-col>
+                          <strong style="{ marginBottom: 5px }"># edges vs tests</strong>
+                          <la-cartesian narrow stacked
+                                        :bound="[0]"
+                                        :data="Object.entries(stats_summary['ARA'][ara].kps[kp].results).map(el => ({ 'name': el[0], ...el[1]}))"
+                                        :colors="[status_color('passed'), status_color('failed'), status_color('skipped')]"
+                                        :width="820">
+                            <la-bar label="passed" prop="passed" :color="status_color('passed')"></la-bar>
+                            <la-bar label="failed" prop="failed" :color="status_color('failed')"></la-bar>
+                            <la-bar label="skipped" prop="skipped" :color="status_color('skipped')"></la-bar>
+                            <la-x-axis :font-size="10" prop="name"></la-x-axis>
+                            <la-y-axis></la-y-axis>
+                            <la-tooltip></la-tooltip>
+                          </la-cartesian>
+                        </v-col>
+                      </v-row>
+                      <div v-if="categories_index !== null && categories_index !== {}">
+                        <!-- Not all ARA/KP combinations are valid -->
+                        <span v-if="!!categories_index[ara+'_'+kp]">
+                          <span class="subheading">Subject categories</span><br>
+                          <v-chip-group>
+                            <v-chip small outlined v-for="subject_category in Object.entries(countBy(categories_index[ara+'_'+kp].subject_category))" v-bind:key="`${ara}_${kp}_${subject_category}`">
+                              {{ formatCurie(subject_category[0]) }} ({{ subject_category[1] }})
+                            </v-chip>
+                          </v-chip-group>
+
+                          <span class="subheading">Object categories</span><br>
+                          <v-chip-group>
+                            <v-chip small outlined v-for="object_category in Object.entries(countBy(categories_index[ara+'_'+kp].object_category))" v-bind:key="`${ara}_${kp}_${object_category}`">
+                              {{ formatCurie(object_category[0]) }} ({{ object_category[1] }})
+                            </v-chip>
+                          </v-chip-group>
+
+                          <span class="subheading">Predicates</span><br>
+                          <v-chip-group>
+                            <v-chip small outlined v-for="predicate in Object.entries(countBy(categories_index[ara+'_'+kp].predicate))" v-bind:key="`${ara}_${kp}_${predicate}`">
+                              {{ formatCurie(predicate[0]) }} ({{ predicate[1] }})
+                            </v-chip>
+                          </v-chip-group>
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </span>
+
+                <span v-if="!(ara_filter.length > 0 && kp_filter.length === 0)">
+                  <br><h2>KPs</h2>
+                  <div v-for="kp in Object.keys(stats_summary['KP'])
+                              .filter(kp => kp_filter.length > 0 ? kp_filter.includes(kp) : true)" v-bind:key="kp" >
+
+                    <v-chip-group>
+                      <h3>{{ kp }}</h3>&nbsp;
+                      <v-chip small><strong>BioLink:&nbsp;</strong> {{ stats_summary.KP[kp].biolink_version }}</v-chip>
+                      <v-chip small><strong>TRAPI:&nbsp;</strong> {{ stats_summary.KP[kp].trapi_version }}</v-chip>
+                    </v-chip-group><br>
+
+                    <v-row no-gutter>
+                      <v-col>
+                        <vc-piechart
+                          :data="reduce_provider_summary(denormalize_provider_summary(stats_summary['KP'][kp]))"/>
+                      </v-col>
+                      <v-col>
+                        <strong style="{ marginBottom: 5px }"># edges vs tests</strong>
+                        <la-cartesian narrow stacked
+                                      :bound="[0]"
+                                      :data="Object.entries(stats_summary['KP'][kp].results).map(el => ({ 'name': el[0], ...el[1]}))"
+                                      :width="820"
+                                      :colors="[status_color('passed'), status_color('failed'), status_color('skipped')]">
+                          <la-bar label="passed" prop="passed" :color="status_color('passed')"></la-bar>
+                          <la-bar label="failed" prop="failed" :color="status_color('failed')"></la-bar>
+                          <la-bar label="skipped" prop="skipped" :color="status_color('skipped')"></la-bar>
+                          <la-x-axis :font-size="10" prop="name"></la-x-axis>
+                          <la-y-axis></la-y-axis>
+                          <la-tooltip></la-tooltip>
+                        </la-cartesian>
+                      </v-col>
+                    </v-row>
+                    <div v-if="categories_index !== null && categories_index !== {}">
+                      <span class="subheading">Subject categories</span><br>
+                      <v-chip-group>
+                        <v-chip small outlined v-for="subject_category in Object.entries(countBy(categories_index[kp].subject_category))" v-bind:key="`${kp}_${subject_category}_`">
+                          {{ formatCurie(subject_category[0]) }} ({{ subject_category[1] }})
+                        </v-chip>
+                      </v-chip-group>
+                      <span class="subheading">Object categories</span><br>
+                      <v-chip-group>
+                        <v-chip small outlined v-for="object_category in Object.entries(countBy(categories_index[kp].object_category))" v-bind:key="`${kp}_${object_category}_`">
+                          {{ formatCurie(object_category[0]) }} ({{ object_category[1] }})
+                        </v-chip>
+                      </v-chip-group>
+                      <span class="subheading">Predicates</span><br>
+                      <v-chip-group>
+                        <v-chip small outlined v-for="predicate in Object.entries(countBy(categories_index[kp].predicate))" v-bind:key="`${kp}_${predicate}_`">
+                          {{ formatCurie(predicate[0]) }} ({{ predicate[1] }})
+                        </v-chip>
+                      </v-chip-group>
+                    </div>
+                  </div>
+                </span>
+              </div>
+            </v-container>
+          </div>
+
+          <div v-if="tab === 1">
+            <v-container v-bind:key="`${id}_details`" id="page-details" v-if="loading !== null">
+              <!-- <h1>Details</h1> -->
+              <!-- <h2>Individual test results by Provider and Biolink Category</h2> -->
+              <v-row v-if="loading !== null" no-gutter>
+                <v-col v-if="loading === true">
+                  <v-skeleton-loader
+                    v-bind="attrs"
+                    type="table"
+                    ></v-skeleton-loader>
+                </v-col>
+                <v-col v-else-if="loading === false">
+                  <!-- <v-text-field -->
+                  <!--   v-model="search" -->
+                  <!--   append-icon="mdi-magnify" -->
+                  <!--   label="Search" -->
+                  <!--   single-line -->
+                  <!--   hide-details -->
+                  <!--   ></v-text-field> -->
+
+                  <v-row no-gutter>
+                    <v-col v-if="index !== null" sl>
+                      <v-select label="Filter by ARA"
+                                v-model="ara_filter"
+                                multiple
+                                :items="Object.keys(index.ARA)"/>
+                    </v-col>
+                    <v-col v-if="index !== null" sl>
+                      <v-select label="Filter by KP"
+                                v-model="kp_filter"
+                                multiple
+                                :items="index.KP"/>
+                    </v-col>
+                    <v-col sl>
+                      <v-select label="Filter subject categories"
+                                multiple
+                                :items="subject_categories"
+                                v-model="subject_category_filter"/>
+                    </v-col>
+                    <v-col sl>
+                      <v-select label="Filter predicates"
+                                multiple
+                                :items="predicates"
+                                v-model="predicate_filter"/>
+                    </v-col>
+                    <v-col sl>
+                      <v-select label="Filter object categories"
+                                multiple
+                                :items="object_categories"
+                                v-model="object_category_filter"/>
+                    </v-col>
+                    <v-col lg>
                     <v-radio-group
                       v-model="outcome_filter"
                       row>
@@ -273,7 +363,7 @@
                   </v-col>
                 </v-row>
 
-                <v-data-table
+               <v-data-table
                   :headers="_headers"
                   :items="kp_selections.length > 0 || ara_selections.length > 0 ?
                           denormalized_cells
@@ -288,10 +378,17 @@
                   :search="search"
                   :custom-filter="searchMatches"
                   dense>
-                  <template v-slot:item="{ item }">
+
+                  <!-- TODO: group title formatting and tooltip. potentially just put in the summary? -->
+                  <template v-slot:group.summary="{ group }">
+                    <!-- <span>Biolink Compliant</span><br> -->
+                    <!-- <span>TRAPI Compliant</span> -->
+                  </template>
+
+                 <template v-slot:item="{ item }">
                     <tr>
                       <td v-for="[test, result] in Object.entries(omit('_id')(item))"
-                          v-bind:key="`${hash([test, result])}`"
+                          v-bind:key="`${test}_${result}`"
                           :style="cellStyle(result.status)">
 
                         <v-tooltip
@@ -300,15 +397,15 @@
                           bottom>
                           <template v-slot:activator="{ on, attrs }">
                             <div v-bind="attrs" v-on="on">
-                              <router-link :to="{ name: 'about_test', params: { id: item['_id'],  idx: item['idx'], test: test } }">
-                                {{ stateIcon(result.status) }} ({{ result.messages.length }})
-                              </router-link>
+                              <a>
+                                {{ stateIcon(result.status) }} {{ !!result && !!result.messages & !!result.messages.length ? `(${result.messages.length})` : '' }}
+                              </a>
                             </div>
                           </template>
                           <span>
                             {{test}}
-                            <ul>
-                              <li v-for="message in result.messages" :key="message">
+                            <ul v-if="!!result.messages">
+                              <li v-for="message in result.messages" v-bind:key="message">
                                 {{ message }}
                               </li>
                             </ul>
@@ -374,9 +471,10 @@ import { Cartesian, Line, Bar } from 'laue'
 import axios, { MOCK_TEST_RUN_ID } from "./api.js";
 import { PYTEST_REPORT, MOLEPRO_REPORT } from "./__mocks__/test_data.js";
 
-const API_HOST = "http://localhost";
-// const MOCK = process.env.isAxiosMock;
-const MOCK = false;
+const MOCK = process.env.isAxiosMock;
+const _FEATURE_RUN_TESTS = process.env._FEATURE_RUN_TESTS;
+
+// const MOCK = false;
 
 export default {
   name: 'App',
@@ -387,8 +485,8 @@ export default {
   },
   data() {
     return {
-      API_HOST: API_HOST,
-      MOCK: MOCK,
+      MOCK,
+      _FEATURE_RUN_TESTS,
       hover: false,
       id: null,
       loading: null,
@@ -407,6 +505,8 @@ export default {
       status_interval: -1,
       status: -1,
       outcome_filter: "all",
+      ara_filter: [],
+      kp_filter: [],
       predicate_filter: [],
       subject_category_filter: [],
       object_category_filter: [],
@@ -419,25 +519,39 @@ export default {
     }
   },
   async created () {
+
     // initialize application
-    await axios.get(`${API_HOST}/test_runs`).then(response => {
-      this.test_runs_selections = response.data.test_runs;
+    await axios.get(`/test_runs`).then(async response => {
+      const test_runs = response.data.test_runs;
+      if (!!test_runs && test_runs.length > 0) {
+        console.log(test_runs)
+        this.test_runs_selections = response.data.test_runs;
+        this.id = test_runs[0];
+      } else {
+        await axios.post(`/run_tests`, {}).then(response => {
+          this.id = response.data.test_run_id;
+          axios.get(`/test_runs`).then(response => {
+            this.test_runs_selections = response.data.test_runs;
+          })
+       })
+      }
     })
+
     // Mock initialization
-    if (MOCK) {
-      await axios.post(`${API_HOST}/run_tests`, {}).then(response => {
-        this.id = response.data.test_run_id;
-        axios.get(`${API_HOST}/test_runs`).then(response => {
-          this.test_runs_selections = response.data.test_runs;
-        })
-      })
-    }
+    // if (MOCK) {
+    //     await axios.post(`/run_tests`, {}).then(response => {
+    //         this.id = response.data.test_run_id;
+    //         axios.get(`/test_runs`).then(response => {
+    //             this.test_runs_selections = response.data.test_runs;
+    //         })
+    //    })
+    // }
 
   },
   watch: {
     id(id, oldId) {
       this.loading = true;
-      this.status_interval = setInterval(() => axios.get(`${API_HOST}/status?test_run_id=${id}`).then(response => {
+      this.status_interval = setInterval(() => axios.get(`/status?test_run_id=${id}`).then(response => {
         this.status = response.data.percent_complete;
         if (this.status >= 100) {
           window.clearInterval(this.status_interval)
@@ -446,10 +560,10 @@ export default {
     },
     status(newStatus, oldStatus) {
       if (newStatus >= 100 && (this.headers.length === 0 && this.cells.length === 0)) {
-        axios.get(`${API_HOST}/index?test_run_id=${this.id}`).then(response => {
+        axios.get(`/index?test_run_id=${this.id}`).then(response => {
           this.index = response.data.summary;
         })
-        axios.get(`${API_HOST}/summary?test_run_id=${this.id}`).then(response => {
+        axios.get(`/summary?test_run_id=${this.id}`).then(response => {
           this.stats_summary = response.data.summary;
         })
         this.loading = false;
@@ -459,11 +573,30 @@ export default {
     index(newIndex, oldIndex) {
       if (!!newIndex) {
         this.makeTableData(this.id)
+        console.log(newIndex)
         this.getAllCategories(this.id, newIndex);
       };
     }
   },
   computed: {
+    trapi_range() {
+      let trapi_versions = [];
+      if (!!this.stats_summary && !_.isEmpty(this.stats_summary)) {
+        trapi_versions.push(Object.entries(this.stats_summary.KP).map(([_, entry]) => entry.trapi_version));
+        trapi_versions.push(Object.entries(this.stats_summary.ARA).map(([_, entry]) => entry.trapi_version));
+        trapi_versions = _(trapi_versions).flatten().uniq().omitBy(_.isUndefined).omitBy(_.isNull).sort().values()
+      }
+      return []
+    },
+    biolink_range() {
+      let biolink_versions = [];
+      if (!!this.stats_summary && !_.isEmpty(this.stats_summary)) {
+        biolink_versions.push(Object.entries(this.stats_summary.KP).map(([_, entry]) => entry.biolink_version));
+        biolink_versions.push(Object.entries(this.stats_summary.ARA).map(([_, entry]) => entry.biolink_version));
+        biolink_versions = _(biolink_versions).flatten().uniq().omitBy(_.isUndefined).omitBy(_.isNull).sort().values()
+      }
+      return biolink_versions;
+    },
     all_categories() {
       if (!!this.id) {
         return this.getAllCategories(this.id, this.index)
@@ -549,25 +682,31 @@ export default {
         ...el,
       }))
       return __cells
+        // TODO: combine into one loop
         .filter(el => !isString(el))
-      // TODO: combine into one loop
         .filter(cell => Object.entries(cell).some(entry => this.outcome_filter !== "all" ? entry[1].status === this.outcome_filter : true))
         .filter(el => {
           return this.subject_category_filter.length > 0 ? this.subject_category_filter.includes(el.spec.subject_category) : true
             && this.predicate_filter.length > 0 ? this.predicate_filter.includes(el.spec.predicate) : true
             && this.object_category_filter > 0 ? this.object_category_filter.includes(el.spec.object_category) : true
-        });
+        })
+        .filter(el => this.ara_filter.length > 0 || this.kp_filter.length > 0 ?
+                _.every(this.ara_filter.concat(this.kp_filter), provider_name => _.includes(el._id, provider_name)) || _.some(this.kp_filter, kp => _.includes(el._id, kp))
+               : true);
     }
   },
   methods: {
+    async triggerReloadTestRunSelections() {
+      await axios.get(`/test_runs`).then(response => {
+        this.test_runs_selections = response.data.test_runs;
+      })
+    },
     async triggerTestRun() {
-      axios.post(`${API_HOST}/run_tests`, {}).then(response => {
+      axios.post(`/run_tests`, {}).then(response => {
         this.id = response.data.test_run_id;
       }).then(() => {
         // refresh the test runs list
-        axios.get(`${API_HOST}/test_runs`).then(response => {
-          this.test_runs_selections = response.data.test_runs;
-        })
+        this.triggerReloadTestRunSelections()
       })
     },
     status_color: (status) => status === "passed" ? "#00ff00"
@@ -655,17 +794,16 @@ export default {
 
       }
       index.KP.forEach(async kp_id => {
-        await axios.get(`${API_HOST}/resource?test_run_id=${id}&kp_id=${kp_id}`)
-                   .then(this.tap)
+        await axios.get(`/resource?test_run_id=${id}&kp_id=${kp_id}`)
                    .then(response => addFromKPs(kp_id, response.data.summary))
       });
       Object.keys(index.ARA)
             .forEach(ara_id => {
               index.ARA[ara_id].forEach(async kp_id => {
-                await axios.get(`${API_HOST}/resource?test_run_id=${id}&kp_id=${kp_id}&ara_id=${ara_id}`)
+                await axios.get(`/resource?test_run_id=${id}&kp_id=${kp_id}&ara_id=${ara_id}`)
                            .then(response => addFromKPs(`${ara_id}_${kp_id}`, response.data.summary))
               })
-           });
+            });
       // set the state directly for async updates
       // TODO: turn into incremental?
       this.subject_categories = categories.subject_category;
@@ -673,12 +811,15 @@ export default {
       this.predicates = categories.predicate;
       return categories;
     },
+    flatten_ara_keys(ARAIndex, delimiter='_') {
+      return Object.entries(ARAIndex).flatMap(([ara, entry]) => Object.values(entry).map(kp => ara+delimiter+kp))
+    },
     async makeTableData(id) {
       // TODO: refactor to use index
-      const report = axios.get(`${API_HOST}/summary?test_run_id=${id}`)
+      const report = axios.get(`/summary?test_run_id=${id}`)
                           .then(response => {
                             const kp_details = Object.entries(response.data.summary.KP).map(([resource_id, value]) => {
-                              return axios.get(`${API_HOST}/resource?test_run_id=${this.id}&kp_id=${resource_id}`).then(el => {
+                              return axios.get(`/resource?test_run_id=${this.id}&kp_id=${resource_id}`).then(el => {
                                 return {
                                   resource_id,  // inject the resource_id into the response
                                   ...el,
@@ -687,7 +828,7 @@ export default {
                       });
                       const ara_details = Object.entries(response.data.summary.ARA).map(([resource_id, value]) => {
                           return Object.keys(value.kps)
-                              .map(key => axios.get(`${API_HOST}/resource?test_run_id=${this.id}&ara_id=${resource_id}&kp_id=${key}`)
+                              .map(key => axios.get(`/resource?test_run_id=${this.id}&ara_id=${resource_id}&kp_id=${key}`)
                                    .then(el => {
                                        return {
                                            resource_id: `${resource_id}>${key}`,
