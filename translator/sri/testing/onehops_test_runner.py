@@ -282,21 +282,17 @@ class OneHopTestHarness:
 
         :return: int, 0..100 indicating the percentage completion of the test run. -1 if unknown test run ID
         """
-        #
-        # TODO: get_completed_test_runs() doesn't correctly ignore an ongoing test run anymore... need to fix this!
-        #
-        test_run_list: List[str] = self.get_completed_test_runs()
-        if self._test_run_id in test_run_list:
+        completed_test_runs: List[str] = self.get_completed_test_runs()
+        if self._test_run_id in completed_test_runs:
             # existing archived run assumed complete
-            return 100
+            self._set_percentage_completion(100)
 
         if 0 <= self._get_percentage_completion() < 100:
             for percentage_complete in self._process.get_output(timeout=1):
                 logger.debug(f"Pytest % completion: {percentage_complete}")
-                self._set_percentage_completion(int(percentage_complete))
-
-        if self.test_run_complete():
-            self._set_percentage_completion(100)
+                # We deliberately hold back declaring 100% completion to allow
+                # the system to truly finish processing and return the full test report
+                self._set_percentage_completion(int(round(float(percentage_complete)*0.95)))
 
         return self._get_percentage_completion()
 

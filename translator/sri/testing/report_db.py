@@ -579,7 +579,12 @@ class MongoReportDatabase(TestReportDatabase):
         :return: list of identifiers of available reports.
         """
         non_system_collection_filter: Dict = {"name": {"$regex": rf"^(?!system\.|{self.LOG_NAME}|fs\..*|test_.*)"}}
-        return self._mongo_db.list_collection_names(filter=non_system_collection_filter)
+        completed_test_runs: List[str] = list()
+        for test_run_id in self._mongo_db.list_collection_names(filter=non_system_collection_filter):
+            test_run_reports: Collection = self._mongo_db.get_collection(test_run_id)
+            if test_run_reports.find({'document_key': "test_run_summary"}, {'_id': True}).limit(1).retrieved:
+                completed_test_runs.append(test_run_id)
+        return completed_test_runs
 
     def get_report_logs(self) -> List[Dict]:
         """
