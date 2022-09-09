@@ -1,8 +1,12 @@
 # translator_testing
 
-## Setting up API connection
+## .env configuration
 
+### Setting up API connection
 
+In the `.env` file in `dashboard/`, set `API_HOST` to the domain name of the API, and `API_PORT` to the port of the API, if applicable.
+
+The default protocol is `http://`.
 
 ## Build Setup
 
