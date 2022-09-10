@@ -1,5 +1,5 @@
 import json
-from typing import Dict, Optional, List
+from typing import Dict, Optional
 from sys import stderr
 from os.path import sep
 from datetime import datetime

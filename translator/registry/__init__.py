@@ -2,7 +2,6 @@
 Translator SmartAPI Registry access module.
 """
 from typing import Optional, List, Dict, NamedTuple
-from sys import stderr
 from datetime import datetime
 
 import requests

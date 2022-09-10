@@ -7,10 +7,16 @@ Registry package
 # so we'll start by simulating this for now, with mock registry metadata
 # (dereferencing test data in the SRI Testing project repository)
 #
-#
+
 # Setting the following flag to 'True' triggers use of the
 # local 'mock' Registry data entries immediately below
 MOCK_REGISTRY: bool = False
+
+
+def mock_registry(status: bool):
+    global MOCK_REGISTRY
+    MOCK_REGISTRY = status
+
 
 # This 'mock' registry entry relies a bit on ARAGORN (Ranking Agent)
 # and the RENCI Automat KP's, which may sometimes be offline?

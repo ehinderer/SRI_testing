@@ -20,6 +20,8 @@ from gridfs import GridFS
 from tests.onehop import TEST_RESULTS_DB, get_test_results_dir, ONEHOP_TEST_DIRECTORY
 
 import logging
+
+
 logger = logging.getLogger()
 logger.setLevel("DEBUG")
 
@@ -28,6 +30,7 @@ RUNNING_INSIDE_DOCKER = environ.get('RUNNING_INSIDE_DOCKER', False)
 
 class TestReportDatabaseException(RuntimeError):
     pass
+
 
 class TestReportDatabase:
 
@@ -607,16 +610,20 @@ class MongoReportDatabase(TestReportDatabase):
 _test_report_database: Optional[TestReportDatabase] = None
 
 
-def get_test_report_database() -> TestReportDatabase:
+def get_test_report_database(use_file_database_as_default: bool = False) -> TestReportDatabase:
     global _test_report_database
     if not _test_report_database:
-        try:
-            # TODO: we only use 'default' MongoDb connection settings here. Needs to be parameterized...
-            _test_report_database = MongoReportDatabase()
-            print("Using MongoReportDatabase!", file=stderr)
-        except TestReportDatabaseException:
-            logger.warning("Mongodb instance not running? We will use a local FileReportDatabase instead...")
+        if not use_file_database_as_default:
+            try:
+                # TODO: we only use 'default' MongoDb connection settings here. Needs to be parameterized...
+                _test_report_database = MongoReportDatabase()
+                print("Using MongoReportDatabase!", file=stderr)
+            except TestReportDatabaseException:
+                logger.warning("Mongodb instance not running? We will use a local FileReportDatabase instead...")
+                _test_report_database = FileReportDatabase()
+                print("Using FileReportDatabase!", file=stderr)
+        else:
             _test_report_database = FileReportDatabase()
-            print("Using FileReportDatabase!", file=stderr)
+            print("Using FileReportDatabase as the default!", file=stderr)
 
     return _test_report_database

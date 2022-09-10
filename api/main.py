@@ -284,6 +284,7 @@ async def get_index(test_run_id: str) -> Union[TestRunSummary, JSONResponse]:
             }
         )
 
+
 @app.get(
     "/summary",
     tags=['report'],

@@ -2,7 +2,7 @@ import json
 
 from os.path import sep
 from datetime import datetime
-from typing import Dict, Optional, List
+from typing import Dict, Optional
 
 from tests.onehop import get_test_results_dir
 from translator.sri.testing.report_db import FileReportDatabase, TestReport

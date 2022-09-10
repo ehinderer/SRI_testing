@@ -144,4 +144,4 @@ def get_parent(curie, category, biolink_version):
 if __name__ == '__main__':
     # print(get_parent('PUBCHEM.COMPOUND:208898','biolink:ChemicalSubstance'))
     # print(get_parent('DRUGBANK:DB00394','biolink:ChemicalSubstance'))
-    print(get_parent('CHEMBL.COMPOUND:CHEMBL2333026', 'biolink:ChemicalSubstance'))
+    print(get_parent('CHEMBL.COMPOUND:CHEMBL2333026', 'biolink:ChemicalSubstance', biolink_version="2.2.0"))
