@@ -76,9 +76,11 @@ For each KP, we need a file with one triple of each type that the KP can provide
 
 The `url` tag **must** be a well-formed _resolvable_ TRAPI URL (namely, with **http://** or **https://** scheme).
 
-For provenance testing, we need to declare the KP's infores CURIE as a value of the `infores` JSON tag (mandatory). In addition, the type of knowledge source is declared, by setting the `source_type`JSON tag, to the prefix of the knowledge source type, i.e. `"original"` for `biolink:original_knowledge_source`, `"primary"` for `biolink:primary_knowledge_source` or `"aggregator"` for `biolink:aggregator_knowledge_source`. Note that if the KP is a `biolink:aggregator_knowledge_source`, then the source_type tag-value is optional (since `"aggregator"` is the default value for a KP).
+For provenance testing, we need to declare the KP's infores CURIE as a value of the `infores` JSON tag (mandatory). 
 
-This KP provides two kinds of edges for testing: AnatomicalEntity-subclass_of->AnatomicalEntity and CellularComponent-subclass_of->AnatomicalEntity. For each of these kinds of edges, we have an entry in the file with a specific subject and object, and from these, we can create a variety of tests.
+In addition, the type of knowledge source is declared, by setting the `source_type` JSON tag, to the prefix of the knowledge source type, i.e. `"original"` for `biolink:original_knowledge_source`, `"primary"` for `biolink:primary_knowledge_source` or `"aggregator"` for `biolink:aggregator_knowledge_source`. Note that if the KP is a `biolink:aggregator_knowledge_source`, then the source_type tag-value is optional (since `"aggregator"` is the default value for a KP).
+
+This KP provides two kinds of edges for testing: `AnatomicalEntity-subclass_of->AnatomicalEntity` and `CellularComponent-subclass_of->AnatomicalEntity`. For each of these kinds of edges, we have an entry in the file with a specific `subject` and `object`, and from these, we can create a variety of tests.
 
 To aid KPs in creating these json files, we have generated templates in `templates/KP` using the predicates endpoint or smartAPI Registry MetaKG entries, which contains the edge types.
 Note that the templates are built from KP metadata and are a good starting place, but they are not necessarily a perfect match to the desired test triples.
