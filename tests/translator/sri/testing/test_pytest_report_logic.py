@@ -7,16 +7,33 @@ Note: the nature of these unit tests, even with sample data,
 from sys import stderr
 from typing import Optional, Dict
 from time import sleep
+import logging
 
+# Note that this test module assumes the use of the
+# MOCK_TRANSLATOR_SMARTAPI_REGISTRY_METADATA and a
+# FileTestDatabase, which will be initialized
+# during the module import of the OneHopTestHarness below
+from translator.sri.testing.report_db import get_test_report_database
+from tests.translator.registry import mock_registry
+mock_registry(True)
+get_test_report_database(True)
+
+
+# This import comes after the above code... ordering is important here!
 from translator.sri.testing.onehops_test_runner import OneHopTestHarness
 
-import logging
 
 logger = logging.getLogger()
 
+
+def teardown_module(module):
+    # Sanity check: We reverse the above activations after the tests(?)
+    mock_registry(False)
+
+
 SPACER = '\n' + '#'*120 + '\n'
 
-MAX_TRIES = 5  # we'll try just 5 x app.util.DEFAULT_WORKER_TIMEOUT
+MAX_TRIES = 5  # we'll try for just 20 minutes
 
 
 def _report_outcome(
@@ -25,9 +42,25 @@ def _report_outcome(
         expecting_report: bool = True
 ):
     print(f"Processing {test_name}() from {session_id}", file=stderr)
-    summary: Optional[str] = None
+
     tries: int = 0
+    percentage_completed: int = OneHopTestHarness(session_id).get_status()
+    while 0 <= percentage_completed < 100:
+
+        tries += 1
+        if tries > MAX_TRIES:
+            break
+
+        print(f"{percentage_completed }% completed!", file=stderr)
+        sleep(60)  # rest a minute then try again
+        percentage_completed = OneHopTestHarness(session_id).get_status()
+
+    assert percentage_completed == 100, f"OneHopTestHarness status retrieval failed after {MAX_TRIES} tries?"
+
+    summary: Optional[str] = None
+    tries = 0
     while not summary:
+
         tries += 1
         if tries > MAX_TRIES:
             break
@@ -40,7 +73,7 @@ def _report_outcome(
 
         if expecting_report:
             # nothing yet? sleep a bit?
-            sleep(120)
+            sleep(60)
         else:
             sleep(20)  # Should be long enough for a short timeout aborted test
             summary = OneHopTestHarness(session_id).get_summary()
@@ -62,8 +95,9 @@ def _report_outcome(
 
             details = OneHopTestHarness(session_id).get_details(
                 component="ARA",
-                resource_id="Test_ARA-Test_KP_2",
-                edge_num="1"
+                edge_num="1",
+                ara_id="aragorn",
+                kp_id="test-kp-1"
             )
 
         assert details, \

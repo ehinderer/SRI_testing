@@ -1,4 +1,9 @@
 # SRI Testing specific .gitignores
+
+# See main project README: Copy one of Dockerfile_SIMPLE or Dockerfile_RENCI_PRODUCTION into main
+# project directory Dockerfile (which is .gitignored here thus not committed to the remote repository).
+Dockerfile
+
 *.results
 *.resultsNOTEST
 Test_ARA/
@@ -146,3 +151,9 @@ dmypy.json
 # Mac OSX ignored
 .DS_Store
 ._.DS_Store
+
+# Ignore Nix
+shell.nix
+
+# js
+*node_modules*
