@@ -14,7 +14,7 @@
                :class="['ml-36']"
                @click="triggerTestRun">Trigger new test run</v-btn>
         <span v-if="_FEATURE_RUN_TEST_BUTTON && _FEATURE_RUN_TEST_SELECT" style="{ padding-top: 1px; }"><span>&nbsp;&nbsp;</span>OR
-        <span>&nbsp;&nbsp;</span></span>
+          <span>&nbsp;&nbsp;</span></span>
         <v-select v-model="id"
                   :label="loading === null ? 'Choose a previous test run' : ''"
                   :items="test_runs_selections"
@@ -29,8 +29,8 @@
         <!--   :width="5" -->
         <!--   :value="status" -->
         <!--   :indeterminate="status < 1"> -->
-        <!--   {{ status > 0 ? status : '' }} -->
-        <!-- </v-progress-circular> -->
+          <!--   {{ status > 0 ? status : '' }} -->
+          <!-- </v-progress-circular> -->
       </v-row>
     </v-container>
 
@@ -43,26 +43,21 @@
         :buffer-value="100"
         :indeterminate="status < 1">
       </v-progress-linear>
-      <span v-else>
-
-        <v-chip-group v-if="id">
-          <span class="subheading"><strong>BioLink: &nbsp;</strong></span>
-          <v-chip small
-                  v-if="biolink_range.length > 0"
-                  v-for="biolink_version in biolink_range"
-                  v-bind:key="`${biolink_version}_biolink`">
-            {{biolink_version}}
-          </v-chip>
-          <span class="subheading"><strong>TRAPI: &nbsp;</strong></span>
-          <v-chip small
-                  v-if="trapi_range.length > 0"
-                  v-for="trapi_version in trapi_range"
-                  v-bind:key="`${trapi_version}_trapi`">
-            {{trapi_version}}
-          </v-chip>
-        </v-chip-group>
-
+      <span v-if="id !== null && loading === false" :key="`${id}_versions`">
+        <span class="subheading"><strong>BioLink:&nbsp;</strong></span><span>{{biolink_range}}</span>&nbsp;
+        <span class="subheading"><strong>TRAPI:&nbsp;</strong></span><span>{{trapi_range}}</span>&nbsp;
       </span>
+      <!-- <span> -->
+      <!--   <span class="subheading"><strong>BioLink: &nbsp;</strong></span> -->
+      <!--   <span v-for="biolink_version in biolink_range" -->
+      <!--         :key="`${biolink_version}_biolink`"> -->
+      <!--   </span> -->
+      <!--   <span class="subheading"><strong>TRAPI: &nbsp;</strong></span> -->
+      <!--   <span v-for="trapi_version in trapi_range" -->
+      <!--             :key="`${trapi_version}_trapi`"> -->
+      <!--         {{trapi_version}} -->
+      <!--       </span> -->
+      <!-- </span> -->
       <v-tabs v-if="!(loading === null)" v-model="tab">
         <v-tab
           v-for="item in ['Overview', 'Details']"
@@ -261,19 +256,22 @@
                     <div v-if="categories_index !== null && categories_index !== {}">
                       <span class="subheading">Subject categories</span><br>
                       <v-chip-group>
-                        <v-chip small outlined v-for="subject_category in Object.entries(countBy(categories_index[kp].subject_category))" v-bind:key="`${kp}_${subject_category}_`">
+                        <v-chip small outlined
+                                v-for="subject_category in Object.entries(countBy(categories_index[kp].subject_category))" v-bind:key="`${kp}_${subject_category}_`">
                           {{ formatCurie(subject_category[0]) }} ({{ subject_category[1] }})
                         </v-chip>
                       </v-chip-group>
                       <span class="subheading">Object categories</span><br>
                       <v-chip-group>
-                        <v-chip small outlined v-for="object_category in Object.entries(countBy(categories_index[kp].object_category))" v-bind:key="`${kp}_${object_category}_`">
+                        <v-chip small outlined
+                                v-for="object_category in Object.entries(countBy(categories_index[kp].object_category))" v-bind:key="`${kp}_${object_category}_`">
                           {{ formatCurie(object_category[0]) }} ({{ object_category[1] }})
                         </v-chip>
                       </v-chip-group>
                       <span class="subheading">Predicates</span><br>
                       <v-chip-group>
-                        <v-chip small outlined v-for="predicate in Object.entries(countBy(categories_index[kp].predicate))" v-bind:key="`${kp}_${predicate}_`">
+                        <v-chip small outlined
+                                v-for="predicate in Object.entries(countBy(categories_index[kp].predicate))" v-bind:key="`${kp}_${predicate}_`">
                           {{ formatCurie(predicate[0]) }} ({{ predicate[1] }})
                         </v-chip>
                       </v-chip-group>
@@ -582,18 +580,16 @@ export default {
       if (!!this.stats_summary && !_.isEmpty(this.stats_summary)) {
         trapi_versions.push(Object.entries(this.stats_summary.KP).map(([_, entry]) => entry.trapi_version));
         trapi_versions.push(Object.entries(this.stats_summary.ARA).map(([_, entry]) => entry.trapi_version));
-        trapi_versions = _(trapi_versions).flatten().uniq().omitBy(_.isUndefined).omitBy(_.isNull).sort().values()
       }
-      return []
+      return _(trapi_versions).flatten().uniq().omitBy(_.isUndefined).omitBy(_.isNull).sort().values()
     },
     biolink_range() {
       let biolink_versions = [];
       if (!!this.stats_summary && !_.isEmpty(this.stats_summary)) {
         biolink_versions.push(Object.entries(this.stats_summary.KP).map(([_, entry]) => entry.biolink_version));
         biolink_versions.push(Object.entries(this.stats_summary.ARA).map(([_, entry]) => entry.biolink_version));
-        biolink_versions = _(biolink_versions).flatten().uniq().omitBy(_.isUndefined).omitBy(_.isNull).sort().values()
       }
-      return biolink_versions;
+      return _(biolink_versions).flatten().uniq().omitBy(_.isUndefined).omitBy(_.isNull).sort().values();
     },
     all_categories() {
       if (!!this.id) {
@@ -879,7 +875,7 @@ export default {
         // `custom-filter` in v-data-table props: https://vuetifyjs.com/en/api/v-data-table/#props
         searchMatches: _searchMatches,
 
-        // adjust cell style:
+       // adjust cell style:
         // TODO - move on to use style classes instead
         cellStyle (state) {
             // getComputedStyle(document.querySelector("td")).backgroundColor
