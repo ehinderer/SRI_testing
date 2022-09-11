@@ -31,7 +31,13 @@ from translator.sri.testing.onehops_test_runner import (
 app = FastAPI()
 
 origins = [
-    "http://localhost:8080",
+    "http://localhost",
+    "http://localhost:80",
+    "http://localhost:8080"
+    "http://localhost:8090",
+    "http://dashboard",
+    "http://dashboard:80",
+    "http://dashboard:8080"
 ]
 app.add_middleware(
     CORSMiddleware,
@@ -40,6 +46,14 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.on_event("startup")
+async def startup_event():
+    # TODO: need to perhaps do some initialization here of the
+    #       OneHopTesting class level cache of test_runs?
+    OneHopTestHarness.initialize()
+
 
 favicon_path = f"{abspath(dirname(__file__))}/img/favicon.ico"
 
@@ -280,6 +294,7 @@ async def get_index(test_run_id: str) -> Union[TestRunSummary, JSONResponse]:
                 "message": f"Index for test run '{test_run_id}' is not (yet) available?"
             }
         )
+
 
 @app.get(
     "/summary",
@@ -570,4 +585,4 @@ async def get_response(
 
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=80)
+    uvicorn.run(app, host="0.0.0.0", port=8090)

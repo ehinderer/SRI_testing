@@ -2,36 +2,21 @@ version: '3.9'
 
 services:
 
-  ui:
+  api:
     build:
       context: .
     ports:
-    - "80:80"
+    - "8090:8090"
     # need to tie into code/tests/onehop/results VOLUME
+    environment:
+      MONGO_INITDB_HOST: mongo
     volumes:
     - results:/code/tests/onehop/results
 
-  mongo:
-    image: mongo
-    restart: always
+  dashboard:
+    build: ./dashboard
     ports:
-      - 27017:27017
-    environment:
-      # TODO: parameterized better Mongodb configuration / secrets
-      MONGO_INITDB_ROOT_USERNAME: root
-      MONGO_INITDB_ROOT_PASSWORD: example
-
-  # TODO: For diagnostics - should not be deployed in production
-  mongo-express:
-    image: mongo-express
-    restart: always
-    ports:
-      - 8081:8081
-    environment:
-      # TODO: parameterized better Mongodb configuration / secrets
-      ME_CONFIG_MONGODB_ADMINUSERNAME: root
-      ME_CONFIG_MONGODB_ADMINPASSWORD: example
-      ME_CONFIG_MONGODB_URL: mongodb://root:example@mongo:27017/
+    - "80:80"
 
 volumes:
   results:

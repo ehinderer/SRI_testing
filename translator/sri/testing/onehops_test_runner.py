@@ -1,10 +1,8 @@
 """
 SRI Testing Report utility functions.
 """
-from typing import Optional, Dict, Tuple, List, Generator, Union
-from os import sep
+from typing import Optional, Dict, Tuple, List, Generator
 from datetime import datetime
-
 import re
 
 from translator.sri.testing.processor import CMD_DELIMITER, WorkerProcess
@@ -37,8 +35,6 @@ UNIT_TEST_NAME_PATTERN = re.compile(
 TEST_CASE_PATTERN = re.compile(
     r"^(?P<resource_id>[^#]+)(#(?P<edge_num>\d+))?(-(?P<test_id>.+))?$"
 )
-
-PERCENTAGE_COMPLETION_SUFFIX_PATTERN = re.compile(r"(\[\s*(?P<percentage_completion>\d+)%])?$")
 
 
 def build_resource_key(component: str, ara_id: Optional[str], kp_id: str) -> str:
@@ -127,9 +123,34 @@ def parse_unit_test_name(unit_test_key: str) -> Tuple[str, str, str, int, str, s
 class OneHopTestHarness:
 
     # Caching of processes, indexed by test_run_id (timestamp identifier as string)
+    # TODO: perhaps we need to be more clever here if MONGO persistence is used, since the
+    #       contents of _test_run_id_2_worker_process may be application-session specific.
     _test_run_id_2_worker_process: Dict[str, Dict] = dict()
 
-    _test_report_database: TestReportDatabase = get_test_report_database()
+    _test_report_database: Optional[TestReportDatabase] = None
+
+    @classmethod
+    def test_report_database(cls):
+        if cls._test_report_database is None:
+            cls._test_report_database = get_test_report_database()
+        return cls._test_report_database
+
+    @classmethod
+    def initialize(cls):
+        """
+        Initialize the OneHopTestHarness environment,
+        i.e. to recognized persisted test runs (in the TestReportDatabase)
+        """
+        logger.debug("Initializing the OneHopTestHarness environment")
+        for test_run_id in cls.get_completed_test_runs():
+            logger.debug(f"Found persisted test run {test_run_id} in TestReportDatabase")
+            cls._test_run_id_2_worker_process[test_run_id] = {
+                "command_line": None,
+                "worker_process": None,
+                "timeout": DEFAULT_WORKER_TIMEOUT,
+                "percentage_completion": 100,
+                "test_run_completed": True
+            }
 
     @staticmethod
     def generate_test_run_id() -> str:
@@ -156,7 +177,7 @@ class OneHopTestHarness:
             self._test_run_id_2_worker_process[self._test_run_id] = {}
 
         # Retrieve the associated test run report object
-        self._test_report: TestReport = self._test_report_database.get_test_report(identifier=self._test_run_id)
+        self._test_report: TestReport = self.test_report_database().get_test_report(identifier=self._test_run_id)
 
         # TODO: need a sensible path/db_key for the log file
         # self._log_file_path = self.get_absolute_file_path(document_key="test.log", create_path=True)
@@ -286,22 +307,20 @@ class OneHopTestHarness:
 
         :return: int, 0..100 indicating the percentage completion of the test run. -1 if unknown test run ID
         """
-        #
-        # TODO: get_completed_test_runs() doesn't correctly ignore an ongoing test run anymore... need to fix this!
-        #
-        test_run_list: List[str] = self.get_completed_test_runs()
-        if self._test_run_id in test_run_list:
-            # existing archived run assumed complete
-            return 100
+        completed_test_runs: List[str] = self.get_completed_test_runs()
+        if self._test_run_id in completed_test_runs:
+            # Option 1: detection of a completed_test_run
+            self._set_percentage_completion(100)
 
-        if 0 <= self._get_percentage_completion() < 100:
-            for line in self._process.get_output(timeout=1):
-                logger.debug(f"Pytest output: {line}")
-                pc = PERCENTAGE_COMPLETION_SUFFIX_PATTERN.search(line)
-                if pc and pc.group():
-                    self._set_percentage_completion(int(pc["percentage_completion"]))
+        elif 0 <= self._get_percentage_completion() < 95:
+            for percentage_complete in self._process.get_output(timeout=1):
+                logger.debug(f"Pytest % completion: {percentage_complete}")
+                # We deliberately hold back declaring 100% completion to allow
+                # the system to truly finish processing and return the full test report
+                self._set_percentage_completion(int(float(percentage_complete)*0.95))
 
-        if self.test_run_complete():
+        elif self.test_run_complete():
+            # Option 2, fail safe: sets completion at 100% if the task is not (or no longer) running?
             self._set_percentage_completion(100)
 
         return self._get_percentage_completion()
@@ -327,7 +346,7 @@ class OneHopTestHarness:
         """
         :return: list of test run identifiers of completed test runs
         """
-        return cls._test_report_database.get_available_reports()
+        return cls.test_report_database().get_available_reports()
 
     def get_index(self) -> Optional[Dict]:
         """

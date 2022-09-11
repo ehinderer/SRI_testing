@@ -17,13 +17,13 @@ from translator.sri.testing.onehops_test_runner import (
             "KP",
             None,
             "Some_KP",
-            "KP/Some_KP/summary"
+            "KP/Some_KP/resource_summary"
         ),
         (
             "ARA",
             "Some_ARA",
             "Some_KP",
-            "ARA/Some_ARA/Some_KP/summary"
+            "ARA/Some_ARA/Some_KP/resource_summary"
         )
     ]
 )

@@ -14,11 +14,10 @@ from translator.sri.testing.processor import (
     CMD_DELIMITER,
     PWD_CMD,
     PYTHON_PATH,
-    WorkerProcess
+    WorkerProcess,
+    PERCENTAGE_COMPLETION_SUFFIX_PATTERN
 )
 from tests.onehop import ONEHOP_TEST_DIRECTORY
-
-from translator.sri.testing.onehops_test_runner import PERCENTAGE_COMPLETION_SUFFIX_PATTERN
 
 logger = logging.getLogger()
 

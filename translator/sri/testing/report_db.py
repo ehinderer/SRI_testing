@@ -20,6 +20,8 @@ from gridfs import GridFS
 from tests.onehop import TEST_RESULTS_DB, get_test_results_dir, ONEHOP_TEST_DIRECTORY
 
 import logging
+
+
 logger = logging.getLogger()
 logger.setLevel("DEBUG")
 
@@ -28,6 +30,7 @@ RUNNING_INSIDE_DOCKER = environ.get('RUNNING_INSIDE_DOCKER', False)
 
 class TestReportDatabaseException(RuntimeError):
     pass
+
 
 class TestReportDatabase:
 
@@ -309,8 +312,12 @@ class FileTestReport(TestReport):
         if self._log_file:
             self._log_file.write(line)
 
+            # Will this help log performance?
+            self._log_file.flush()
+
     def close_logger(self):
         if self._log_file:
+            self._log_file.flush()
             self._log_file.close()
             self._log_file = None
 
@@ -501,7 +508,7 @@ class MongoReportDatabase(TestReportDatabase):
             db_name: Optional[str] = None,
             user: str = environ.get('MONGO_INITDB_ROOT_USERNAME', "root"),
             password: str = environ.get('MONGO_INITDB_ROOT_PASSWORD', "example"),
-            host: str = "mongo" if RUNNING_INSIDE_DOCKER else "localhost",
+            host: str = environ.get('MONGO_INITDB_HOST', "localhost"),
             **kwargs
     ):
         """
@@ -575,7 +582,19 @@ class MongoReportDatabase(TestReportDatabase):
         :return: list of identifiers of available reports.
         """
         non_system_collection_filter: Dict = {"name": {"$regex": rf"^(?!system\.|{self.LOG_NAME}|fs\..*|test_.*)"}}
-        return self._mongo_db.list_collection_names(filter=non_system_collection_filter)
+        completed_test_runs: List[str] = list()
+        for test_run_id in self._mongo_db.list_collection_names(filter=non_system_collection_filter):
+            test_run_reports: Collection = self._mongo_db.get_collection(test_run_id)
+            documents = [
+                document
+                for document in test_run_reports.find(
+                    filter={'document_key': "test_run_summary"},
+                    projection={'_id': True}
+                ).limit(1)
+            ]
+            if documents:
+                completed_test_runs.append(test_run_id)
+        return completed_test_runs
 
     def get_report_logs(self) -> List[Dict]:
         """
@@ -591,16 +610,20 @@ class MongoReportDatabase(TestReportDatabase):
 _test_report_database: Optional[TestReportDatabase] = None
 
 
-def get_test_report_database() -> TestReportDatabase:
+def get_test_report_database(use_file_database_as_default: bool = False) -> TestReportDatabase:
     global _test_report_database
     if not _test_report_database:
-        try:
-            # TODO: we only use 'default' MongoDb connection settings here. Needs to be parameterized...
-            _test_report_database = MongoReportDatabase()
-            print("Using MongoReportDatabase!", file=stderr)
-        except TestReportDatabaseException:
-            logger.warning("Mongodb instance not running? We will use a local FileReportDatabase instead...")
+        if not use_file_database_as_default:
+            try:
+                # TODO: we only use 'default' MongoDb connection settings here. Needs to be parameterized...
+                _test_report_database = MongoReportDatabase()
+                print("Using MongoReportDatabase!", file=stderr)
+            except TestReportDatabaseException:
+                logger.warning("Mongodb instance not running? We will use a local FileReportDatabase instead...")
+                _test_report_database = FileReportDatabase()
+                print("Using FileReportDatabase!", file=stderr)
+        else:
             _test_report_database = FileReportDatabase()
-            print("Using FileReportDatabase!", file=stderr)
+            print("Using FileReportDatabase as the default!", file=stderr)
 
     return _test_report_database
