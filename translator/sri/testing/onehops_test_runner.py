@@ -123,9 +123,34 @@ def parse_unit_test_name(unit_test_key: str) -> Tuple[str, str, str, int, str, s
 class OneHopTestHarness:
 
     # Caching of processes, indexed by test_run_id (timestamp identifier as string)
+    # TODO: perhaps we need to be more clever here if MONGO persistence is used, since the
+    #       contents of _test_run_id_2_worker_process may be application-session specific.
     _test_run_id_2_worker_process: Dict[str, Dict] = dict()
 
-    _test_report_database: TestReportDatabase = get_test_report_database()
+    _test_report_database: Optional[TestReportDatabase] = None
+
+    @classmethod
+    def test_report_database(cls):
+        if cls._test_report_database is None:
+            cls._test_report_database = get_test_report_database()
+        return cls._test_report_database
+
+    @classmethod
+    def initialize(cls):
+        """
+        Initialize the OneHopTestHarness environment,
+        i.e. to recognized persisted test runs (in the TestReportDatabase)
+        """
+        logger.debug("Initializing the OneHopTestHarness environment")
+        for test_run_id in cls.get_completed_test_runs():
+            logger.debug(f"Found persisted test run {test_run_id} in TestReportDatabase")
+            cls._test_run_id_2_worker_process[test_run_id] = {
+                "command_line": None,
+                "worker_process": None,
+                "timeout": DEFAULT_WORKER_TIMEOUT,
+                "percentage_completion": 100,
+                "test_run_completed": True
+            }
 
     @staticmethod
     def _generate_test_run_id() -> str:
@@ -152,7 +177,7 @@ class OneHopTestHarness:
             self._test_run_id_2_worker_process[self._test_run_id] = {}
 
         # Retrieve the associated test run report object
-        self._test_report: TestReport = self._test_report_database.get_test_report(identifier=self._test_run_id)
+        self._test_report: TestReport = self.test_report_database().get_test_report(identifier=self._test_run_id)
 
         # TODO: need a sensible path/db_key for the log file
         # self._log_file_path = self.get_absolute_file_path(document_key="test.log", create_path=True)
@@ -321,7 +346,7 @@ class OneHopTestHarness:
         """
         :return: list of test run identifiers of completed test runs
         """
-        return cls._test_report_database.get_available_reports()
+        return cls.test_report_database().get_available_reports()
 
     def get_index(self) -> Optional[Dict]:
         """

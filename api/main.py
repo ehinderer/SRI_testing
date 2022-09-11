@@ -47,6 +47,14 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
+@app.on_event("startup")
+async def startup_event():
+    # TODO: need to perhaps do some initialization here of the
+    #       OneHopTesting class level cache of test_runs?
+    OneHopTestHarness.initialize()
+
+
 favicon_path = f"{abspath(dirname(__file__))}/img/favicon.ico"
 
 
