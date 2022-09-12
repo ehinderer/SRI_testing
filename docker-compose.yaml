@@ -16,7 +16,7 @@ services:
   dashboard:
     build: ./dashboard
     ports:
-    - "80:80"
+    - "80:8080"
 
 volumes:
   results:

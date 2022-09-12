@@ -6,7 +6,8 @@
   "private": true,
   "scripts": {
     "dev": "webpack-dev-server -p --inline --progress --config build/webpack.dev.conf.js --host 0.0.0.0",
-    "start": "npm run dev",
+    "prod": "webpack-dev-server -p --inline --progress --config build/webpack.prod.conf.js --host 0.0.0.0 --no-hot",
+    "start": "npm run prod",
     "unit": "jest --config test/unit/jest.conf.js --coverage",
     "e2e": "node test/e2e/runner.js",
     "test": "npm run unit && npm run e2e",
