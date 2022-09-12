@@ -5,7 +5,8 @@ from json import dumps
 
 import requests
 
-from reasoner_validator import check_trapi_validity, ValidationReporter
+from reasoner_validator.report import ValidationReporter
+from reasoner_validator.trapi import check_trapi_validity
 from reasoner_validator.biolink import check_biolink_model_compliance_of_trapi_response
 
 import pytest

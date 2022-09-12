@@ -2,6 +2,7 @@
 Unit tests for the generic (shared) components of the TRAPI testing utilities
 """
 import logging
+from typing import Tuple
 
 import pytest
 
@@ -49,6 +50,6 @@ logger = logging.getLogger(__name__)
         )
     ]
 )
-def test_generate_test_error_msg_prefix(query):
+def test_generate_test_error_msg_prefix(query: Tuple):
     prefix = generate_test_error_msg_prefix(case=query[0], test_name=query[1])
     assert prefix == query[2]
