@@ -159,7 +159,7 @@ def generate_edge_id(resource_id: str, edge_i: int) -> str:
     return f"{resource_id}#{str(edge_i)}"
 
 
-def execute_trapi_lookup(case, creator, rbag, test_report: TestReport, validate_provenance: bool = False):
+def execute_trapi_lookup(case, creator, rbag, test_report: TestReport):
     """
     Method to execute a TRAPI lookup, using the 'creator' test template.
 
@@ -167,7 +167,6 @@ def execute_trapi_lookup(case, creator, rbag, test_report: TestReport, validate_
     :param creator: unit test-specific query message creator
     :param rbag: dictionary of results
     :param test_report: ErrorReport, class wrapper object for asserting and reporting errors
-    :param validate_provenance: bool, flag to signal additional validation to check knowledge provenance
 
     :return: None
     """
@@ -208,11 +207,10 @@ def execute_trapi_lookup(case, creator, rbag, test_report: TestReport, validate_
 
                 if response_message:
                     model_version: str
-                    biolink_validation_report: ValidationReporter
-                    model_version, biolink_validation_report = \
+                    validator: ValidationReporter = \
                         check_biolink_model_compliance_of_trapi_response(
                             message=response_message,
                             trapi_version=trapi_version,
                             biolink_version=biolink_version
                         )
-                    test_report.merge(biolink_validation_report)
+                    test_report.merge(validator)

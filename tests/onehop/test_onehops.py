@@ -51,11 +51,10 @@ def _report_and_skip_edge(scope: str, test, test_case: Dict, test_report: TestRe
     object_id = test_case['object']
     label = f"({subject_id}${subject_category})--[{predicate}]->({object_id}${object_category})"
 
-    if 'biolink_errors' in test_case:
-        model_version, errors = test_case['biolink_errors']
+    if 'validation' in test_case:
         test_report.skip(
             f"test case S-P-O triple '{label}', since it is not "
-            f"Biolink Model compliant: {' and '.join(errors)}"
+            f"Biolink Model compliant: {test_case['validation']}"
         )
     else:
         test_report.skip(
@@ -81,7 +80,7 @@ def test_trapi_kps(kp_trapi_case, trapi_creator, results_bag):
         errors=results_bag.errors
     )
 
-    if not ('biolink_errors' in kp_trapi_case or in_excluded_tests(test=trapi_creator, test_case=kp_trapi_case)):
+    if not ('validation' in kp_trapi_case or in_excluded_tests(test=trapi_creator, test_case=kp_trapi_case)):
         execute_trapi_lookup(case=kp_trapi_case, creator=trapi_creator, rbag=results_bag, test_report=test_report)
         test_report.assert_test_outcome()
     else:
@@ -113,13 +112,12 @@ def test_trapi_aras(ara_trapi_case, trapi_creator, results_bag):
         errors=results_bag.errors
     )
 
-    if not ('biolink_errors' in ara_trapi_case or in_excluded_tests(test=trapi_creator, test_case=ara_trapi_case)):
+    if not ('validation' in ara_trapi_case or in_excluded_tests(test=trapi_creator, test_case=ara_trapi_case)):
         execute_trapi_lookup(
             case=ara_trapi_case,
             creator=trapi_creator,
             rbag=results_bag,
-            test_report=test_report,
-            validate_provenance=True
+            test_report=test_report
         )
         test_report.assert_test_outcome()
     else:

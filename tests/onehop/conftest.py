@@ -13,7 +13,7 @@ import logging
 from deprecation import deprecated
 from pytest_harvest import get_session_results_dct
 
-from reasoner_validator.biolink import check_biolink_model_compliance_of_input_edge
+from reasoner_validator.biolink import check_biolink_model_compliance_of_input_edge, BiolinkValidator
 
 from translator.registry import (
     get_remote_test_data_file,
@@ -634,14 +634,14 @@ def generate_trapi_kp_tests(metafunc, trapi_version: str, biolink_version: str) 
 
             # We can already do some basic Biolink Model validation here of the
             # S-P-O contents of the edge being input from the current triples file?
-            model_version, errors = \
+            biolink_validator: BiolinkValidator = \
                 check_biolink_model_compliance_of_input_edge(
                     edge,
                     biolink_version=kpjson['biolink_version']
                 )
-            if errors:
+            if biolink_validator.has_messages():
                 # defer reporting of errors to higher level of test harness
-                edge['biolink_errors'] = model_version, errors
+                edge['validation'] = biolink_validator.to_dict()
 
             edge['kp_test_data_location'] = kpjson['location']
 
@@ -811,14 +811,14 @@ def generate_trapi_ara_tests(metafunc, kp_edges, trapi_version, biolink_version)
 
                 # Resetting the Biolink Model version here may have the peculiar side effect of some
                 # KP edge test data now becoming non-compliant with the 'new' ARA Biolink Model version?
-                model_version, errors = \
+                biolink_validator: BiolinkValidator = \
                     check_biolink_model_compliance_of_input_edge(
                         edge,
                         biolink_version=arajson['biolink_version']
                     )
-                if errors:
+                if biolink_validator.has_messages():
                     # defer reporting of errors to higher level of test harness
-                    edge['biolink_errors'] = model_version, errors
+                    edge['validation'] = biolink_validator.to_dict()
 
                 if 'infores' in arajson:
                     edge['ara_source'] = f"infores:{arajson['infores']}"

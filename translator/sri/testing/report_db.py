@@ -1,3 +1,4 @@
+
 from typing import Dict, Optional, List, IO, Generator
 from sys import stderr
 from os import environ, makedirs, listdir
@@ -5,8 +6,7 @@ from os.path import sep, normpath, exists
 import shutil
 from datetime import datetime
 from urllib.parse import quote_plus
-
-import json
+from json import JSONEncoder, dump, dumps
 import orjson
 
 from pymongo import MongoClient
@@ -30,6 +30,18 @@ RUNNING_INSIDE_DOCKER = environ.get('RUNNING_INSIDE_DOCKER', False)
 
 class TestReportDatabaseException(RuntimeError):
     pass
+
+
+class ReportJsonEncoder(JSONEncoder):
+    def default(self, o):
+        try:
+            iterable = iter(o)
+        except TypeError:
+            pass
+        else:
+            return list(iterable)
+        # Let the base class default method raise the TypeError
+        return JSONEncoder.default(self, o)
 
 
 class TestReportDatabase:
@@ -254,7 +266,7 @@ class FileTestReport(TestReport):
         try:
             # TODO: maybe I need to write 'is_big' files out as binary?
             with open(f"{document_path}.json", mode='w', encoding='utf8', buffering=1, newline='\n') as document_file:
-                json.dump(document, document_file, indent=4)
+                dump(obj=document, fp=document_file, cls=ReportJsonEncoder, indent=4)
         except OSError as ose:
             logger.warning(f"{document_type} '{document_key}' cannot be written out: {str(ose)}?")
 
@@ -343,7 +355,7 @@ class FileReportDatabase(TestReportDatabase):
             document = {"time_created": time_created}
             try:
                 with open(creation_log_file, mode='w', encoding='utf8', buffering=1, newline='\n') as log_file:
-                    json.dump(document, log_file, indent=4)
+                    dump(obj=document, fp=log_file, indent=4)
             except OSError as ose:
                 logger.warning(f"'{creation_log_file}' cannot be written out: {str(ose)}?")
 
@@ -442,7 +454,7 @@ class MongoTestReport(TestReport):
         document['document_key'] = document_key
         if is_big:
             # Save this large document with GridFS
-            gridfs_uid = self._gridfs.put(json.dumps(document), encoding="utf8")
+            gridfs_uid = self._gridfs.put(dumps(obj=document, cls=ReportJsonEncoder), encoding="utf8")
             # we save large documents in GridFS dereferenced by a proxy document in the main database
             proxy_document = {
                 'document_key': document_key,
