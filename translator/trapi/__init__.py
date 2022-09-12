@@ -211,9 +211,6 @@ def execute_trapi_lookup(case, creator, rbag, test_report: TestReport, validate_
                     model_version, biolink_validation_report = \
                         check_biolink_model_compliance_of_trapi_response(
                             message=response_message,
-                            output_element=output_element,
-                            output_node_binding=output_node_binding,
-                            validate_provenance=validate_provenance,
                             trapi_version=trapi_version,
                             biolink_version=biolink_version
                         )

@@ -6,7 +6,7 @@ from reasoner_validator.biolink import get_biolink_model_toolkit
 from translator.sri.testing.util import ontology_kp
 
 
-def create_one_hop_message(edge, look_up_subject=False) -> Dict:
+def create_one_hop_message(edge, look_up_subject: bool = False) -> Dict:
     """Given a complete edge, create a valid TRAPI message for "one hop" querying for the edge.
     If the look_up_subject is False (default) then the object id is not included, (lookup object
     by subject) and if the look_up_subject is True, then the subject id is not included (look up
@@ -129,7 +129,7 @@ class TestCode:
 @TestCode("BS", "by_subject")
 def by_subject(request):
     """Given a known triple, create a TRAPI message that looks up the object by the subject"""
-    message = create_one_hop_message(request, look_up_subject=False)
+    message = create_one_hop_message(request)
     return message, 'object', 'b'
 
 
@@ -163,7 +163,7 @@ def inverse_by_new_subject(request):
         "subject": request['object'],
         "object": request['subject']
     })
-    message = create_one_hop_message(transformed_request, look_up_subject=False)
+    message = create_one_hop_message(transformed_request)
     # We inverted the predicate, and will be querying by the new subject, so the output will be in node b
     # but, the entity we are looking for (now the object) was originally the subject because of the inversion.
     return message, 'subject', 'b'
@@ -194,7 +194,7 @@ def raise_subject_entity(request):
 
     mod_request = deepcopy(request)
     mod_request['subject'] = parent_subject
-    message = create_one_hop_message(mod_request, look_up_subject=False)
+    message = create_one_hop_message(mod_request)
     return message, 'object', 'b'
 
 
@@ -209,7 +209,7 @@ def raise_object_by_subject(request):
     transformed_request = request.copy()  # there's no depth to request, so it's ok
     parent = tk.get_element(original_object_element['is_a'])
     transformed_request['object_category'] = parent['class_uri']
-    message = create_one_hop_message(transformed_request, look_up_subject=False)
+    message = create_one_hop_message(transformed_request)
     return message, 'object', 'b'
 
 
@@ -225,5 +225,5 @@ def raise_predicate_by_subject(request):
         original_predicate_element = tk.get_element(request['predicate'])
         parent = tk.get_element(original_predicate_element['is_a'])
         transformed_request['predicate'] = parent['slot_uri']
-    message = create_one_hop_message(transformed_request, look_up_subject=False)
+    message = create_one_hop_message(transformed_request)
     return message, 'object', 'b'
