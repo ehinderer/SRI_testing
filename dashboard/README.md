@@ -1,6 +1,12 @@
-# translator_testing
+# SRI Testing Dashboard
+
+
 
 ## .env configuration
+
+The Dashboard relies on some site specific parameters - encoded in a **.env** environmental variable configuration file -to work properly.
+
+Note that the **.env** file is **.gitignored** in the repo. A template file, [dot_env_template](dot_env_template) is provided. A copy of this file should be made into a file called **.env** and customized to site requirements (see below).
 
 ### Setting up API connection
 
