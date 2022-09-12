@@ -47,4 +47,4 @@ jobs:
                   tags: ${{ steps.meta.outputs.tags }}
                   labels: ${{ steps.meta.outputs.labels }}
                   build-args: VERSION=${{ steps.get_version.outputs.VERSION }}
-                  dockerfile: ${{ matrix.dockerFile }}
+                  file: ${{ matrix.dockerFile }}
