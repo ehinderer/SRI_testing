@@ -1,5 +1,4 @@
 !build/
 !src/
 !config/
-!.env
 !Dockerfile
