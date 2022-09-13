@@ -16,7 +16,7 @@ from typing import List, Dict
 import pytest
 
 from tests.onehop.util import in_excluded_tests
-from translator.trapi import execute_trapi_lookup, TestReport
+from translator.trapi import execute_trapi_lookup, UnitTestReport
 from tests.onehop import util as oh_util
 
 import logging
@@ -25,13 +25,13 @@ logger = logging.getLogger(__name__)
 _edge_error_seen_already: List = list()
 
 
-def _report_and_skip_edge(scope: str, test, test_case: Dict, test_report: TestReport):
+def _report_and_skip_edge(scope: str, test, test_case: Dict, test_report: UnitTestReport):
     """
 
     :param scope: str, 'KP" or 'ARA'
     :param test: the particular unit test being skipped
     :param test_case: input edge data unit test case
-    :param test_report: TestReport wrapper for reporting test status
+    :param test_report: UnitTestReport wrapper for reporting test status
     :raises: pytest.skip with an informative message
     """
 
@@ -72,19 +72,31 @@ def test_trapi_kps(kp_trapi_case, trapi_creator, results_bag):
     """
     results_bag.location = kp_trapi_case['kp_test_data_location']
     results_bag.case = kp_trapi_case
-    results_bag.errors = list()
-
-    test_report = TestReport(
+    results_bag.unit_test_report = UnitTestReport(
         test_case=kp_trapi_case,
         test_name=trapi_creator.__name__,
-        errors=results_bag.errors
+        trapi_version=kp_trapi_case['trapi_version'],
+        biolink_version=kp_trapi_case['biolink_version']
     )
 
-    if not ('validation' in kp_trapi_case or in_excluded_tests(test=trapi_creator, test_case=kp_trapi_case)):
-        execute_trapi_lookup(case=kp_trapi_case, creator=trapi_creator, rbag=results_bag, test_report=test_report)
-        test_report.assert_test_outcome()
+    if not (
+            UnitTestReport.has_validation_errors("pre-validation", kp_trapi_case) or
+            in_excluded_tests(test=trapi_creator, test_case=kp_trapi_case)
+    ):
+        execute_trapi_lookup(
+            case=kp_trapi_case,
+            creator=trapi_creator,
+            rbag=results_bag,
+            test_report=results_bag.unit_test_report
+        )
+        results_bag.unit_test_report.assert_test_outcome()
     else:
-        _report_and_skip_edge("KP", test=trapi_creator, test_case=kp_trapi_case, test_report=test_report)
+        _report_and_skip_edge(
+            "KP",
+            test=trapi_creator,
+            test_case=kp_trapi_case,
+            test_report=results_bag.unit_test_report
+        )
 
 
 @pytest.mark.parametrize(
@@ -104,21 +116,27 @@ def test_trapi_aras(ara_trapi_case, trapi_creator, results_bag):
     """
     results_bag.location = ara_trapi_case['ara_test_data_location']
     results_bag.case = ara_trapi_case
-    results_bag.errors = list()
-
-    test_report = TestReport(
+    results_bag.unit_test_report = UnitTestReport(
         test_case=ara_trapi_case,
         test_name=trapi_creator.__name__,
-        errors=results_bag.errors
+        trapi_version=ara_trapi_case['trapi_version'],
+        biolink_version=ara_trapi_case['biolink_version']
     )
-
-    if not ('validation' in ara_trapi_case or in_excluded_tests(test=trapi_creator, test_case=ara_trapi_case)):
+    if not (
+            UnitTestReport.has_validation_errors("pre-validation", ara_trapi_case) or
+            in_excluded_tests(test=trapi_creator, test_case=ara_trapi_case)
+    ):
         execute_trapi_lookup(
             case=ara_trapi_case,
             creator=trapi_creator,
             rbag=results_bag,
-            test_report=test_report
+            test_report=results_bag.unit_test_report
         )
-        test_report.assert_test_outcome()
+        results_bag.unit_test_report.assert_test_outcome()
     else:
-        _report_and_skip_edge("ARA", test=trapi_creator, test_case=ara_trapi_case, test_report=test_report)
+        _report_and_skip_edge(
+            "ARA",
+            test=trapi_creator,
+            test_case=ara_trapi_case,
+            test_report=results_bag.unit_test_report
+        )

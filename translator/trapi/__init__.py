@@ -1,5 +1,5 @@
 import warnings
-from typing import Optional, Dict, List
+from typing import Optional, Dict
 
 from json import dumps
 
@@ -34,12 +34,27 @@ class TrapiValidationWarning(UserWarning):
     pass
 
 
-class TestReport(ValidationReporter):
+class UnitTestReport(ValidationReporter):
+    """
+    UnitTestReport is a single ValidationReporter used to aggregate SRI Test actionable validation messages.
+    Not to be confused with the translator.sri.testing.report_db.TestReport, which is the comprehensive set
+    of all JSON reports from a single SRI Testing harness test run.
+    """
 
-    def __init__(self, test_case: Dict, test_name: str, errors: List[str]):
+    def __init__(
+            self,
+            test_case: Dict,
+            test_name: str,
+            trapi_version: str,
+            biolink_version: str
+    ):
         error_msg_prefix = generate_test_error_msg_prefix(test_case, test_name=test_name)
-        ValidationReporter.__init__(self, prefix=error_msg_prefix)
-        self.errors = errors
+        ValidationReporter.__init__(
+            self,
+            prefix=error_msg_prefix,
+            trapi_version=trapi_version,
+            biolink_version=biolink_version
+        )
 
     def test(self, is_true: bool, message: str, data_dump: Optional[str] = None):
         """
@@ -59,10 +74,10 @@ class TestReport(ValidationReporter):
     def skip(self, message: str):
         """
         Skip report wrapper.
+
         :param message: str, message explaining why the test is skipped
-        :raises: AssertionError when 'is_true' flag has value False
         """
-        self.errors.append(message)
+        # self.info(message)
         pytest.skip(reason=message)
 
     def assert_test_outcome(self):
@@ -159,7 +174,7 @@ def generate_edge_id(resource_id: str, edge_i: int) -> str:
     return f"{resource_id}#{str(edge_i)}"
 
 
-def execute_trapi_lookup(case, creator, rbag, test_report: TestReport):
+def execute_trapi_lookup(case, creator, rbag, test_report: UnitTestReport):
     """
     Method to execute a TRAPI lookup, using the 'creator' test template.
 
@@ -197,7 +212,7 @@ def execute_trapi_lookup(case, creator, rbag, test_report: TestReport):
             # Second sanity check: was the web service (HTTP) call itself successful?
             web_status: int = trapi_response['status_code']
             if web_status != 200:
-                test_report.error(f"TRAPI response has an unexpected HTTP status code: '{web_status}'?")
+                test_report.error(f"TRAPI Response has an unexpected HTTP status code: '{web_status}'?")
             else:
                 ##########################################
                 # Looks good so far, so now validate     #

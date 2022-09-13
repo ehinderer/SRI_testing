@@ -14,13 +14,15 @@ from deprecation import deprecated
 from pytest_harvest import get_session_results_dct
 
 from reasoner_validator.biolink import check_biolink_model_compliance_of_input_edge, BiolinkValidator
+from reasoner_validator.util import latest
 
 from translator.registry import (
     get_remote_test_data_file,
     get_the_registry_data,
     extract_component_test_metadata_from_registry
 )
-from translator.trapi import generate_edge_id, DEFAULT_TRAPI_VERSION
+
+from translator.trapi import generate_edge_id, DEFAULT_TRAPI_VERSION, UnitTestReport
 
 from tests.onehop import util as oh_util
 from tests.onehop.util import (
@@ -201,6 +203,10 @@ def pytest_sessionfinish(session):
             case_summary = test_run_summary[component][kp_id]
             resource_summary = resource_summaries[component][kp_id]
 
+        # Echo TRAPI and Biolink versions to resource_summary
+        resource_summary['trapi_version'] = trapi_version
+        resource_summary['biolink_version'] = biolink_version
+
         # Tally up the number of test results of a given 'status' across 'test_id' unit test categories
         _tally_unit_test_result(case_summary, test_id, edge_num, details['status'])
 
@@ -209,21 +215,22 @@ def pytest_sessionfinish(session):
         idx: str = str(test_case['idx'])
 
         if idx not in resource_summary:
-            resource_summary[idx] = {
+            resource_summary['test_edges'][idx] = {
                 'test_data': dict(),
                 'results': dict()
             }
 
         for field in RESOURCE_SUMMARY_FIELDS:
-            if field not in resource_summary[idx]['test_data'] and field in test_case:
-                resource_summary[idx]['test_data'][field] = test_case[field]
+            if field not in resource_summary['test_edges'][idx]['test_data'] and field in test_case:
+                resource_summary['test_edges'][idx]['test_data'][field] = test_case[field]
 
-        if test_id not in resource_summary[idx]['results']:
-            resource_summary[idx]['results'][test_id] = dict()
-        resource_summary[idx]['results'][test_id]['outcome'] = details['status']
+        if test_id not in resource_summary['test_edges'][idx]['results']:
+            resource_summary['test_edges'][idx]['results'][test_id] = dict()
+        resource_summary['test_edges'][idx]['results'][test_id]['outcome'] = details['status']
 
-        if 'errors' in rb and len(rb['errors']) > 0:
-            resource_summary[idx]['results'][test_id]['errors'] = rb['errors']
+        test_report: UnitTestReport = rb['unit_test_report']
+        if test_report and test_report.has_messages:
+            resource_summary['test_edges'][idx]['results'][test_id]['validation'] = test_report.get_messages()
 
         ###################################################
         # Full test details will still be indexed by edge #
@@ -248,10 +255,6 @@ def pytest_sessionfinish(session):
         # Replicating 'PASSED, FAILED, SKIPPED' test status
         # for each unit test, here in the detailed report
         test_details['outcome'] = details['status']
-
-        # Capture list of errors - we assume they are only reported once for any given test?
-        if 'errors' in rb and len(rb['errors']) > 0:
-            test_details['errors'] = rb['errors']
 
         # Capture more request/response details for test failures
         if details['status'] == 'failed':
@@ -450,7 +453,7 @@ def get_test_data_sources(source: str, component_type: str) -> Dict[str, Dict[st
             "component": component_type,
             "infores": None,
             "biolink_version": None,
-            "trapi_version": DEFAULT_TRAPI_VERSION
+            "trapi_version": latest.get(DEFAULT_TRAPI_VERSION)
         }
         service_metadata = {name: metadata_template.copy() for name in filelist}
 
@@ -510,7 +513,7 @@ def load_test_data_source(
         # Possible CLI override of the metadata value of
         # TRAPI and Biolink Model releases used for data validation
         if trapi_version:
-            metadata['trapi_version'] = trapi_version
+            metadata['trapi_version'] = latest.get(trapi_version)
 
         if biolink_version:
             metadata['biolink_version'] = biolink_version
@@ -641,7 +644,7 @@ def generate_trapi_kp_tests(metafunc, trapi_version: str, biolink_version: str) 
                 )
             if biolink_validator.has_messages():
                 # defer reporting of errors to higher level of test harness
-                edge['validation'] = biolink_validator.to_dict()
+                edge['pre-validation'] = biolink_validator.get_messages()
 
             edge['kp_test_data_location'] = kpjson['location']
 
@@ -818,7 +821,7 @@ def generate_trapi_ara_tests(metafunc, kp_edges, trapi_version, biolink_version)
                     )
                 if biolink_validator.has_messages():
                     # defer reporting of errors to higher level of test harness
-                    edge['validation'] = biolink_validator.to_dict()
+                    edge['pre-validation'] = biolink_validator.get_messages()
 
                 if 'infores' in arajson:
                     edge['ara_source'] = f"infores:{arajson['infores']}"
@@ -874,12 +877,12 @@ def pytest_generate_tests(metafunc):
     # KP/ARA TRAPI version may be overridden
     # on the command line; maybe 'None' => no override
     trapi_version = metafunc.config.getoption('TRAPI_Version')
-    logger.debug(f"pytest_generate_tests(): TRAPI_Version == {str(trapi_version)}")
+    logger.debug(f"pytest_generate_tests(): caller specified TRAPI_Version == {str(trapi_version)}")
 
     # KP/ARA Biolink Model version may be overridden
     # on the command line; maybe 'None' => no override
     biolink_version = metafunc.config.getoption('Biolink_Version')
-    logger.debug(f"pytest_generate_tests(): command line specified Biolink_Version == {str(biolink_version)}")
+    logger.debug(f"pytest_generate_tests(): caller specified Biolink_Version == {str(biolink_version)}")
 
     trapi_kp_edges = generate_trapi_kp_tests(
         metafunc,
