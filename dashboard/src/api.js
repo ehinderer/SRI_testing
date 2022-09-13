@@ -3,7 +3,7 @@ import { PYTEST_REPORT, MOCK_REGISTRY, MOLEPRO_REPORT } from './__mocks__/test_d
 import axios, { AxiosRequestConfig } from 'axios';
 import AxiosMockAdapter from 'axios-mock-adapter';
 
-axios.defaults.baseURL = "http://"+process.env.API_HOST+(!!process.env.API_PORT ? ':'+process.env.API_PORT : '');
+axios.defaults.baseURL = process.env.API_PROTOCOL+process.env.API_HOST+(!!process.env.API_PORT ? ':'+process.env.API_PORT : '');
 axios.defaults.headers.post['Content-Type'] ='application/json;charset=utf-8';
 axios.defaults.headers.post['Access-Control-Allow-Origin'] = '*';
 
