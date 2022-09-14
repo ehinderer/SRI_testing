@@ -221,7 +221,6 @@ def execute_trapi_lookup(case, creator, rbag, test_report: UnitTestReport):
                 response_message: Optional[Dict] = trapi_response['response_json']['message']
 
                 if response_message:
-                    model_version: str
                     validator: ValidationReporter = \
                         check_biolink_model_compliance_of_trapi_response(
                             message=response_message,

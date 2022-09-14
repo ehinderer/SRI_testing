@@ -14,7 +14,7 @@ from deprecation import deprecated
 from pytest_harvest import get_session_results_dct
 
 from reasoner_validator.biolink import check_biolink_model_compliance_of_input_edge, BiolinkValidator
-from reasoner_validator.util import latest
+from reasoner_validator.versioning import latest
 
 from translator.registry import (
     get_remote_test_data_file,
@@ -407,7 +407,12 @@ def _build_filelist(entry):
     return filelist
 
 
-def get_test_data_sources(source: str, component_type: str) -> Dict[str, Dict[str, Optional[str]]]:
+def get_test_data_sources(
+        source: str,
+        component_type: str,
+        trapi_version: Optional[str] = None,
+        biolink_version: Optional[str] = None
+) -> Dict[str, Dict[str, Optional[str]]]:
     """
     Retrieves a dictionary of metadata of 'component_type', indexed by name.
 
@@ -420,7 +425,10 @@ def get_test_data_sources(source: str, component_type: str) -> Dict[str, Dict[st
 
     :param source: str, specific remote or local source from which the test data sources are to be retrieved.
     :param component_type: str, component type 'KP' or 'ARA'
-    :return:
+    :param trapi_version: SemVer caller override of TRAPI release target for validation (Default: None)
+    :param biolink_version: SemVer caller override of Biolink Model release target for validation (Default: None)
+
+    :return: Dict[str, Dict[str, Optional[str]]], service metadata dictionary
     """
     service_metadata: Dict[str, Dict[str, Optional[str]]]
 
@@ -457,22 +465,28 @@ def get_test_data_sources(source: str, component_type: str) -> Dict[str, Dict[st
         }
         service_metadata = {name: metadata_template.copy() for name in filelist}
 
+    # Possible CLI override of the metadata value of
+    # TRAPI and/or Biolink Model releases used for data validation
+    if trapi_version:
+        for service_name in service_metadata.keys():
+            service_metadata[service_name]['trapi_version'] = latest.get(trapi_version)
+
+    if biolink_version:
+        for service_name in service_metadata.keys():
+            service_metadata[service_name]['biolink_version'] = biolink_version
+
     return service_metadata
 
 
 def load_test_data_source(
         source: str,
-        metadata: Dict[str, Optional[str]],
-        trapi_version: Optional[str] = None,
-        biolink_version: Optional[str] = None
+        metadata: Dict[str, Optional[str]]
 ) -> Optional[Dict]:
     """
     Load one specified component test data source.
 
     :param source: source string, URL if from "remote"; file path if local
     :param metadata: metadata associated with source
-    :param trapi_version: SemVer caller override of TRAPI release target for validation (Default: None)
-    :param biolink_version: SemVer caller override of Biolink Model release target for validation (Default: None)
     :return: json test data with (some) metadata; 'None' if unavailable
     """
     # sanity check
@@ -509,14 +523,6 @@ def load_test_data_source(
         api_name: str = source.split('/')[-1]
         # remove the trailing file extension
         metadata['api_name'] = api_name.replace(".json", "")
-
-        # Possible CLI override of the metadata value of
-        # TRAPI and Biolink Model releases used for data validation
-        if trapi_version:
-            metadata['trapi_version'] = latest.get(trapi_version)
-
-        if biolink_version:
-            metadata['biolink_version'] = biolink_version
 
     return metadata
 
@@ -596,12 +602,19 @@ def generate_trapi_kp_tests(metafunc, trapi_version: str, biolink_version: str) 
 
     triple_source = metafunc.config.getoption('triple_source')
 
-    kp_metadata: Dict[str, Dict[str, Optional[str]]] = get_test_data_sources(triple_source, component_type="KP")
+    kp_metadata: Dict[str, Dict[str, Optional[str]]] = \
+        get_test_data_sources(
+            source=triple_source,
+            trapi_version=trapi_version,
+            biolink_version=biolink_version,
+            component_type="KP"
+        )
 
     for source, metadata in kp_metadata.items():
 
-        # User CLI may override here the target Biolink Model version during KP test data preparation
-        kpjson = load_test_data_source(source, metadata, trapi_version, biolink_version)
+        # User CLI may trapi_version, biolink_version may (but not necessarily) here
+        # override the target Biolink Model version during KP test data preparation
+        kpjson = load_test_data_source(source, metadata)
 
         if not kpjson:
             # valid test data file not found?
@@ -765,12 +778,18 @@ def generate_trapi_ara_tests(metafunc, kp_edges, trapi_version, biolink_version)
 
     ara_source = metafunc.config.getoption('ARA_source')
 
-    ara_metadata: Dict[str, Dict[str, Optional[str]]] = get_test_data_sources(ara_source, component_type="ARA")
+    ara_metadata: Dict[str, Dict[str, Optional[str]]] = \
+        get_test_data_sources(
+            source=ara_source,
+            trapi_version=trapi_version,
+            biolink_version=biolink_version,
+            component_type="ARA"
+        )
 
     for source, metadata in ara_metadata.items():
 
         # User CLI may override here the target Biolink Model version during KP test data preparation
-        arajson = load_test_data_source(source, metadata, trapi_version, biolink_version)
+        arajson = load_test_data_source(source, metadata)
 
         if not arajson:
             # valid test data file not found?

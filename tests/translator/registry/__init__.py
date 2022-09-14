@@ -2,12 +2,6 @@
 Registry package
 """
 
-# As of June 2022, the Translator SmartAPI Registry doesn't yet
-# have significant compliant test_data_locations for KPs and ARAs,
-# so we'll start by simulating this for now, with mock registry metadata
-# (dereferencing test data in the SRI Testing project repository)
-#
-
 # Setting the following flag to 'True' triggers use of the
 # local 'mock' Registry data entries immediately below
 MOCK_REGISTRY: bool = False
