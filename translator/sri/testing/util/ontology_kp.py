@@ -5,6 +5,7 @@ import requests
 from reasoner_validator.biolink import get_biolink_model_toolkit
 
 ONTOLOGY_KP_TRAPI_SERVER = "https://ontology-kp.apps.renci.org/query"
+NODE_NORMALIZER_SERVER = "https://nodenormalization-sri.renci.org/get_normalized_nodes"
 
 
 def post(url, message, params=None):
@@ -29,7 +30,9 @@ def convert_to_preferred(curie, allowed_list):
     :param allowed_list
     """
     j = {'curies': [curie]}
-    result = post('https://nodenormalization-sri.renci.org/get_normalized_nodes', j)
+    result = post(NODE_NORMALIZER_SERVER, j)
+    if not result:
+        return None
     new_ids = [v['identifier'] for v in result[curie]['equivalent_identifiers']]
     for nid in new_ids:
         if nid.split(':')[0] in allowed_list:
