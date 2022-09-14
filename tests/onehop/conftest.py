@@ -59,6 +59,23 @@ def _new_kp_test_case_summary(trapi_version: str, biolink_version: str) -> Dict[
     return new_test_case_summary
 
 
+def _new_kp_resource_summary(trapi_version: str, biolink_version: str) -> Dict[str, Union[str, Dict]]:
+    """
+    Initialize a dictionary to capture statistics for a single KP test case summary.
+
+    :param trapi_version: str, TRAPI version associated with the test case (SemVer)
+    :param biolink_version:  str, Biolink Model version associated with the test case (SemVer)
+
+    :return: Dict[str, Union[int, str, Dict]], initialized
+    """
+    new_test_case_summary: Dict[str, Union[str, Dict]] = {
+        'trapi_version': trapi_version,
+        'biolink_version': biolink_version,
+        'test_edges': dict()
+    }
+    return new_test_case_summary
+
+
 def _new_unit_test_statistics() -> Dict[str, int]:
     """
     Initialize a dictionary to capture statistics for a single unit test category.
@@ -185,7 +202,10 @@ def pytest_sessionfinish(session):
                     trapi_version=trapi_version,
                     biolink_version=biolink_version
                 )
-                resource_summaries[component][ara_id][kp_id] = dict()
+                resource_summaries[component][ara_id][kp_id] = _new_kp_resource_summary(
+                    trapi_version=trapi_version,
+                    biolink_version=biolink_version
+                )
 
             case_summary = test_run_summary[component][ara_id]['kps'][kp_id]
             resource_summary = resource_summaries[component][ara_id][kp_id]
@@ -198,14 +218,14 @@ def pytest_sessionfinish(session):
                 )
                 test_run_summary[component][kp_id]['url'] = url
                 test_run_summary[component][kp_id]['test_data_location'] = test_case['kp_test_data_location']
-                resource_summaries[component][kp_id] = dict()
+
+                resource_summaries[component][kp_id] = _new_kp_resource_summary(
+                    trapi_version=trapi_version,
+                    biolink_version=biolink_version
+                )
 
             case_summary = test_run_summary[component][kp_id]
             resource_summary = resource_summaries[component][kp_id]
-
-        # Echo TRAPI and Biolink versions to resource_summary
-        resource_summary['trapi_version'] = trapi_version
-        resource_summary['biolink_version'] = biolink_version
 
         # Tally up the number of test results of a given 'status' across 'test_id' unit test categories
         _tally_unit_test_result(case_summary, test_id, edge_num, details['status'])
@@ -214,7 +234,7 @@ def pytest_sessionfinish(session):
         #       and unit test id's for a given resource indexed by ARA and KP
         idx: str = str(test_case['idx'])
 
-        if idx not in resource_summary:
+        if idx not in resource_summary['test_edges']:
             resource_summary['test_edges'][idx] = {
                 'test_data': dict(),
                 'results': dict()
