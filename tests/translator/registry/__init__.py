@@ -34,7 +34,7 @@ MOCK_TRANSLATOR_SMARTAPI_REGISTRY_METADATA = {
                     "biolink-version": "2.2.16"
                 },
                 "x-trapi": {
-                    "version": "1.2.0",
+                    "version": "1.3.0",
                     "test_data_location": "https://raw.githubusercontent.com/TranslatorSRI/SRI_testing/main/" +
                                           "tests/onehop/test_triples/KP/Unit_Test_KP/Test_KP_1.json"
                 }
@@ -51,28 +51,30 @@ MOCK_TRANSLATOR_SMARTAPI_REGISTRY_METADATA = {
                     "biolink-version": "2.4.8"
                 },
                 "x-trapi": {
-                    "version": "1.2.0",
+                    "version": "1.3.0",
                     "test_data_location": "https://raw.githubusercontent.com/TranslatorSRI/SRI_testing/main/" +
                                           "tests/onehop/test_triples/KP/Unit_Test_KP/Test_KP_2.json"
                 }
             }
         },
-        {
-            "info": {
-                "title": "Unit Test Automatic Relay Agent",
-                "version": "0.0.1",
-                "x-translator": {
-                    "infores": "infores:aragorn",
-                    "component": "ARA",
-                    "team": "Ranking Agent",
-                    "biolink-version": "2.2.16"
-                },
-                "x-trapi": {
-                    "version": "1.2.0",
-                    "test_data_location": "https://raw.githubusercontent.com/TranslatorSRI/SRI_testing/main/" +
-                                          "tests/onehop/test_triples/ARA/Unit_Test_ARA/Test_ARA.json"
-                }
-            }
-        }
+        #
+        # Broken Mock ARA endpoint...
+        # {
+        #     "info": {
+        #         "title": "Unit Test Automatic Relay Agent",
+        #         "version": "0.0.1",
+        #         "x-translator": {
+        #             "infores": "infores:aragorn",
+        #             "component": "ARA",
+        #             "team": "Ranking Agent",
+        #             "biolink-version": "2.2.16"
+        #         },
+        #         "x-trapi": {
+        #             "version": "1.2.0",
+        #             "test_data_location": "https://raw.githubusercontent.com/TranslatorSRI/SRI_testing/main/" +
+        #                                   "tests/onehop/test_triples/ARA/Unit_Test_ARA/Test_ARA.json"
+        #         }
+        #     }
+        # }
     ]
 }
