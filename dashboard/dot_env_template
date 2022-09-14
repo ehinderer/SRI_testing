@@ -1,5 +1,6 @@
-API_HOST='"localhost"'  # quotation sic
-API_PORT=8090
+API_HOST='"localhost"'    # quotation matters. no trailing backslash.
+API_PROTOCOL='"http://"'  # quotation matters.
+API_PORT=8090             # comment out if not using.
 isAxiosMock=false
 _FEATURE_RUN_TEST_BUTTON=false
 _FEATURE_RUN_TEST_SELECT=true
