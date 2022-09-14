@@ -1,0 +1,17 @@
+version: '3.9'
+# Only start up the SRI Testing Web API service
+services:
+
+  api:
+    build:
+      context: .
+    ports:
+    - "8090:8090"
+    # need to tie into code/tests/onehop/results VOLUME
+    environment:
+      MONGO_INITDB_HOST: mongo
+    volumes:
+    - results:/code/tests/onehop/results
+
+volumes:
+  results:

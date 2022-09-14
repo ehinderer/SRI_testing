@@ -3,6 +3,7 @@ WORKDIR /usr/src/app
 COPY package*.json ./
 RUN npm install
 COPY . .
-EXPOSE 80
+RUN chown -R node /usr/src/app
+EXPOSE 8080
 USER node
 CMD [ "npm", "run", "start" ]
