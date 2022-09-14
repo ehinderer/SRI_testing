@@ -38,7 +38,7 @@ logger = logging.getLogger(__name__)
 
 # TODO: temporary circuit breaker for (currently 4-August-2022)
 #  undisciplined edge test data sets (like from RTX-KG2c)
-UNREASONABLE_NUMBER_OF_TEST_EDGES: int = 10
+REASONABLE_NUMBER_OF_TEST_EDGES: int = 10
 
 
 def _new_kp_test_case_summary(trapi_version: str, biolink_version: str) -> Dict[str, Union[int, str, Dict]]:
@@ -727,7 +727,7 @@ def generate_trapi_kp_tests(metafunc, trapi_version: str, biolink_version: str) 
                 break
 
             # Circuit breaker for overly large edge test data sets
-            if edge_i > UNREASONABLE_NUMBER_OF_TEST_EDGES:
+            if edge_i > REASONABLE_NUMBER_OF_TEST_EDGES:
                 break
 
         print(f"### End of Test Input Edges for KP '{kpjson['api_name']}' ###")
