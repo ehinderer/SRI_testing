@@ -123,8 +123,6 @@ def parse_unit_test_name(unit_test_key: str) -> Tuple[str, str, str, int, str, s
 class OneHopTestHarness:
 
     # Caching of processes, indexed by test_run_id (timestamp identifier as string)
-    # TODO: perhaps we need to be more clever here if MONGO persistence is used, since the
-    #       contents of _test_run_id_2_worker_process may be application-session specific.
     _test_run_id_2_worker_process: Dict[str, Dict] = dict()
 
     _test_report_database: Optional[TestReportDatabase] = None
@@ -177,7 +175,8 @@ class OneHopTestHarness:
             self._test_run_id_2_worker_process[self._test_run_id] = {}
 
         # Retrieve the associated test run report object
-        self._test_report: TestReport = self.test_report_database().get_test_report(identifier=self._test_run_id)
+        self._test_report: Optional[TestReport] = \
+            self.test_report_database().get_test_report(identifier=self._test_run_id)
 
         # TODO: need a sensible path/db_key for the log file
         # self._log_file_path = self.get_absolute_file_path(document_key="test.log", create_path=True)
@@ -186,7 +185,7 @@ class OneHopTestHarness:
     def get_test_run_id(self) -> Optional[str]:
         return self._test_run_id
 
-    def get_test_report(self) -> TestReport:
+    def get_test_report(self) -> Optional[TestReport]:
         return self._test_report
 
     def run(
@@ -298,6 +297,7 @@ class OneHopTestHarness:
                     self._test_run_completed = True
                     if status.startswith(WorkerProcess.COMPLETED):
                         logger.debug(status)
+                        self._process = None
 
         return self._test_run_completed
 
@@ -324,6 +324,37 @@ class OneHopTestHarness:
             self._set_percentage_completion(100)
 
         return self._get_percentage_completion()
+
+    def delete(self) -> str:
+        try:
+            if not (self.test_run_complete() and self._test_report):
+                # test run still in progress...
+                if self._process:
+
+                    # this is a blocking process termination but leaves
+                    # an incomplete TestReport in the TestReportDatabase
+                    self._process.terminate()
+                    self._process = None
+
+                    # Remove the process from the OneHopTestHarness cache
+                    if self._test_run_id in self._test_run_id_2_worker_process:
+                        self._test_run_id_2_worker_process.pop(self._test_run_id)
+
+            success = self._test_report.delete(ignore_errors=True)
+
+        except Exception as exc:
+            # Not sure what other conditions would trigger this, if any
+            logger.error(f"delete() exception: '{str(exc)}'")
+            success = False
+
+        outcome: str = f"Test Run '{self._test_run_id}': "
+        if success:
+            self._test_report = None
+            outcome += "successfully deleted!"
+        else:
+            outcome += "test run deletion may have been problematic. Check the server logs!"
+
+        return outcome
 
     def save_json_document(self, document_type: str, document: Dict, document_key: str, is_big: bool = False):
         """

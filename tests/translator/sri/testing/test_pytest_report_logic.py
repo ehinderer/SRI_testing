@@ -13,7 +13,7 @@ import logging
 # MOCK_TRANSLATOR_SMARTAPI_REGISTRY_METADATA and a
 # FileTestDatabase, which will be initialized
 # during the module import of the OneHopTestHarness below
-from translator.sri.testing.report_db import get_test_report_database
+from translator.sri.testing.report_db import get_test_report_database, TestReport
 from tests.translator.registry import mock_registry
 mock_registry(True)
 get_test_report_database(True)
@@ -210,3 +210,17 @@ def test_run_onehop_tests_with_timeout():
         session_id=onehop_test.get_test_run_id(),
         expecting_report=False
     )
+
+
+def test_test_run_deletion():
+    onehop_test = OneHopTestHarness()
+    test_run_id: str = onehop_test.get_test_run_id()
+    test_report: TestReport = onehop_test.get_test_report()
+    test_report.save_json_document(
+        document_type="Fake Document",
+        document={"foo": "bar"},
+        document_key="fake_document"
+    )
+    outcome: str = onehop_test.delete()
+    assert onehop_test.get_test_report() is None
+    assert outcome == f"Test Run '{test_run_id}': successfully deleted!"

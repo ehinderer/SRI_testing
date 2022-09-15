@@ -105,12 +105,13 @@ class TestReport:
         """
         raise NotImplementedError("Abstract method - implement in child subclass!")
 
-    def delete(self):
+    def delete(self, ignore_errors: bool = False) -> True:
         """
-        Delete internal representation of the report.
+        Delete internal representation of the TestReport.
         """
-        # Signal deletion with
+        # Signal deletion with an empty test report root path
         self._report_root_path = None
+        return True
 
     def save_json_document(
             self,
@@ -204,14 +205,26 @@ class FileTestReport(TestReport):
         document_path = f"{self.get_root_path()}{sep}{document_key}"
         return exists(document_path)
 
-    def delete(self):
+    def delete(self, ignore_errors: bool = False) -> bool:
+        """
+        Delete internal representation of the FileTestReport.
+        """
         try:
-            shutil.rmtree(self.get_root_path())
+            # this single command does a good job of
+            # deleting all the TestReport documents
+            shutil.rmtree(self.get_root_path(), ignore_errors=ignore_errors)
             TestReport.delete(self)
         except OSError as ose:
             logger.warning(
                 f"FileTestReport.delete():  could not delete '{str(self.get_root_path())}' report path: {str(ose)}"
             )
+            if ignore_errors:
+                return True
+            else:
+                return False
+
+        # Signal success if no exception is thrown above...
+        return True
 
     def get_absolute_file_path(self, document_key: str, create_path: bool = False) -> str:
         """
@@ -255,6 +268,7 @@ class FileTestReport(TestReport):
             # TODO: maybe I need to write 'is_big' files out as binary?
             with open(f"{document_path}.json", mode='w', encoding='utf8', buffering=1, newline='\n') as document_file:
                 json.dump(document, document_file, indent=4)
+                document_file.flush()
         except OSError as ose:
             logger.warning(f"{document_type} '{document_key}' cannot be written out: {str(ose)}?")
 
@@ -409,7 +423,7 @@ class MongoTestReport(TestReport):
         self._db: Database = mongo_db
 
         # Also save large files into GridFS
-        self._gridfs: GridFS = GridFS(self._db)
+        self._gridfs: GridFS = GridFS(self._db, collection=identifier)
 
         # MongoDb based reporting needs to create a
         # 'identifier' tagged collection for test results
@@ -418,9 +432,35 @@ class MongoTestReport(TestReport):
     def exists_document(self, document_key: str) -> bool:
         return self._collection.find_one(filter={'document_key': document_key}) is not None
 
-    def delete(self):
+    def delete(self, ignore_errors: bool = False) -> bool:
+        """
+        Delete internal representation of the MongoTestReport.
+        :return: bool, True is successful
+        """
         self._collection = None
-        self._db.drop_collection(self.get_identifier())
+        try:
+            # MongoTestReport deletion is a bit more complex
+            # given that we have stored "big" documents in GridFS,
+            # not in MongoDb itself. Thus, we also need to purge
+            # the GridFS database of the associated GridFS collections.
+            test_run_id = self.get_identifier()
+            gridfs_chunks = f"{test_run_id}.chunks"
+            gridfs_files = f"{test_run_id}.files"
+            self._db.drop_collection(gridfs_chunks)
+            self._db.drop_collection(gridfs_files)
+            self._db.drop_collection(test_run_id)
+            TestReport.delete(self)
+        except Exception as exc:
+            logger.warning(
+                f"MongoTestReport.delete():  could not delete '{str(self.get_root_path())}' report path: {str(exc)}"
+            )
+            if ignore_errors:
+                return True
+            else:
+                return False
+
+        # Signal success if no exception is thrown above...
+        return True
 
     def save_json_document(
             self,

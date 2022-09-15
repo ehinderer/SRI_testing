@@ -4,6 +4,7 @@ Utility module to support SRI Testing harness background processing
 The module launches the SRT Testing test harness using the Python 'multiprocessor' library.
 See https://docs.python.org/3/library/multiprocessing.html?highlight=multiprocessing for details.
 """
+from threading import Event
 from typing import Optional, Generator
 
 from sys import platform, executable, stderr
@@ -65,6 +66,7 @@ def _worker_process(
         pipe: Pipe,
         lock: Lock,
         queue: Queue,
+        termination: Event,
         command_line: str
 ):
     """
@@ -74,6 +76,7 @@ def _worker_process(
     :param pipe: Pipe, process pipe between the Worker and caller
     :param lock: Lock, process lock used to synchronize background output
     :param queue: Queue, used for communication of worker process to caller
+    :param termination: Event, used for signal early process termination
     :param command_line: str, the worker process command to execute
 
     :return: None (process state indirectly returned via Queue)
@@ -111,6 +114,19 @@ def _worker_process(
                 stderr=STDOUT
         ) as proc:
             for line in proc.stdout:
+                end_early: bool
+                lock.acquire()
+                try:
+                    # We check here if the main process wants us
+                    # to prematurely terminate the Worker process.
+                    end_early = termination.is_set()
+                finally:
+                    lock.release()
+
+                if end_early:
+                    proc.terminate()
+                    break
+
                 # Echo 'line' to report log
                 report.write_logger(line)
                 line = line.strip()
@@ -128,7 +144,8 @@ def _worker_process(
                             # relinquish control to other threads
                             sleep(0.01)
 
-        return_code = proc.returncode
+            return_code = proc.wait()
+
         return_status = "Worker Process Completed?"
 
     except RuntimeError as rte:
@@ -162,8 +179,9 @@ class WorkerProcess:
         self._parent_conn: Optional[Connection] = None
         self._child_conn: Optional[Connection] = None
         self._ctx: BaseContext = get_context('spawn')
-        self._queue = self._ctx.Queue()
         self._lock = self._ctx.Lock()
+        self._queue = self._ctx.Queue()
+        self._termination = self._ctx.Event()
         self._process: Optional[Process] = None
         self._process_id: int = 0
         self._status: Optional[str] = None
@@ -197,6 +215,7 @@ class WorkerProcess:
                     self._child_conn,
                     self._lock,
                     self._queue,
+                    self._termination,
                     command_line
                 )
             )
@@ -226,12 +245,7 @@ class WorkerProcess:
         except Exception as ex:
 
             logger.warning(f"run_command() command: '{command_line}' raised an exception: {str(ex)}?")
-
-            if self._process and self._process.is_alive():
-                self._process.kill()
-
-            self._process = None
-            self._process_id = 0
+            self.terminate()
 
     def get_output(self, timeout: float = 1.0) -> Generator:
         if self._parent_conn:
@@ -275,6 +289,20 @@ class WorkerProcess:
 
         return self._status
 
+    def terminate(self) -> bool:
+        if self.status() == self.RUNNING:
+            self._lock.acquire()
+            try:
+                self._termination.set()
+            finally:
+                self._lock.release()
+
+            self._process.join()
+            self._process = None
+            self._process_id = 0
+
+        return True if self.status() == self.NOT_RUNNING else False
+
     def close(self):
         # Job done, the parent, not the child, sets the connections to None
         # which closes the interprocess pipe, when ready?
@@ -282,3 +310,5 @@ class WorkerProcess:
         self._child_conn = None
         if self._process:
             self._process.join()
+            self._process = None
+            self._process_id = 0
