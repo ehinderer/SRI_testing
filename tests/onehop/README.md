@@ -98,6 +98,39 @@ So the steps for a KP:
 
 Note: you can selectively exclude specific KP configuration files or whole subfolders of such files from execution by appending *_SKIP* to the specific file or subfolder name (see below for finer grained test exclusions).
 
+
+#### General Recommendations for Edge Test Data
+
+Experience with the SRI Testing harness suggests that KP test data curators (whether manual or script-based approaches) be mindful of the following guidelines for KP test edge data:
+
+1. **"Less is More":** it is less important to be exhaustive than to shoot for quality with a tractable number of representative test edges from KP published meta_knowledge_graph _subject category--predicate->object category_ (SPO) patterns. Aiming for 10's of test edges (perhaps much less than 100 test edges) is preferred. For knowledge graphs with a large number of SPO patterns, consider rotating through a list of tractable sampling subsets to iterative resolve validation problems, a few use cases at a time. Edges which consistently pass in a given subset can be removed (although recorded somewhere for reuse in case, one needs to validate if future releases of the system have 'broken' the validation of such edges).
+2. **Nature of node categories and edge predicates used in the test edges:** 
+   1. Categories and predicates should _**not**_ be `abstract` nor `mixin` classes.   Use of `deprecated` `category` classes and `predicate` slots is in fact ok to detect the persistence of such classes or slots in the underlying KP generated knowledge graphs, but deprecated category classes and predicate slots will trigger a warning message.
+   2. The test data should generally be the most specific SPO patterns and identifier instances that the KP knowledge graphs directly represent. In other words, test data edges should generally **_not_** use parent (ancestral) category classes (i.e. `biolink:NamedThing`) and predicate slots (i.e. `biolink:related_to`) in the test data, unless those are the most specific classes and slots actually used in the underlying knowledge graphs.
+   3. Edge subject and object node identifiers (not the categories) should generally _**not**_ be Biolink CURIE terms, unless there is a compelling use case in the specific KP to do so.
+
+A couple of examples _**not**_ compliant with the above principles would be a test data edges like the following:
+
+```json
+        {
+            "subject_category": "biolink:NamedThing",
+            "object_category": "biolink:NamedThing",
+            "predicate": "biolink:related_to",
+            "subject": "biolink:decreases_localization_of",
+            "object": "biolink:localization_decreased_by"
+        }
+```
+```json
+        {
+            "subject_category": "biolink:NamedThing",
+            "object_category": "biolink:PathologicalEntityMixin",
+            "predicate": "biolink:related_to",
+            "subject": "UniProtKB:O15516",
+            "object": "MESH:D004781"
+        }
+```
+3. Note that the second example above also illustrates another issue: that `subject` and `object` identifiers need to have CURIE prefix (xmlns) namespaces that map onto the corresponding category classes (i.e. are specified in the Biolink Model `id_prefixes` for the given category).  This will be highlighted as a validation warning by the SRI Testing, but simply follows from the observation (above) the **UniProtKB** doesn't specifically map to `biolink:NamedThing` and **MESH** doesn't specifically map to a mixin (let alone `biolink:PathologicalEntityMixin`).
+
 #### Excluding Tests
 
 Note that the above KP JSON configuration has a pair of `exclude_tests` tag values.
