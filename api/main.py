@@ -239,7 +239,7 @@ class TestRunDeletion(BaseModel):
 
 
 @app.delete(
-    "/cancel",
+    "/delete",
     tags=['report'],
     response_model=TestRunDeletion,
     summary="Cancel a currently running SRI Testing run."
