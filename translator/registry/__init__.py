@@ -1,7 +1,7 @@
 """
 Translator SmartAPI Registry access module.
 """
-from typing import Optional, List, Dict, NamedTuple
+from typing import Optional, List, Dict, NamedTuple, Set
 from datetime import datetime
 
 import requests
@@ -237,6 +237,11 @@ class RegistryEntryId(NamedTuple):
 # here, we track Registry duplications of KP and ARA infores identifiers
 _infores_catalog: Dict[str, List[RegistryEntryId]] = dict()
 
+# Some ARA's and KP's may be tagged tp be ignored for practical reasons
+_ignored_resources: Set[str] = {
+    "rtx-kg2"  # the test_data_location released for RTX-KG2 is relatively unusable, as of September 2022
+}
+
 
 def extract_component_test_metadata_from_registry(
         registry_data: Dict,
@@ -269,6 +274,32 @@ def extract_component_test_metadata_from_registry(
             logger.warning(f"Service {index} lacks a 'service_title'... Skipped?")
             continue
 
+        # Grab additional service metadata, then store it all
+        service_version = tag_value(service, "info.version")
+        trapi_version = tag_value(service, "info.x-trapi.version")
+        biolink_version = tag_value(service, "info.x-translator.biolink-version")
+
+        infores = tag_value(service, "info.x-translator.infores")
+        # Internally, within SRI Testing, we only track the object_id of the infores CURIE
+        infores = infores.replace("infores:", "") if infores else None
+
+        if not infores:
+            logger.warning(f"Registry {component} entry {service_title} has no 'infores' identifier. Skipping?")
+            continue
+
+        if infores in _ignored_resources:
+            logger.warning(f"Registry {component} entry with {infores} is tagged to be ignored. Skipping?")
+            continue
+
+        if infores not in _infores_catalog:
+            _infores_catalog[infores] = list()
+        else:
+            logger.warning(
+                f"Infores '{infores}' appears duplicated among {component} Registry entries. " +
+                f"The new entry reports a service version '{str(service_version)}', " +
+                f"TRAPI version '{str(trapi_version)}' and Biolink Version '{str(biolink_version)}'."
+            )
+
         raw_test_data_location: Optional[str] = tag_value(service, "info.x-trapi.test_data_location")
 
         # ... and only interested in resources with a non-empty, valid, accessible test_data_location specified
@@ -290,30 +321,7 @@ def extract_component_test_metadata_from_registry(
             )
             continue
 
-        # Grab additional service metadata, then store it all
-        service_version = tag_value(service, "info.version")
-
-        infores = tag_value(service, "info.x-translator.infores")
-        # Internally, within SRI Testing, we only track the object_id of the infores CURIE
-        infores = infores.replace("infores:", "") if infores else None
-
-        if not infores:
-            logger.warning(f"Registry {component} entry {service_title} has no 'infores' identifier. Skipping?")
-            continue
-
-        trapi_version = tag_value(service, "info.x-trapi.version")
-        biolink_version = tag_value(service, "info.x-translator.biolink-version")
-
         entry_id: RegistryEntryId = RegistryEntryId(service_title, service_version, trapi_version, biolink_version)
-
-        if infores not in _infores_catalog:
-            _infores_catalog[infores] = list()
-        else:
-            logger.warning(
-                f"Infores '{infores}' appears duplicated among {component} Registry entries. " +
-                f"The new entry reports a service version '{str(service_version)}', " +
-                f"TRAPI version '{str(trapi_version)}' and Biolink Version '{str(biolink_version)}'."
-            )
 
         _infores_catalog[infores].append(entry_id)
 
