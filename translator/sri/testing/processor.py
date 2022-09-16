@@ -284,7 +284,7 @@ class WorkerProcess:
                 self._status = self.RUNNING
 
             # Hacker assumption: that a missing process is one deemed "completed"
-            if not (self._process or not self._process.is_alive() or self._process_id):
+            if not (self._process and self._process.is_alive() and self._process_id):
                 self._status = self.NOT_RUNNING
 
         return self._status

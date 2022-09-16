@@ -2,6 +2,7 @@ from typing import Dict, Optional, List, IO, Generator
 from sys import stderr
 from os import environ, makedirs, listdir
 from os.path import sep, normpath, exists
+from time import sleep
 import shutil
 from datetime import datetime
 from urllib.parse import quote_plus
@@ -437,19 +438,23 @@ class MongoTestReport(TestReport):
         Delete internal representation of the MongoTestReport.
         :return: bool, True is successful
         """
-        self._collection = None
         try:
             # MongoTestReport deletion is a bit more complex
             # given that we have stored "big" documents in GridFS,
             # not in MongoDb itself. Thus, we also need to purge
             # the GridFS database of the associated GridFS collections.
             test_run_id = self.get_identifier()
-            gridfs_chunks = f"{test_run_id}.chunks"
             gridfs_files = f"{test_run_id}.files"
-            self._db.drop_collection(gridfs_chunks)
+            gridfs_chunks = f"{test_run_id}.chunks"
+            # we briefly sleep to yield to the system
+            # to allow the MongoDb task to complete
             self._db.drop_collection(gridfs_files)
+            sleep(1)
+            self._db.drop_collection(gridfs_chunks)
+            sleep(1)
             self._db.drop_collection(test_run_id)
             TestReport.delete(self)
+            self._collection = None
         except Exception as exc:
             logger.warning(
                 f"MongoTestReport.delete():  could not delete '{str(self.get_root_path())}' report path: {str(exc)}"
