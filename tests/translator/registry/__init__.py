@@ -52,8 +52,7 @@ MOCK_TRANSLATOR_SMARTAPI_REGISTRY_METADATA = {
             }
         },
         #
-        # ARA is endpoint broken for now but I need some tests here!
-        #
+        # Broken Mock ARA endpoint...
         # {
         #     "info": {
         #         "title": "Unit Test Automatic Relay Agent",

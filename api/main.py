@@ -233,6 +233,33 @@ async def get_status(test_run_id: str) -> TestRunStatus:
     return TestRunStatus(test_run_id=test_run_id, percent_complete=percent_complete)
 
 
+class TestRunDeletion(BaseModel):
+    test_run_id: str
+    outcome: str
+
+
+@app.delete(
+    "/delete",
+    tags=['report'],
+    response_model=TestRunDeletion,
+    summary="Cancel a currently running SRI Testing run."
+)
+async def delete(test_run_id: str) -> TestRunDeletion:
+    """
+    Deletes a OneHopTestHarness test run. The test run may still be in process, or may be a completed test_run.
+    In the former case, the test_run is simply cancelled, with results discarded. In the latter case,
+    the test_run is deleted from the TestRunDatabase.
+
+    \f
+    :param test_run_id: test_run_id: test run identifier (as returned by /run_tests endpoint).
+
+    :return: TestRunDeletion, with fields 'test_run_id' and 'status', the latter
+             being a simple text message confirming the outcome of the operation.
+    """
+    outcome: str = OneHopTestHarness(test_run_id=test_run_id).delete()
+    return TestRunDeletion(test_run_id=test_run_id, outcome=outcome)
+
+
 class TestRunList(BaseModel):
     test_runs: List[str]
 
