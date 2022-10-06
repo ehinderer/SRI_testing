@@ -66,11 +66,13 @@
             </v-row>
 
             <v-container v-bind:key="`${id}_overview`" id="page-overview" v-if="loading !== null">
+              
               <v-skeleton-loader
                 v-if="loading === true"
                 v-bind="attrs"
                 type="actions,article,card,chip"
                 ></v-skeleton-loader>
+
               <div v-else-if="stats_summary !== null && loading === false">
                 <h2>Test Results</h2>
                 <h3>All providers</h3><br>
@@ -96,28 +98,17 @@
                     </la-cartesian>
                   </v-col>
                 </v-row>
-                <div  v-if="categories_index !== null && categories_index !== {}">
-                  <span class="subheading">Subject categories</span><br>
-                  <v-chip-group>
-                    <v-chip small outlined v-for="subject_category in Object.entries(countBy(subject_categories))" v-bind:key="`${kp}_${subject_category}_all`">
-                      {{ formatCurie(subject_category[0]) }} ({{ subject_category[1] }})
-                    </v-chip>
-                  </v-chip-group>
-                  <span class="subheading">Object categories</span><br>
-                  <v-chip-group>
-                    <v-chip small outlined v-for="object_category in Object.entries(countBy(object_categories))" v-bind:key="`${kp}_${object_category}_all`">
-                      {{ formatCurie(object_category[0]) }} ({{ object_category[1] }})
-                    </v-chip>
-                  </v-chip-group>
-                  <span class="subheading">Predicates</span><br>
-                  <v-chip-group>
-                    <v-chip small outlined v-for="predicate in Object.entries(countBy(predicates))" v-bind:key="`${kp}_${predicate}_all`">
-                      {{ formatCurie(predicate[0]) }} ({{ predicate[1] }})
-                    </v-chip>
-                  </v-chip-group>
-                </div>
+
+                <TranslatorCategoriesList
+                  v-if="categories_index !== null && categories_index !== {}"
+                  :resource="'all'"
+                  :subject_categories="subject_categories"
+                  :object_categories="object_categories"
+                  :predicates="predicates"
+                ></TranslatorCategoriesList>
 
                 <span v-if="!(kp_filter.length > 0 && ara_filter.length === 0)">
+
                   <br><h2>ARAs</h2>
                   <div v-for="ara in Object.keys(stats_summary['ARA']).filter(ara => ara_filter.length > 0 ? ara_filter.includes(ara) : true)" v-bind:key="ara">
                     <div v-for="kp in Object.keys(stats_summary['ARA'][ara].kps).filter(kp => kp_filter.length > 0 ? kp_filter.includes(kp) : true)" v-bind:key="`${ara}_${kp}`">
@@ -149,31 +140,16 @@
                           </la-cartesian>
                         </v-col>
                       </v-row>
-                      <div v-if="categories_index !== null && categories_index !== {}">
-                        <!-- Not all ARA/KP combinations are valid -->
-                        <span v-if="!!categories_index[ara+'_'+kp]">
-                          <span class="subheading">Subject categories</span><br>
-                          <v-chip-group>
-                            <v-chip small outlined v-for="subject_category in Object.entries(countBy(categories_index[ara+'_'+kp].subject_category))" v-bind:key="`${ara}_${kp}_${subject_category}`">
-                              {{ formatCurie(subject_category[0]) }} ({{ subject_category[1] }})
-                            </v-chip>
-                          </v-chip-group>
-
-                          <span class="subheading">Object categories</span><br>
-                          <v-chip-group>
-                            <v-chip small outlined v-for="object_category in Object.entries(countBy(categories_index[ara+'_'+kp].object_category))" v-bind:key="`${ara}_${kp}_${object_category}`">
-                              {{ formatCurie(object_category[0]) }} ({{ object_category[1] }})
-                            </v-chip>
-                          </v-chip-group>
-
-                          <span class="subheading">Predicates</span><br>
-                          <v-chip-group>
-                            <v-chip small outlined v-for="predicate in Object.entries(countBy(categories_index[ara+'_'+kp].predicate))" v-bind:key="`${ara}_${kp}_${predicate}`">
-                              {{ formatCurie(predicate[0]) }} ({{ predicate[1] }})
-                            </v-chip>
-                          </v-chip-group>
-                        </span>
-                      </div>
+  
+                      <!-- Not all ARAs have the same KPs. So need to check for the joint key explicitly. -->
+                      <TranslatorCategoriesList
+                        v-if="categories_index !== null && categories_index !== {} && !!categories_index[ara+'_'+kp]"
+                        :resource="ara+'_'+kp"
+                        :subject_categories="categories_index[ara+'_'+kp].subject_category"
+                        :object_categories="categories_index[ara+'_'+kp].object_category"
+                        :predicates="categories_index[ara+'_'+kp].predicate"
+                      ></TranslatorCategoriesList>
+  
                     </div>
                   </div>
                 </span>
@@ -210,29 +186,15 @@
                         </la-cartesian>
                       </v-col>
                     </v-row>
-                    <div v-if="categories_index !== null && categories_index !== {}">
-                      <span class="subheading">Subject categories</span><br>
-                      <v-chip-group>
-                        <v-chip small outlined
-                                v-for="subject_category in Object.entries(countBy(categories_index[kp].subject_category))" v-bind:key="`${kp}_${subject_category}_`">
-                          {{ formatCurie(subject_category[0]) }} ({{ subject_category[1] }})
-                        </v-chip>
-                      </v-chip-group>
-                      <span class="subheading">Object categories</span><br>
-                      <v-chip-group>
-                        <v-chip small outlined
-                                v-for="object_category in Object.entries(countBy(categories_index[kp].object_category))" v-bind:key="`${kp}_${object_category}_`">
-                          {{ formatCurie(object_category[0]) }} ({{ object_category[1] }})
-                        </v-chip>
-                      </v-chip-group>
-                      <span class="subheading">Predicates</span><br>
-                      <v-chip-group>
-                        <v-chip small outlined
-                                v-for="predicate in Object.entries(countBy(categories_index[kp].predicate))" v-bind:key="`${kp}_${predicate}_`">
-                          {{ formatCurie(predicate[0]) }} ({{ predicate[1] }})
-                        </v-chip>
-                      </v-chip-group>
-                    </div>
+
+                    <TranslatorCategoriesList
+                      v-if="categories_index !== null && categories_index !== {} && !!categories_index[ara+'_'+kp]"
+                      :resource="kp"
+                      :subject_categories="categories_index[kp].subject_category"
+                      :object_categories="categories_index[kp].object_category"
+                      :predicates="categories_index[kp].predicate"
+                    ></TranslatorCategoriesList>
+
                   </div>
                 </span>
               </div>
