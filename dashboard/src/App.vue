@@ -23,15 +23,6 @@
                   dense>
         </v-select>
 
-        <!-- <v-progress-circular -->
-        <!--   v-if="loading" -->
-        <!--   color="teal" -->
-        <!--   :size="35" -->
-        <!--   :width="5" -->
-        <!--   :value="status" -->
-        <!--   :indeterminate="status < 1"> -->
-          <!--   {{ status > 0 ? status : '' }} -->
-          <!-- </v-progress-circular> -->
       </v-row>
     </v-container>
 
@@ -50,18 +41,6 @@
         <span class="subheading"><strong>BioLink:&nbsp;</strong></span><span>{{biolink_range}}</span>&nbsp;
         <span class="subheading"><strong>TRAPI:&nbsp;</strong></span><span>{{trapi_range}}</span>&nbsp;
       </span>
-
-      <!-- <span> -->
-      <!--   <span class="subheading"><strong>BioLink: &nbsp;</strong></span> -->
-      <!--   <span v-for="biolink_version in biolink_range" -->
-      <!--         :key="`${biolink_version}_biolink`"> -->
-      <!--   </span> -->
-      <!--   <span class="subheading"><strong>TRAPI: &nbsp;</strong></span> -->
-      <!--   <span v-for="trapi_version in trapi_range" -->
-      <!--             :key="`${trapi_version}_trapi`"> -->
-      <!--         {{trapi_version}} -->
-      <!--       </span> -->
-      <!-- </span> -->
       
       <v-tabs v-if="!(loading === null)" v-model="tab">
         <v-tab v-for="item in ['Overview', 'Details']" v-bind:key="`${item}_tab`">
@@ -87,8 +66,6 @@
             </v-row>
 
             <v-container v-bind:key="`${id}_overview`" id="page-overview" v-if="loading !== null">
-              <!-- <h1>Overview</h1> -->
-              <!-- <h2>Summary statistics for different ARAs and KPs</h2> -->
               <v-skeleton-loader
                 v-if="loading === true"
                 v-bind="attrs"
@@ -264,8 +241,7 @@
 
           <div v-if="tab === 1" v-memo="id">
             <v-container v-bind:key="`${id}_details`" id="page-details" v-if="loading !== null">
-              <!-- <h1>Details</h1> -->
-              <!-- <h2>Individual test results by Provider and Biolink Category</h2> -->
+
               <v-row v-if="loading !== null" no-gutter>
                 <v-col v-if="loading === true">
                   <v-skeleton-loader
@@ -274,13 +250,6 @@
                     ></v-skeleton-loader>
                 </v-col>
                 <v-col v-else-if="loading === false">
-                  <!-- <v-text-field -->
-                  <!--   v-model="search" -->
-                  <!--   append-icon="mdi-magnify" -->
-                  <!--   label="Search" -->
-                  <!--   single-line -->
-                  <!--   hide-details -->
-                  <!--   ></v-text-field> -->
 
                   <v-row no-gutter>
 
