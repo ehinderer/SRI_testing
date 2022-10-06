@@ -16,7 +16,7 @@ from fastapi import FastAPI
 from fastapi.responses import FileResponse, StreamingResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 
-from reasoner_validator.versioning import (
+from reasoner_validator.util import (
     latest,
     SemVer,
     SemVerError,

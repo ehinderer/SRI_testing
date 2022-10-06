@@ -205,12 +205,14 @@
             <v-container v-bind:key="`${id}_details`" id="page-details" v-if="loading !== null">
 
               <v-row v-if="loading !== null" no-gutter>
+                
                 <v-col v-if="loading === true">
                   <v-skeleton-loader
                     v-bind="attrs"
                     type="table"
                     ></v-skeleton-loader>
                 </v-col>
+
                 <v-col v-else-if="loading === false">
 
                   <v-row no-gutter>
