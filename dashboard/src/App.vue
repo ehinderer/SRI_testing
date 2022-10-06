@@ -10,10 +10,11 @@
 
     <v-container id="page-header">
       <v-row no-gutter>
-        <v-btn v-if="_FEATURE_RUN_TEST_BUTTON"
-               :class="['ml-36']"
-               @click="triggerTestRun">Trigger new test run</v-btn>
-        <span v-if="_FEATURE_RUN_TEST_BUTTON && _FEATURE_RUN_TEST_SELECT" style="{ padding-top: 1px; }"><span>&nbsp;&nbsp;</span>OR
+        <span v-if="FEATURE_RUN_TEST_BUTTON">
+          <v-btn :class="['ml-36']"
+                 @click="triggerTestRun">Trigger new test run</v-btn>
+          &nbsp;&nbsp;</span>
+        <span v-if="FEATURE_RUN_TEST_BUTTON && FEATURE_RUN_TEST_SELECT" style="{ padding-top: 1px; }">OR
           <span>&nbsp;&nbsp;</span></span>
         <v-select v-model="id"
                   :label="loading === null ? 'Choose a previous test run' : ''"
@@ -465,8 +466,8 @@ import { Cartesian, Line, Bar } from 'laue'
 import axios from "./api.js";
 
 const MOCK = process.env.isAxiosMock;
-const _FEATURE_RUN_TEST_BUTTON = process.env._FEATURE_RUN_TEST_BUTTON;
-const _FEATURE_RUN_TEST_SELECT = process.env._FEATURE_RUN_TEST_SELECT;
+const FEATURE_RUN_TEST_BUTTON = process.env._FEATURE_RUN_TEST_BUTTON;
+const FEATURE_RUN_TEST_SELECT = process.env._FEATURE_RUN_TEST_SELECT;
 
 // const MOCK = false;
 
@@ -480,8 +481,8 @@ export default {
   data() {
     return {
       MOCK,
-      _FEATURE_RUN_TEST_BUTTON,
-      _FEATURE_RUN_TEST_SELECT,
+      FEATURE_RUN_TEST_BUTTON,
+      FEATURE_RUN_TEST_SELECT,
       hover: false,
       id: null,
       loading: null,
