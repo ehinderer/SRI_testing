@@ -7,7 +7,7 @@ import requests
 
 from reasoner_validator.report import ValidationReporter
 from reasoner_validator.trapi import check_trapi_validity
-from reasoner_validator.biolink import check_biolink_model_compliance_of_trapi_response
+from reasoner_validator import TRAPIResponseValidator
 
 import pytest
 
@@ -221,10 +221,9 @@ def execute_trapi_lookup(case, creator, rbag, test_report: UnitTestReport):
                 response_message: Optional[Dict] = trapi_response['response_json']['message']
 
                 if response_message:
-                    validator: ValidationReporter = \
-                        check_biolink_model_compliance_of_trapi_response(
-                            message=response_message,
-                            trapi_version=trapi_version,
-                            biolink_version=biolink_version
-                        )
+                    validator: TRAPIResponseValidator = TRAPIResponseValidator(
+                        trapi_version=trapi_version,
+                        biolink_version=biolink_version
+                    )
+                    validator.check_compliance_of_trapi_response(message=response_message)
                     test_report.merge(validator)
