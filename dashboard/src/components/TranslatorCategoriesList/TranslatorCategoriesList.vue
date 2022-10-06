@@ -21,6 +21,8 @@
     </div>
 </template>
 <script>
+import "lodash" as _
+
 module export {
     name: "TranslatorCategoriesList",
     props: [
@@ -32,7 +34,8 @@ module export {
     methods: {
         formatCurie (curie) {
             return curie.split(':')[1];
-        }
+        },
+        countBy: _.countBy,
     }
 }
 </script>

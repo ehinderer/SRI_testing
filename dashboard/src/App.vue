@@ -247,6 +247,8 @@
                     </v-col>
                 </v-row>
 
+              <!-- force rich logic below into computed method -->
+              <!-- should it be a part of the custom filter instead?-->
                <v-data-table
                   :headers="_headers"
                   :items="kp_selections.length > 0 || ara_selections.length > 0 ?
@@ -349,6 +351,7 @@ import * as _ from "lodash";
 
 // Components
 import TranslatorFilter from "./components/TranslatorFilter/TranslatorFilter.vue"
+import TranslatorCategoriesList from "./components/TranslatorCategoriesList/TranslatorCategoriesList.vue"
 
 // Visualization
 import VcPiechart from "vc-piechart";
@@ -367,6 +370,7 @@ export default {
   name: 'App',
   components: {
     TranslatorFilter,
+    TranslatorCategoriesList,
     VcPiechart,
     LaCartesian: Cartesian,
     LaBar: Bar,
