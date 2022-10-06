@@ -35,7 +35,8 @@
       </v-row>
     </v-container>
 
-    <v-container>
+    <v-container id="page-content">
+
       <h1>{{ id }}</h1>
       <div class="subheading" v-if="loading === true">This may take a minute.</div>
       <v-progress-linear
@@ -44,10 +45,12 @@
         :buffer-value="100"
         :indeterminate="status < 1">
       </v-progress-linear>
+      
       <span v-if="id !== null && loading === false" :key="`${id}_versions`">
         <span class="subheading"><strong>BioLink:&nbsp;</strong></span><span>{{biolink_range}}</span>&nbsp;
         <span class="subheading"><strong>TRAPI:&nbsp;</strong></span><span>{{trapi_range}}</span>&nbsp;
       </span>
+
       <!-- <span> -->
       <!--   <span class="subheading"><strong>BioLink: &nbsp;</strong></span> -->
       <!--   <span v-for="biolink_version in biolink_range" -->
@@ -59,14 +62,13 @@
       <!--         {{trapi_version}} -->
       <!--       </span> -->
       <!-- </span> -->
+      
       <v-tabs v-if="!(loading === null)" v-model="tab">
-        <v-tab
-          v-for="item in ['Overview', 'Details']"
-          v-bind:key="`${item}_tab`"
-          >
+        <v-tab v-for="item in ['Overview', 'Details']" v-bind:key="`${item}_tab`">
           {{ item }}
         </v-tab>
       </v-tabs>
+
       <v-tabs-items v-model="tab" >
         <v-tab-item
           v-for="item in ['Overview','Details']"
@@ -74,39 +76,16 @@
           >
           <div v-if="tab === 0" >
 
-            <v-row no-gutter>
-              <v-col v-if="index !== null" sl>
-                <v-select label="Filter by ARA"
-                          multiple
-                          v-model="ara_filter"
-                          :items="Object.keys(index.ARA)"/>
-              </v-col>
-              <v-col v-if="index !== null" sl>
-                <v-select label="Filter by KP"
-                          multiple
-                          v-model="kp_filter"
-                          :items="index.KP"/>
-              </v-col>
-              <v-col sl>
-                <v-select label="Filter subject categories"
-                          multiple
-                          :items="subject_categories"
-                          v-model="subject_category_filter"/>
-              </v-col>
-              <v-col sl>
-                <v-select label="Filter predicates"
-                          multiple
-                          :items="predicates"
-                          v-model="predicate_filter"/>
-              </v-col>
-              <v-col sl>
-                <v-select label="Filter object categories"
-                          multiple
-                          :items="object_categories"
-                          v-model="object_category_filter"/>
-              </v-col>
-
+            <v-row no-gutter>    
+              <TranslatorFilter :index="index"
+                @kp_filter="kp_filter = event.target.value"
+                @ara_filter="ara_filter = event.target.value"
+                @predicate_filter="predicate_filter = event.target.value"
+                @subject_category_filter="subject_category_filter = event.target.value"
+                @object_category_filter="object_category_filter = event.target.value"
+              ></TranslatorFilter>
             </v-row>
+
             <v-container v-bind:key="`${id}_overview`" id="page-overview" v-if="loading !== null">
               <!-- <h1>Overview</h1> -->
               <!-- <h2>Summary statistics for different ARAs and KPs</h2> -->
@@ -304,58 +283,37 @@
                   <!--   ></v-text-field> -->
 
                   <v-row no-gutter>
-                    <v-col v-if="index !== null" sl>
-                      <v-select label="Filter by ARA"
-                                v-model="ara_filter"
-                                multiple
-                                :items="Object.keys(index.ARA)"/>
-                    </v-col>
-                    <v-col v-if="index !== null" sl>
-                      <v-select label="Filter by KP"
-                                v-model="kp_filter"
-                                multiple
-                                :items="index.KP"/>
-                    </v-col>
-                    <v-col sl>
-                      <v-select label="Filter subject categories"
-                                multiple
-                                :items="subject_categories"
-                                v-model="subject_category_filter"/>
-                    </v-col>
-                    <v-col sl>
-                      <v-select label="Filter predicates"
-                                multiple
-                                :items="predicates"
-                                v-model="predicate_filter"/>
-                    </v-col>
-                    <v-col sl>
-                      <v-select label="Filter object categories"
-                                multiple
-                                :items="object_categories"
-                                v-model="object_category_filter"/>
-                    </v-col>
+
+                    <TranslatorFilter :index="index"
+                      @kp_filter="kp_filter = event.target.value"
+                      @ara_filter="ara_filter = event.target.value"
+                      @predicate_filter="predicate_filter = event.target.value"
+                      @subject_category_filter="subject_category_filter = event.target.value"
+                      @object_category_filter="object_category_filter = event.target.value"
+                    ></TranslatorFilter>
+
                     <v-col lg>
-                    <v-radio-group
-                      v-model="outcome_filter"
-                      row>
-                      <v-radio
-                        label="All"
-                        value="all"
-                        ></v-radio>
-                      <v-radio
-                        label="Pass"
-                        value="passed"
-                        ></v-radio>
-                      <v-radio
-                        label="Fail"
-                        value="failed"
-                        ></v-radio>
-                      <v-radio
-                        label="Skip"
-                        value="skipped"
-                        ></v-radio>
-                    </v-radio-group>
-                  </v-col>
+                      <v-radio-group
+                        v-model="outcome_filter"
+                        row>
+                        <v-radio
+                          label="All"
+                          value="all"
+                          ></v-radio>
+                        <v-radio
+                          label="Pass"
+                          value="passed"
+                          ></v-radio>
+                        <v-radio
+                          label="Fail"
+                          value="failed"
+                          ></v-radio>
+                        <v-radio
+                          label="Skip"
+                          value="skipped"
+                          ></v-radio>
+                      </v-radio-group>
+                    </v-col>
                 </v-row>
 
                <v-data-table
@@ -436,9 +394,11 @@
 
     </v-tab-item>
   </v-tabs-items>
-  </v-container>
-<div id="app">
-</div>
+    </v-container>
+
+  <div id="app">
+
+  </div>
 </v-app>
 </div>
 </template>
@@ -456,6 +416,9 @@ import matches from "lodash.matches";
 import { isObject, isArray, isString, sortBy } from "lodash";
 import * as _ from "lodash";
 
+// Components
+import TranslatorFilter from "./components/TranslatorFilter/TranslatorFilter.vue"
+
 // Visualization
 import VcPiechart from "vc-piechart";
 import 'vc-piechart/dist/lib/vc-piechart.min.css';
@@ -469,11 +432,10 @@ const MOCK = process.env.isAxiosMock;
 const FEATURE_RUN_TEST_BUTTON = process.env._FEATURE_RUN_TEST_BUTTON;
 const FEATURE_RUN_TEST_SELECT = process.env._FEATURE_RUN_TEST_SELECT;
 
-// const MOCK = false;
-
 export default {
   name: 'App',
   components: {
+    TranslatorFilter,
     VcPiechart,
     LaCartesian: Cartesian,
     LaBar: Bar,
@@ -520,6 +482,7 @@ export default {
       axios.get(`/test_runs`).then(async response => {
         const test_runs = response.data.test_runs;
         this.test_runs_selections = response.data.test_runs;
+        // TODO: Feature flag
         // if (!!test_runs && test_runs.length > 0) {
         // } else {
         //   await axios.post(`/run_tests`, {}).then(response => {
@@ -531,16 +494,6 @@ export default {
         // }
       })
      }
-        // Mock initialization
-    // if (MOCK) {
-    //     await axios.post(`/run_tests`, {}).then(response => {
-    //         this.id = response.data.test_run_id;
-    //         axios.get(`/test_runs`).then(response => {
-    //             this.test_runs_selections = response.data.test_runs;
-    //         })
-    //    })
-    // }
-
   },
   mounted() {
     this.$forceUpdate()
@@ -605,7 +558,6 @@ export default {
     },
     denormalized_stats_summary() {
       if (this.stats_summary !== null) {
-        console.info("updating normalized_stat_summary", this.stats_summary)
         const combined_results = {
           ...this.stats_summary.KP,
           // TODO reduce across keys in 'kp'; split the denormalization below between KP and ARA then concat
