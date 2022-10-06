@@ -10,6 +10,12 @@ const chalk = require('chalk')
 const webpack = require('webpack')
 const config = require('../config')
 const webpackConfig = require('./webpack.prod.conf')
+const lodash = require('lodash')
+
+// messages on environment config here
+console.group("Feature Flags:")
+console.log(Object.fromEntries(lodash(process.env).entries().filter(([k,v]) => k.includes('_FEATURE')).value()))
+console.groupEnd()
 
 const spinner = ora('building for production...')
 spinner.start()
