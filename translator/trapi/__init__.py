@@ -84,7 +84,8 @@ class UnitTestReport(ValidationReporter):
         :return:
         """
         self.report(code=code, edge_id=edge_id)
-        self.add_messages(messages)
+        if messages:
+            self.add_messages(messages)
         report_string: str = self.dump_messages(flat=True)
         pytest.skip(reason=report_string)
 
@@ -199,7 +200,8 @@ def execute_trapi_lookup(case, creator, rbag, test_report: UnitTestReport):
 
     trapi_request, output_element, output_node_binding = creator(case)
     if not trapi_request:
-        test_report.report("error.trapi.request.invalid", context=f"{creator.__name__} message creator")
+        # output_element and output_node_binding were expropriated by the 'creator' to return error information
+        test_report.report("error.trapi.request.invalid", context=output_element, reason=output_node_binding)
     else:
         # query use cases pertain to a particular TRAPI version
         trapi_version = case['trapi_version']
