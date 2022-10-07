@@ -27,6 +27,7 @@ _edge_error_seen_already: List = list()
 
 def _report_and_skip_edge(scope: str, test, test_case: Dict, test_report: UnitTestReport):
     """
+    Wrapper to propagate in Pytest, any skipped test edges.
 
     :param scope: str, 'KP" or 'ARA'
     :param test: the particular unit test being skipped
@@ -49,17 +50,12 @@ def _report_and_skip_edge(scope: str, test, test_case: Dict, test_report: UnitTe
     predicate = test_case['predicate']
     object_category = test_case['object_category']
     object_id = test_case['object']
-    label = f"({subject_id}${subject_category})--[{predicate}]->({object_id}${object_category})"
+    edge_id = f"({subject_id}${subject_category})--[{predicate}]->({object_id}${object_category})"
 
     if 'validation' in test_case:
-        test_report.skip(
-            f"test case S-P-O triple '{label}', since it is not "
-            f"Biolink Model compliant: {test_case['validation']}"
-        )
+        test_report.skip(code="error.non_compliant", edge_id=edge_id, messages=test_case['pre-validation'])
     else:
-        test_report.skip(
-            f"test case S-P-O triple '{label}' or all test case S-P-O triples from resource test location."
-        )
+        test_report.skip(code="info.excluded", edge_id=edge_id)
 
 
 def test_trapi_kps(kp_trapi_case, trapi_creator, results_bag):
@@ -76,7 +72,11 @@ def test_trapi_kps(kp_trapi_case, trapi_creator, results_bag):
         test_case=kp_trapi_case,
         test_name=trapi_creator.__name__,
         trapi_version=kp_trapi_case['trapi_version'],
-        biolink_version=kp_trapi_case['biolink_version']
+        biolink_version=kp_trapi_case['biolink_version'],
+        sources={
+                "kp_source": kp_trapi_case['kp_source'],
+                "kp_source_type": kp_trapi_case['kp_source_type']
+        }
     )
 
     if not (
@@ -120,7 +120,12 @@ def test_trapi_aras(ara_trapi_case, trapi_creator, results_bag):
         test_case=ara_trapi_case,
         test_name=trapi_creator.__name__,
         trapi_version=ara_trapi_case['trapi_version'],
-        biolink_version=ara_trapi_case['biolink_version']
+        biolink_version=ara_trapi_case['biolink_version'],
+        sources={
+                "ara_source": ara_trapi_case['ara_source'],
+                "kp_source": ara_trapi_case['kp_source'],
+                "kp_source_type": ara_trapi_case['kp_source_type'],
+        }
     )
     if not (
             UnitTestReport.has_validation_errors("pre-validation", ara_trapi_case) or

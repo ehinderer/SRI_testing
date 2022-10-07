@@ -36,7 +36,7 @@ class TrapiValidationWarning(UserWarning):
 
 class UnitTestReport(ValidationReporter):
     """
-    UnitTestReport is a single ValidationReporter used to aggregate SRI Test actionable validation messages.
+    UnitTestReport is a wrapper for ValidationReporter used to aggregate SRI Test actionable validation messages.
     Not to be confused with the translator.sri.testing.report_db.TestReport, which is the comprehensive set
     of all JSON reports from a single SRI Testing harness test run.
     """
@@ -46,39 +46,47 @@ class UnitTestReport(ValidationReporter):
             test_case: Dict,
             test_name: str,
             trapi_version: str,
-            biolink_version: str
+            biolink_version: str,
+            sources: Optional[Dict] = None,
+            strict_validation: Optional[bool] = None
     ):
         error_msg_prefix = generate_test_error_msg_prefix(test_case, test_name=test_name)
         ValidationReporter.__init__(
             self,
             prefix=error_msg_prefix,
             trapi_version=trapi_version,
-            biolink_version=biolink_version
+            biolink_version=biolink_version,
+            sources=sources,
+            strict_validation=strict_validation
         )
 
-    def test(self, is_true: bool, message: str, data_dump: Optional[str] = None):
-        """
-        Error test report.
+    # def test(self, is_true: bool, message: str, data_dump: Optional[str] = None):
+    #     """
+    #     Error test report.
+    #
+    #     :param is_true: test predicate, triggering error message report if False
+    #     :param code: error message code reported when 'is_true' is False
+    #     :param data_dump: optional extra information about a test failure (e.g. details about the object that failed)
+    #     :raises: AssertionError when 'is_true' flag has value False
+    #     """
+    #     if not is_true:
+    #         logger.error(message)
+    #         if data_dump:
+    #             logger.debug(data_dump)
+    #         self.report(code)
 
-        :param is_true: test predicate, triggering error message report if False
-        :param message: error message reported when 'is_true' is False
-        :param data_dump: optional extra information about a test failure (e.g. details about the object that failed)
-        :raises: AssertionError when 'is_true' flag has value False
+    def skip(self, code: str, edge_id: str, messages: Optional[Dict] = None):
         """
-        if not is_true:
-            logger.error(message)
-            if data_dump:
-                logger.debug(data_dump)
-            self.error(message)
-
-    def skip(self, message: str):
+        Edge test Pytest skipping wrapper.
+        :param code: str, validation message code (indexed in the codes.yaml of the Reasoner Validator)
+        :param edge_id: str, S-P-O identifier of the edge being skipped
+        :param messages: (optional) additional validation messages available to explain why the test is being skipped
+        :return:
         """
-        Skip report wrapper.
-
-        :param message: str, message explaining why the test is skipped
-        """
-        # self.info(message)
-        pytest.skip(reason=message)
+        self.report(code=code, edge_id=edge_id)
+        self.add_messages(messages)
+        report_string: str = self.dump_messages(flat=True)
+        pytest.skip(reason=report_string)
 
     def assert_test_outcome(self):
         """
@@ -191,7 +199,7 @@ def execute_trapi_lookup(case, creator, rbag, test_report: UnitTestReport):
 
     trapi_request, output_element, output_node_binding = creator(case)
     if not trapi_request:
-        test_report.error("Message creator could not generate a valid TRAPI query request object?")
+        test_report.report("error.trapi.request.invalid", context=f"{creator.__name__} message creator")
     else:
         # query use cases pertain to a particular TRAPI version
         trapi_version = case['trapi_version']
@@ -210,9 +218,9 @@ def execute_trapi_lookup(case, creator, rbag, test_report: UnitTestReport):
             rbag.response = trapi_response
 
             # Second sanity check: was the web service (HTTP) call itself successful?
-            web_status: int = trapi_response['status_code']
-            if web_status != 200:
-                test_report.error(f"TRAPI Response has an unexpected HTTP status code: '{web_status}'?")
+            status_code: int = trapi_response['status_code']
+            if status_code != 200:
+                test_report.report("error.trapi.response.unexpected_http_code", status_code=status_code)
             else:
                 ##########################################
                 # Looks good so far, so now validate     #

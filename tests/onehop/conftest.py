@@ -728,7 +728,8 @@ def generate_trapi_kp_tests(metafunc, trapi_version: str, biolink_version: str) 
 
             edges.append(edge)
 
-            # Start using the object_id of the Infores CURIE of the KP instead of its api_name...
+            # Start using the object_id of the Infores
+            # CURIE of the KP instead of its api_name...
             # resource_id = edge['kp_api_name']
             kp_id = edge['kp_source'].replace("infores:", "")
 
