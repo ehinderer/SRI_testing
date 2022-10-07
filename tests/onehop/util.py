@@ -207,7 +207,7 @@ def raise_subject_entity(request):
         return no_parent_error(
             "raise_subject_entity",
             {'name': f"{subject}[{subject_cat}]"},
-            suffix="since it is either not an ontology term or does not map onto a parent ontology term."
+            suffix=" since it is either not an ontology term or does not map onto a parent ontology term."
         )
     mod_request = deepcopy(request)
     mod_request['subject'] = parent_subject
@@ -223,6 +223,9 @@ def raise_object_by_subject(request):
     """
     tk = get_biolink_model_toolkit(biolink_version=request['biolink_version'])
     original_object_element = tk.get_element(request['object_category'])
+    if not original_object_element:
+        original_object_element['name'] = request['object_category']
+        original_object_element['is_a'] = None
     if original_object_element['is_a'] is None:
         # This element may be a mixin or abstract, without any parent?
         return no_parent_error("raise_object_by_subject", asdict(original_object_element))
@@ -243,6 +246,9 @@ def raise_predicate_by_subject(request):
     transformed_request = request.copy()  # there's no depth to request, so it's ok
     if request['predicate'] != 'biolink:related_to':
         original_predicate_element = tk.get_element(request['predicate'])
+        if not original_predicate_element:
+            original_predicate_element['name'] = request['predicate']
+            original_predicate_element['is_a'] = None
         if original_predicate_element['is_a'] is None:
             # This element may be a mixin or abstract, without any parent?
             return no_parent_error("raise_predicate_by_subject", asdict(original_predicate_element))
