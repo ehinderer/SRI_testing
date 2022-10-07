@@ -52,7 +52,7 @@ def _report_and_skip_edge(scope: str, test, test_case: Dict, test_report: UnitTe
     object_id = test_case['object']
     edge_id = f"({subject_id}${subject_category})--[{predicate}]->({object_id}${object_category})"
 
-    if 'validation' in test_case:
+    if 'pre-validation' in test_case:
         test_report.skip(code="error.non_compliant", edge_id=edge_id, messages=test_case['pre-validation'])
     else:
         test_report.skip(code="info.excluded", edge_id=edge_id)
