@@ -2,12 +2,6 @@
 Registry package
 """
 
-# As of June 2022, the Translator SmartAPI Registry doesn't yet
-# have significant compliant test_data_locations for KPs and ARAs,
-# so we'll start by simulating this for now, with mock registry metadata
-# (dereferencing test data in the SRI Testing project repository)
-#
-
 # Setting the following flag to 'True' triggers use of the
 # local 'mock' Registry data entries immediately below
 MOCK_REGISTRY: bool = False
@@ -25,38 +19,38 @@ MOCK_TRANSLATOR_SMARTAPI_REGISTRY_METADATA = {
     "hits": [
         {
             "info": {
-                "title": "Unit Test Knowledge Provider 1",
-                "version": "0.0.1",
+                "title": "SRI Reference Knowledge Graph API (trapi v-1.3.0)",
+                "version": "1.3.0-1",
                 "x-translator": {
                     "component": "KP",
-                    "infores": "infores:test-kp-1",
-                    "team": "Ranking Agent",
-                    "biolink-version": "2.2.16"
+                    "infores": "infores:sri-reference-kg",
+                    "team": "SRI",
+                    "biolink-version": "2.4.7"
                 },
                 "x-trapi": {
                     "version": "1.3.0",
-                    "test_data_location": "https://raw.githubusercontent.com/TranslatorSRI/SRI_testing/main/" +
-                                          "tests/onehop/test_triples/KP/Unit_Test_KP/Test_KP_1.json"
+                    "test_data_location": "https://raw.githubusercontent.com/monarch-initiative/" +
+                                          "monarch-plater-docker/main/test_data/sri_reference_kg_test_data.json"
                 }
             }
         },
-        {
-            "info": {
-                "title": "Unit Test Knowledge Provider 2",
-                "version": "0.0.1",
-                "x-translator": {
-                    "component": "KP",
-                    "infores": "infores:test-kp-2",
-                    "team": "Ranking Agent",
-                    "biolink-version": "2.4.8"
-                },
-                "x-trapi": {
-                    "version": "1.3.0",
-                    "test_data_location": "https://raw.githubusercontent.com/TranslatorSRI/SRI_testing/main/" +
-                                          "tests/onehop/test_triples/KP/Unit_Test_KP/Test_KP_2.json"
-                }
-            }
-        },
+        # {
+        #     "info": {
+        #         "title": "Unit Test Knowledge Provider 2",
+        #         "version": "0.0.1",
+        #         "x-translator": {
+        #             "component": "KP",
+        #             "infores": "infores:test-kp-2",
+        #             "team": "Ranking Agent",
+        #             "biolink-version": "2.4.8"
+        #         },
+        #         "x-trapi": {
+        #             "version": "1.3.0",
+        #             "test_data_location": "https://raw.githubusercontent.com/TranslatorSRI/SRI_testing/main/" +
+        #                                   "tests/onehop/test_triples/KP/Unit_Test_KP/Test_KP_2.json"
+        #         }
+        #     }
+        # },
         #
         # Broken Mock ARA endpoint...
         # {
