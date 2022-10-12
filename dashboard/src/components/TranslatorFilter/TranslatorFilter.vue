@@ -1,5 +1,5 @@
 <template>
-    <vue-fragment>
+    <fragment>
 
         <!-- Use inside of a v-row -->
         <v-col v-if="index !== null" sl>
@@ -34,10 +34,14 @@
                     v-model="object_category_filter"/>
         </v-col>
 
-    </vue-fragment>
+    </fragment>
 </template>
 <script>
+import { Fragment } from 'vue-frag'
 export default {
+    components: {
+        Fragment
+    },
     name: "TranslatorFilter",
     props: ["index"],
     data() {
@@ -50,11 +54,21 @@ export default {
         }
     },
     watch: {
-        ara_filter: (new_state) => handleChange('ara_filter', new_state),
-        kp_filter: (new_state) => handleChange('kp_filter', new_state),
-        subject_category_filter: (new_state) => handleChange('subject_category_filter', new_state),
-        predicate_filter: (new_state) => handleChange('predicate_filter', new_state),
-        object_category_filter: (new_state) => handleChange('object_category_filter', new_state)
+        ara_filter(new_state) {
+            this.handleChange('ara_filter', new_state)
+        },
+        kp_filter(new_state) {
+            this.handleChange('kp_filter', new_state)
+        },
+        subject_category_filter(new_state) {
+            this.handleChange('subject_category_filter', new_state)
+        },
+        predicate_filter(new_state) {
+            this.handleChange('predicate_filter', new_state)
+        },
+        object_category_filter(new_state) {
+            this.handleChange('object_category_filter', new_state)
+        }
     },
     methods: {
         handleChange(state_name, new_state) {

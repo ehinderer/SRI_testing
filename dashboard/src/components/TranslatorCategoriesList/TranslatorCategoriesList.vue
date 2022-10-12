@@ -21,9 +21,9 @@
     </div>
 </template>
 <script>
-import "lodash" as _
+import _ from "lodash"
 
-module export {
+export default {
     name: "TranslatorCategoriesList",
     props: [
         "resource",

@@ -57,11 +57,11 @@
 
             <v-row no-gutter>    
               <TranslatorFilter :index="index"
-                @kp_filter="kp_filter = event.target.value"
-                @ara_filter="ara_filter = event.target.value"
-                @predicate_filter="predicate_filter = event.target.value"
-                @subject_category_filter="subject_category_filter = event.target.value"
-                @object_category_filter="object_category_filter = event.target.value"
+                @kp_filter="$event => { kp_filter = $event }"
+                @ara_filter="$event => { ara_filter = $event }"
+                @predicate_filter="$event => { predicate_filter = $event }"
+                @subject_category_filter="$event => { subject_category_filter = $event }"
+                @object_category_filter="$event => { object_category_filter = $event }"
               ></TranslatorFilter>
             </v-row>
 
@@ -217,112 +217,132 @@
 
                   <v-row no-gutter>
 
-                    <TranslatorFilter :index="index"
-                      @kp_filter="kp_filter = event.target.value"
-                      @ara_filter="ara_filter = event.target.value"
-                      @predicate_filter="predicate_filter = event.target.value"
-                      @subject_category_filter="subject_category_filter = event.target.value"
-                      @object_category_filter="object_category_filter = event.target.value"
-                    ></TranslatorFilter>
+                      <TranslatorFilter :index="index"
+                        @kp_filter="$event => { kp_filter = $event }"
+                        @ara_filter="$event => { ara_filter = $event }"
+                        @predicate_filter="$event => { predicate_filter = $event }"
+                        @subject_category_filter="$event => { subject_category_filter = $event }"
+                        @object_category_filter="$event => { object_category_filter = $event }"
+                      ></TranslatorFilter>
 
-                    <v-col lg>
-                      <v-radio-group
-                        v-model="outcome_filter"
-                        row>
-                        <v-radio
-                          label="All"
-                          value="all"
-                          ></v-radio>
-                        <v-radio
-                          label="Pass"
-                          value="passed"
-                          ></v-radio>
-                        <v-radio
-                          label="Fail"
-                          value="failed"
-                          ></v-radio>
-                        <v-radio
-                          label="Skip"
-                          value="skipped"
-                          ></v-radio>
-                      </v-radio-group>
-                    </v-col>
-                </v-row>
+                      <v-col lg>
+                        <v-radio-group
+                          v-model="outcome_filter"
+                          row>
+                          <v-radio
+                            label="All"
+                            value="all"
+                            ></v-radio>
+                          <v-radio
+                            label="Pass"
+                            value="passed"
+                            ></v-radio>
+                          <v-radio
+                            label="Fail"
+                            value="failed"
+                            ></v-radio>
+                          <v-radio
+                            label="Skip"
+                            value="skipped"
+                            ></v-radio>
+                        </v-radio-group>
+                      </v-col>
+                  </v-row>
 
               <!-- force rich logic below into computed method -->
               <!-- should it be a part of the custom filter instead?-->
-               <v-data-table
-                  :headers="_headers"
-                  :items="kp_selections.length > 0 || ara_selections.length > 0 ?
-                          denormalized_cells
-                          .filter(cell => kp_selections.some(el =>
-                          (el.includes(cell._id)
-                          || kps_only ? el.includes(cell._id.split('|')[0]) || el.includes(cell._id.split('|')[1]) : false)
-                          || ara_selections.some(el => el.includes(cell._id.split('|')[0]) || el.includes(cell._id.split('|')[1]))))
-                          : denormalized_cells"
-                  :items-per-page="-1"
-                  group-by="_id"
-                  class="elevation-1"
-                  :search="search"
-                  :custom-filter="searchMatches"
-                  dense>
+              <!-- <v-row> -->
+                <v-row no-gutter>
+                  <v-col :cols="9">
+                    <v-data-table
+                        :headers="_headers"
+                        :items="kp_selections.length > 0 || ara_selections.length > 0 ?
+                                denormalized_cells
+                                .filter(cell => kp_selections.some(el =>
+                                (el.includes(cell._id)
+                                || kps_only ? el.includes(cell._id.split('|')[0]) || el.includes(cell._id.split('|')[1]) : false)
+                                || ara_selections.some(el => el.includes(cell._id.split('|')[0]) || el.includes(cell._id.split('|')[1]))))
+                                : denormalized_cells"
+                        :items-per-page="-1"
+                        group-by="_id"
+                        class="elevation-1"
+                        :search="search"
+                        :custom-filter="searchMatches"
+                        dense>
 
-                  <!-- TODO: group title formatting and tooltip. potentially just put in the summary? -->
-                  <template v-slot:group.summary="{ group }">
-                    <!-- <span>Biolink Compliant</span><br> -->
-                    <!-- <span>TRAPI Compliant</span> -->
-                  </template>
+                        <!-- TODO: group title formatting and tooltip. potentially just put in the summary? -->
+                        <template v-slot:group.summary="{ group }">
+                        </template>
 
-                 <template v-slot:item="{ item }">
-                    <tr>
-                      <td v-for="[test, result] in Object.entries(omit('_id')(item))"
-                          v-bind:key="`${test}_${result}`"
-                          :style="cellStyle(result.status)">
+                        <template v-slot:item="{ item }">
+                          <tr @hover="() => { data_table_selected_item = data_table_hold_selection ? data_table_selected_item : item; }" @click="() => {
+                            data_table_selected_item = data_table_hold_selection ? data_table_selected_item : item; 
+                            data_table_hold_selection = !data_table_hold_selection 
+                          }">
+                            <td v-for="[test, result] in Object.entries(omit('_id')(item))"
+                                v-bind:key="`${test}_${result}`"
+                                :style="cellStyle(result.status)">
 
-                        <v-tooltip
-                          v-if="!!result.status"
-                          :max-width="480"
-                          bottom>
-                          <template v-slot:activator="{ on, attrs }">
-                            <div v-bind="attrs" v-on="on">
-                              <a>
-                                {{ stateIcon(result.status) }} {{ !!result && !!result.messages & !!result.messages.length ? `(${result.messages.length})` : '' }}
-                              </a>
-                            </div>
-                          </template>
-                          <span>
-                            {{test}}
-                            <ul v-if="!!result.messages">
-                              <li v-for="message in result.messages" v-bind:key="message">
-                                {{ message }}
-                              </li>
-                            </ul>
-                          </span>
-                        </v-tooltip>
+                              <v-tooltip
+                                v-if="!!result.status"
+                                :max-width="480"
+                                bottom>
+                                <template v-slot:activator="{ on, attrs }">
+                                  <div v-bind="attrs" v-on="on">
+                                    <a>
+                                      {{ stateIcon(result.status) }} {{ !!result && !!result.messages & !!result.messages.length ? `(${result.messages.length})` : '' }}
+                                    </a>
+                                  </div>
+                                </template>
+                                <span>
+                                  {{test}}
+                                  <ul v-if="!!result.messages">
+                                    <li v-for="message in result.messages" v-bind:key="message">
+                                      {{ message }}
+                                    </li>
+                                  </ul>
+                                </span>
+                              </v-tooltip>
 
-                        <span v-else-if="test === 'spec'">
-                          <v-tooltip
-                            bottom>
-                            <template v-slot:activator="{ on, attrs }">
-                              <div v-bind="attrs" v-on="on">
-                                <v-chip small outlined>{{formatCurie(result.subject_category)}}</v-chip>--<v-chip small outlined>{{formatCurie(result.predicate)}}</v-chip>-><v-chip small outlined>{{formatCurie(result.object_category)}}</v-chip>
-                              </div>
-                            </template>
-                            <b>Test Edge:</b>
-                            <span>
-                              ({{result.subject}})--[{{result.predicate}}]->({{result.object}})<br>
-                            </span>
-                          </v-tooltip>
-                        </span>
+                              <span v-else-if="test === 'spec'">
+                                <v-tooltip
+                                  bottom>
+                                  <template v-slot:activator="{ on, attrs }">
+                                    <div v-bind="attrs" v-on="on">
+                                      <v-chip small outlined>{{formatCurie(result.subject_category)}}</v-chip>--<v-chip small outlined>{{formatCurie(result.predicate)}}</v-chip>-><v-chip small outlined>{{formatCurie(result.object_category)}}</v-chip>
+                                    </div>
+                                  </template>
+                                  <b>Test Edge:</b>
+                                  <span>
+                                    ({{result.subject}})--[{{result.predicate}}]->({{result.object}})<br>
+                                  </span>
+                                </v-tooltip>
+                              </span>
 
-                        <span v-else>
-                {{ stateIcon(result.status) }}
-              </span>
-            </td>
-          </tr>
-        </template>
-      </v-data-table>
-    </v-col>
+                              <span v-else>
+                      {{ stateIcon(result.status) }}
+                    </span>
+                  </td>
+                          </tr>
+                        </template>
+                      </v-data-table>
+          </v-col>
+      <v-col :cols="3">
+        <v-card class="mx-auto" max-width="374">
+          <v-card-text v-if="data_table_selected_item !== null">
+            Hover over a row to show its test results.
+            Click a row to keep its test results displayed.
+          </v-card-text>
+          <v-card-text v-else>
+            <ul v-for="entry in Object.entries(data_table_selected_item)">
+              {{ entry }}
+            </ul>
+          </v-card-text>
+        </v-card>
+      </v-col>
+    </v-row>
+      </v-col>
+
     </v-row>
    </v-container>
     </div>
@@ -411,6 +431,11 @@ export default {
       object_categories: [],
       predicates: [],
       categories_index: null,
+
+      data_table_selected_item: null,
+      // data_table_held_selection: null,
+      data_table_hold_selection: false,
+
     }
   },
   created () {
