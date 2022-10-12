@@ -47,6 +47,8 @@ Assuming that you have installed both [Docker (or rather, Docker Desktop)](https
 
 Two Dockerfile templates are available: [Dockerfile_RENCI_PRODUCTION](Dockerfile_RENCI_PRODUCTION) and [Dockerfile_SIMPLE](Dockerfile_SIMPLE). If you simply want to run the system locally, the SIMPLE dockerfile may do. A more robust Dockerfile configuration file - the RENCI variant - is more optimized for Kubernetes deployment in an institutional setting (like RENCI!).  Copy one or the other file into a single file named "Dockerfile" then continue with the instructions below.
 
+The SRI Testing Dashboard also relies on some site specific parameters - encoded in a **.env** environmental variable configuration file -to work properly.  The **.env** file is **.gitignored** in the repo. A template file, [dot_env_template](dashboard/dot_env_template) is provided. A copy of this file should be made into a file called **.env** and customized to site requirements (see [full details here](dashboard/README.md)).
+
 ## Database for the Test Results
 
 You will generally want to have the backend persist its test results in a MongoDb database(*), so first start up a Mongo instance as so:

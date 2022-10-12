@@ -13,14 +13,16 @@ import logging
 from deprecation import deprecated
 from pytest_harvest import get_session_results_dct
 
-from reasoner_validator.biolink import check_biolink_model_compliance_of_input_edge
+from reasoner_validator.biolink import check_biolink_model_compliance_of_input_edge, BiolinkValidator
+from reasoner_validator.versioning import latest
 
 from translator.registry import (
     get_remote_test_data_file,
     get_the_registry_data,
     extract_component_test_metadata_from_registry
 )
-from translator.trapi import generate_edge_id, get_latest_trapi_version
+
+from translator.trapi import generate_edge_id, DEFAULT_TRAPI_VERSION, UnitTestReport
 
 from tests.onehop import util as oh_util
 from tests.onehop.util import (
@@ -36,7 +38,7 @@ logger = logging.getLogger(__name__)
 
 # TODO: temporary circuit breaker for (currently 4-August-2022)
 #  undisciplined edge test data sets (like from RTX-KG2c)
-UNREASONABLE_NUMBER_OF_TEST_EDGES: int = 10
+REASONABLE_NUMBER_OF_TEST_EDGES: int = 10
 
 
 def _new_kp_test_case_summary(trapi_version: str, biolink_version: str) -> Dict[str, Union[int, str, Dict]]:
@@ -53,6 +55,23 @@ def _new_kp_test_case_summary(trapi_version: str, biolink_version: str) -> Dict[
         'trapi_version': trapi_version,
         'biolink_version': biolink_version,
         'results': dict()
+    }
+    return new_test_case_summary
+
+
+def _new_kp_resource_summary(trapi_version: str, biolink_version: str) -> Dict[str, Union[str, Dict]]:
+    """
+    Initialize a dictionary to capture statistics for a single KP test case summary.
+
+    :param trapi_version: str, TRAPI version associated with the test case (SemVer)
+    :param biolink_version:  str, Biolink Model version associated with the test case (SemVer)
+
+    :return: Dict[str, Union[int, str, Dict]], initialized
+    """
+    new_test_case_summary: Dict[str, Union[str, Dict]] = {
+        'trapi_version': trapi_version,
+        'biolink_version': biolink_version,
+        'test_edges': dict()
     }
     return new_test_case_summary
 
@@ -183,7 +202,10 @@ def pytest_sessionfinish(session):
                     trapi_version=trapi_version,
                     biolink_version=biolink_version
                 )
-                resource_summaries[component][ara_id][kp_id] = dict()
+                resource_summaries[component][ara_id][kp_id] = _new_kp_resource_summary(
+                    trapi_version=trapi_version,
+                    biolink_version=biolink_version
+                )
 
             case_summary = test_run_summary[component][ara_id]['kps'][kp_id]
             resource_summary = resource_summaries[component][ara_id][kp_id]
@@ -196,7 +218,11 @@ def pytest_sessionfinish(session):
                 )
                 test_run_summary[component][kp_id]['url'] = url
                 test_run_summary[component][kp_id]['test_data_location'] = test_case['kp_test_data_location']
-                resource_summaries[component][kp_id] = dict()
+
+                resource_summaries[component][kp_id] = _new_kp_resource_summary(
+                    trapi_version=trapi_version,
+                    biolink_version=biolink_version
+                )
 
             case_summary = test_run_summary[component][kp_id]
             resource_summary = resource_summaries[component][kp_id]
@@ -208,22 +234,23 @@ def pytest_sessionfinish(session):
         #       and unit test id's for a given resource indexed by ARA and KP
         idx: str = str(test_case['idx'])
 
-        if idx not in resource_summary:
-            resource_summary[idx] = {
+        if idx not in resource_summary['test_edges']:
+            resource_summary['test_edges'][idx] = {
                 'test_data': dict(),
                 'results': dict()
             }
 
         for field in RESOURCE_SUMMARY_FIELDS:
-            if field not in resource_summary[idx]['test_data'] and field in test_case:
-                resource_summary[idx]['test_data'][field] = test_case[field]
+            if field not in resource_summary['test_edges'][idx]['test_data'] and field in test_case:
+                resource_summary['test_edges'][idx]['test_data'][field] = test_case[field]
 
-        if test_id not in resource_summary[idx]['results']:
-            resource_summary[idx]['results'][test_id] = dict()
-        resource_summary[idx]['results'][test_id]['outcome'] = details['status']
+        if test_id not in resource_summary['test_edges'][idx]['results']:
+            resource_summary['test_edges'][idx]['results'][test_id] = dict()
+        resource_summary['test_edges'][idx]['results'][test_id]['outcome'] = details['status']
 
-        if 'errors' in rb and len(rb['errors']) > 0:
-            resource_summary[idx]['results'][test_id]['errors'] = rb['errors']
+        test_report: UnitTestReport = rb['unit_test_report']
+        if test_report and test_report.has_messages:
+            resource_summary['test_edges'][idx]['results'][test_id]['validation'] = test_report.get_messages()
 
         ###################################################
         # Full test details will still be indexed by edge #
@@ -248,10 +275,6 @@ def pytest_sessionfinish(session):
         # Replicating 'PASSED, FAILED, SKIPPED' test status
         # for each unit test, here in the detailed report
         test_details['outcome'] = details['status']
-
-        # Capture list of errors - we assume they are only reported once for any given test?
-        if 'errors' in rb and len(rb['errors']) > 0:
-            test_details['errors'] = rb['errors']
 
         # Capture more request/response details for test failures
         if details['status'] == 'failed':
@@ -404,7 +427,12 @@ def _build_filelist(entry):
     return filelist
 
 
-def get_test_data_sources(source: str, component_type: str) -> Dict[str, Dict[str, Optional[str]]]:
+def get_test_data_sources(
+        source: str,
+        component_type: str,
+        trapi_version: Optional[str] = None,
+        biolink_version: Optional[str] = None
+) -> Dict[str, Dict[str, Optional[str]]]:
     """
     Retrieves a dictionary of metadata of 'component_type', indexed by name.
 
@@ -417,7 +445,10 @@ def get_test_data_sources(source: str, component_type: str) -> Dict[str, Dict[st
 
     :param source: str, specific remote or local source from which the test data sources are to be retrieved.
     :param component_type: str, component type 'KP' or 'ARA'
-    :return:
+    :param trapi_version: SemVer caller override of TRAPI release target for validation (Default: None)
+    :param biolink_version: SemVer caller override of Biolink Model release target for validation (Default: None)
+
+    :return: Dict[str, Dict[str, Optional[str]]], service metadata dictionary
     """
     service_metadata: Dict[str, Dict[str, Optional[str]]]
 
@@ -450,26 +481,32 @@ def get_test_data_sources(source: str, component_type: str) -> Dict[str, Dict[st
             "component": component_type,
             "infores": None,
             "biolink_version": None,
-            "trapi_version": get_latest_trapi_version()
+            "trapi_version": latest.get(DEFAULT_TRAPI_VERSION)
         }
         service_metadata = {name: metadata_template.copy() for name in filelist}
+
+    # Possible CLI override of the metadata value of
+    # TRAPI and/or Biolink Model releases used for data validation
+    if trapi_version:
+        for service_name in service_metadata.keys():
+            service_metadata[service_name]['trapi_version'] = latest.get(trapi_version)
+
+    if biolink_version:
+        for service_name in service_metadata.keys():
+            service_metadata[service_name]['biolink_version'] = biolink_version
 
     return service_metadata
 
 
 def load_test_data_source(
         source: str,
-        metadata: Dict[str, Optional[str]],
-        trapi_version: Optional[str] = None,
-        biolink_version: Optional[str] = None
+        metadata: Dict[str, Optional[str]]
 ) -> Optional[Dict]:
     """
     Load one specified component test data source.
 
     :param source: source string, URL if from "remote"; file path if local
     :param metadata: metadata associated with source
-    :param trapi_version: SemVer caller override of TRAPI release target for validation (Default: None)
-    :param biolink_version: SemVer caller override of Biolink Model release target for validation (Default: None)
     :return: json test data with (some) metadata; 'None' if unavailable
     """
     # sanity check
@@ -506,14 +543,6 @@ def load_test_data_source(
         api_name: str = source.split('/')[-1]
         # remove the trailing file extension
         metadata['api_name'] = api_name.replace(".json", "")
-
-        # Possible CLI override of the metadata value of
-        # TRAPI and Biolink Model releases used for data validation
-        if trapi_version:
-            metadata['trapi_version'] = trapi_version
-
-        if biolink_version:
-            metadata['biolink_version'] = biolink_version
 
     return metadata
 
@@ -593,12 +622,19 @@ def generate_trapi_kp_tests(metafunc, trapi_version: str, biolink_version: str) 
 
     triple_source = metafunc.config.getoption('triple_source')
 
-    kp_metadata: Dict[str, Dict[str, Optional[str]]] = get_test_data_sources(triple_source, component_type="KP")
+    kp_metadata: Dict[str, Dict[str, Optional[str]]] = \
+        get_test_data_sources(
+            source=triple_source,
+            trapi_version=trapi_version,
+            biolink_version=biolink_version,
+            component_type="KP"
+        )
 
     for source, metadata in kp_metadata.items():
 
-        # User CLI may override here the target Biolink Model version during KP test data preparation
-        kpjson = load_test_data_source(source, metadata, trapi_version, biolink_version)
+        # User CLI may trapi_version, biolink_version may (but not necessarily) here
+        # override the target Biolink Model version during KP test data preparation
+        kpjson = load_test_data_source(source, metadata)
 
         if not kpjson:
             # valid test data file not found?
@@ -634,14 +670,14 @@ def generate_trapi_kp_tests(metafunc, trapi_version: str, biolink_version: str) 
 
             # We can already do some basic Biolink Model validation here of the
             # S-P-O contents of the edge being input from the current triples file?
-            model_version, errors = \
+            biolink_validator: BiolinkValidator = \
                 check_biolink_model_compliance_of_input_edge(
                     edge,
                     biolink_version=kpjson['biolink_version']
                 )
-            if errors:
+            if biolink_validator.has_messages():
                 # defer reporting of errors to higher level of test harness
-                edge['biolink_errors'] = model_version, errors
+                edge['pre-validation'] = biolink_validator.get_messages()
 
             edge['kp_test_data_location'] = kpjson['location']
 
@@ -692,7 +728,8 @@ def generate_trapi_kp_tests(metafunc, trapi_version: str, biolink_version: str) 
 
             edges.append(edge)
 
-            # Start using the object_id of the Infores CURIE of the KP instead of its api_name...
+            # Start using the object_id of the Infores
+            # CURIE of the KP instead of its api_name...
             # resource_id = edge['kp_api_name']
             kp_id = edge['kp_source'].replace("infores:", "")
 
@@ -711,7 +748,7 @@ def generate_trapi_kp_tests(metafunc, trapi_version: str, biolink_version: str) 
                 break
 
             # Circuit breaker for overly large edge test data sets
-            if edge_i > UNREASONABLE_NUMBER_OF_TEST_EDGES:
+            if edge_i > REASONABLE_NUMBER_OF_TEST_EDGES:
                 break
 
         print(f"### End of Test Input Edges for KP '{kpjson['api_name']}' ###")
@@ -762,12 +799,18 @@ def generate_trapi_ara_tests(metafunc, kp_edges, trapi_version, biolink_version)
 
     ara_source = metafunc.config.getoption('ARA_source')
 
-    ara_metadata: Dict[str, Dict[str, Optional[str]]] = get_test_data_sources(ara_source, component_type="ARA")
+    ara_metadata: Dict[str, Dict[str, Optional[str]]] = \
+        get_test_data_sources(
+            source=ara_source,
+            trapi_version=trapi_version,
+            biolink_version=biolink_version,
+            component_type="ARA"
+        )
 
     for source, metadata in ara_metadata.items():
 
         # User CLI may override here the target Biolink Model version during KP test data preparation
-        arajson = load_test_data_source(source, metadata, trapi_version, biolink_version)
+        arajson = load_test_data_source(source, metadata)
 
         if not arajson:
             # valid test data file not found?
@@ -811,14 +854,14 @@ def generate_trapi_ara_tests(metafunc, kp_edges, trapi_version, biolink_version)
 
                 # Resetting the Biolink Model version here may have the peculiar side effect of some
                 # KP edge test data now becoming non-compliant with the 'new' ARA Biolink Model version?
-                model_version, errors = \
+                biolink_validator: BiolinkValidator = \
                     check_biolink_model_compliance_of_input_edge(
                         edge,
                         biolink_version=arajson['biolink_version']
                     )
-                if errors:
+                if biolink_validator.has_messages():
                     # defer reporting of errors to higher level of test harness
-                    edge['biolink_errors'] = model_version, errors
+                    edge['pre-validation'] = biolink_validator.get_messages()
 
                 if 'infores' in arajson:
                     edge['ara_source'] = f"infores:{arajson['infores']}"
@@ -828,8 +871,13 @@ def generate_trapi_ara_tests(metafunc, kp_edges, trapi_version, biolink_version)
                         "is missing its ARA 'infores' field.  We infer one from "
                         "the ARA 'api_name', but edge provenance may not be properly tested?"
                     )
+                    # create a pseudo-infores from a lower cased and hyphenated API name
                     ara_api_name: str = edge['ara_api_name']
-                    edge['ara_source'] = f"infores:{ara_api_name.lower()}"
+                    if not ara_api_name:
+                        logger.warning("generate_trapi_ara_tests(): ARA API Name is missing? Skipping entry...")
+                        continue
+                    ara_infores_object_id = ara_api_name.lower().replace("_", "-")
+                    edge['ara_source'] = f"infores:{ara_infores_object_id}"
 
                 if 'kp_source' in kp_edge:
                     edge['kp_source'] = kp_edge['kp_source']
@@ -869,12 +917,12 @@ def pytest_generate_tests(metafunc):
     # KP/ARA TRAPI version may be overridden
     # on the command line; maybe 'None' => no override
     trapi_version = metafunc.config.getoption('TRAPI_Version')
-    logger.debug(f"pytest_generate_tests(): TRAPI_Version == {str(trapi_version)}")
+    logger.debug(f"pytest_generate_tests(): caller specified TRAPI_Version == {str(trapi_version)}")
 
     # KP/ARA Biolink Model version may be overridden
     # on the command line; maybe 'None' => no override
     biolink_version = metafunc.config.getoption('Biolink_Version')
-    logger.debug(f"pytest_generate_tests(): command line specified Biolink_Version == {str(biolink_version)}")
+    logger.debug(f"pytest_generate_tests(): caller specified Biolink_Version == {str(biolink_version)}")
 
     trapi_kp_edges = generate_trapi_kp_tests(
         metafunc,
