@@ -107,7 +107,7 @@
                   :predicates="predicates"
                 ></TranslatorCategoriesList>
 
-                <span v-if="!(kp_filter.length > 0 && ara_filter.length === 0)">
+                <span v-if="Object.keys(stats_summary['ARA']).length > 0 && !(kp_filter.length > 0 && ara_filter.length === 0)">
 
                   <br><h2>ARAs</h2>
                   <div v-for="ara in Object.keys(stats_summary['ARA']).filter(ara => ara_filter.length > 0 ? ara_filter.includes(ara) : true)" v-bind:key="ara">
@@ -154,7 +154,7 @@
                   </div>
                 </span>
 
-                <span v-if="!(ara_filter.length > 0 && kp_filter.length === 0)">
+                <span v-if="Object.keys(stats_summary['KP']).length > 0 && !(ara_filter.length > 0 && kp_filter.length === 0)">
                   <br><h2>KPs</h2>
                   <div v-for="kp in Object.keys(stats_summary['KP'])
                               .filter(kp => kp_filter.length > 0 ? kp_filter.includes(kp) : true)" v-bind:key="kp" >
@@ -188,7 +188,7 @@
                     </v-row>
 
                     <TranslatorCategoriesList
-                      v-if="categories_index !== null && categories_index !== {} && !!categories_index[ara+'_'+kp]"
+                      v-if="categories_index !== null && categories_index !== {} && !!categories_index[kp]"
                       :resource="kp"
                       :subject_categories="categories_index[kp].subject_category"
                       :object_categories="categories_index[kp].object_category"
@@ -201,7 +201,7 @@
             </v-container>
           </div>
 
-          <div v-if="tab === 1" v-memo="id">
+          <div v-if="tab === 1">
             <v-container v-bind:key="`${id}_details`" id="page-details" v-if="loading !== null">
 
               <v-row v-if="loading !== null" no-gutter>
@@ -320,22 +320,22 @@
                               </span>
 
                               <span v-else>
-                      {{ stateIcon(result.status) }}
-                    </span>
-                  </td>
+                                {{ stateIcon(result.status) }}
+                              </span>
+                            </td>
                           </tr>
                         </template>
                       </v-data-table>
           </v-col>
       <v-col :cols="3">
         <v-card class="mx-auto" max-width="374">
-          <v-card-text v-if="data_table_selected_item !== null">
+          <v-card-text v-if="data_table_selected_item === null">
             Hover over a row to show its test results.
             Click a row to keep its test results displayed.
           </v-card-text>
           <v-card-text v-else>
-            <ul v-for="entry in Object.entries(data_table_selected_item)">
-              {{ entry }}
+            <ul v-for="entry in Object.entries(data_table_selected_item)" v-bind:key="hash(entry[0])">
+              <h3>{{ entry[0] === "spec" ? formatEdge(entry[1]) : "" }}</h3><br>
             </ul>
           </v-card-text>
         </v-card>
@@ -471,7 +471,7 @@ export default {
             }), 3000);
         },
         status(newStatus, oldStatus) {
-            if (newStatus >= 100 && (this.headers.length === 0 && this.cells.length === 0)) {
+            if (!!this.id && newStatus >= 100 && (this.headers.length === 0 && this.cells.length === 0)) {
                 axios.get(`/index?test_run_id=${this.id}`).then(response => {
                     this.index = {
                         "KP": {},
@@ -495,12 +495,14 @@ export default {
         },
         index(newIndex, oldIndex) {
             if (newIndex !== null) {
-                this.makeTableData(this.id)
                 this.getAllCategories(this.id, newIndex);
             };
         }
     },
     computed: {
+        tableData() {
+            return this.makeTableData(this.id, this.stats_summary)
+        },
         // TODO: merge these range computations into one scope
         trapi_range() {
             let trapi_versions = [];
@@ -577,11 +579,13 @@ export default {
                       .some(status => Object.keys(result).includes(status)) ?
                       {
                           status: result.outcome,
-                          messages: result.errors
+                          messages: !!result.validations ? result.validations.errors : [],
+                          ...result
                       }
                       : result;
                 return denormalized_result;
             }
+            console.log("cells", this.cells)
             const _cells = this.cells.map(el => {
                 const cell = Object.entries(JSON.parse(JSON.stringify(el)))
                 const _el = Object.fromEntries(
@@ -594,6 +598,7 @@ export default {
                 )
                 return _el;
             })
+            console.log("_cells", _cells)
             const __cells = _cells.map(el => ({
                 ...Object.fromEntries(this.headers.map(header => [header, {
                     status: null,
@@ -601,6 +606,7 @@ export default {
                 }])),
                 ...el,
             }))
+            console.log("__cells", __cells)
             return __cells
             // TODO: combine into one loop
                 .filter(el => !isString(el))
@@ -685,8 +691,7 @@ export default {
                 object_category: [],
             };
             const addFromKPs = (id, kpSummary) => {
-                Object.values(kpSummary).forEach(el => {
-
+                Object.values(kpSummary.test_edges).forEach(el => {
                     if (isObject(el)) {
 
                         let pre_categories_index = _.clone(this.categories_index);
@@ -735,20 +740,23 @@ export default {
             return Object.entries(ARAIndex).flatMap(([ara, entry]) => Object.values(entry).map(kp => ara+delimiter+kp))
         },
         async makeTableData(id) {
+            console.log("calle makeTableData", id)
             // TODO: refactor to use index
-            const report = axios.get(`/summary?test_run_id=${id}`)
-                  .then(response => {
-                      const kp_details = Object.entries(response.data.summary.KP).map(([resource_id, value]) => {
-                          return axios.get(`/resource?test_run_id=${this.id}&kp_id=${resource_id}`).then(el => {
+            const report = Promise.resolve(this.stats_summary).then(response => {
+                console.log("report", response)
+                if (response !== null) {
+                      const { KP={}, ARA={} } = response;
+                      const kp_details = Object.entries(KP).map(([resource_id, value]) => {
+                          return axios.get(`/resource?test_run_id=${id}&kp_id=${resource_id}`).then(el => {
                               return {
                                   resource_id,  // inject the resource_id into the response
                                   ...el,
                               }
                           })
                       });
-                      const ara_details = Object.entries(response.data.summary.ARA).map(([resource_id, value]) => {
+                      const ara_details = Object.entries(ARA).map(([resource_id, value]) => {
                           return Object.keys(value.kps)
-                              .map(key => axios.get(`/resource?test_run_id=${this.id}&ara_id=${resource_id}&kp_id=${key}`)
+                              .map(key => axios.get(`/resource?test_run_id=${id}&ara_id=${resource_id}&kp_id=${key}`)
                                    .then(el => {
                                        return {
                                            resource_id: `${resource_id}>${key}`,
@@ -764,8 +772,10 @@ export default {
                                        value
                                    }))
                                    .then(response => {
+                                       console.log("response")
                                        if (response.status === "fulfilled") {
-                                           const { headers, cells, edges, tests } = makeTableData(response.value.resource_id, response.value.data.summary);
+                                           const  { headers, cells, edges, tests } = _makeTableData(response.value.resource_id, response.value.data.summary);
+                                           console.log("making table data", { headers, cells, edges, tests })
                                            this.headers = Array.from(new Set(this.headers.concat(headers)));
                                            this.cells = this.cells.concat(cells);
                                        }
@@ -775,13 +785,16 @@ export default {
                                        reason
                                    })))
                       )
-
+                    } else {
+                        return null;
+                    }
                   })
                   .then(responses => {
                       this.loading = false;
                       this.status = -1;
                   });
         },
+
 
         // import methods from packages
         hash,
@@ -837,6 +850,7 @@ export default {
             return `(${this.formatCurie(result.subject_category)})--[${this.formatCurie(result.predicate)}]->(${this.formatCurie(result.object_category)})`
         },
         formatCurie (curie) {
+            console.log("formatCurie", curie)
             return curie.split(':')[1];
         }
 
@@ -866,12 +880,13 @@ function _searchMatches(value, search, item) {
 }
 
 
-function makeTableData(resource_id, report) {
-    const test_results = jp.nodes(report, "$.*").filter(el => !el.path.includes("document_key"))
+function _makeTableData(resource_id, report) {
+    console.log("_makeTableData", resource_id, report)
+    const test_results = jp.nodes(report.test_edges, "$.*").filter(el => !el.path.includes("document_key"))
+    console.log(test_results)
     const headers = Array.from(test_results.reduce((acc, item) => {
         const { test_data, results } = item.value;
         if (!!results) Object.keys(results).forEach(key => acc.add(key));    // fields
-        // Object.keys(test_data).forEach(key => acc.add(key));  // edges
         return acc;
     }, new Set(["spec"])));
     const cells = test_results.reduce((acc, item) => {
@@ -899,6 +914,12 @@ function makeTableData(resource_id, report) {
     -moz-osx-font-smoothing: grayscale;
     color: #2c3e50;
     padding: 1%;
+}
+#page-header, #page-content {
+    margin: 0;
+}
+.container {
+    max-width: 4000px !important
 }
 .app-bar {
     font-family: 'Avenir', Helvetica, Arial, sans-serif;
