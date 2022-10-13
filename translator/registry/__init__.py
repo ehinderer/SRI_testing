@@ -239,9 +239,14 @@ _infores_catalog: Dict[str, List[RegistryEntryId]] = dict()
 
 # Some ARA's and KP's may be tagged tp be ignored for practical reasons
 _ignored_resources: Set[str] = {
+    "empty",
     # "rtx-kg2",  # the test_data_location released for RTX-KG2 is relatively unusable, as of September 2022
     # "molepro",  # TODO: temporarily skip MolePro...
     # "arax",     # temporarily skip ARAX ARA
+    # "sri-reference-kg",
+    # "automat-icees-kg",
+    # "cohd",
+    # "service-provider-trapi",
 }
 
 
