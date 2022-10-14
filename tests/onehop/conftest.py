@@ -533,7 +533,12 @@ def load_test_data_source(
 
     if test_data is not None:
 
-        # append test data to metadata
+        if 'url' in metadata and 'url' in test_data:
+            # Registry metadata 'url' value may now
+            # override the corresponding test_data value
+            test_data.pop('url')
+
+        # append/override test data to metadata
         metadata.update(test_data)
 
         metadata['location'] = source

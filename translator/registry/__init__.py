@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 SMARTAPI_URL = "https://smart-api.info/api/"
 SMARTAPI_QUERY_PARAMETERS = "q=__all__&tags=%22trapi%22&" + \
-                            "fields=info,_meta,_status,paths,tags,openapi,swagger&size=1000&from=0"
+                            "fields=servers,info,_meta,_status,paths,tags,openapi,swagger&size=1000&from=0"
 
 
 def set_timestamp():
@@ -281,10 +281,10 @@ def extract_component_test_metadata_from_registry(
             logger.warning(f"Service {index} lacks a 'service_title'... Skipped?")
             continue
 
-        # Grab additional service metadata, then store it all
-        service_version = tag_value(service, "info.version")
-        trapi_version = tag_value(service, "info.x-trapi.version")
-        biolink_version = tag_value(service, "info.x-translator.biolink-version")
+        if 'servers' not in service:
+            logger.warning(f"Service {index} lacks a 'servers' block... Skipped?")
+            continue
+        servers: Optional[List[Dict]] = service['servers']
 
         infores = tag_value(service, "info.x-translator.infores")
         # Internally, within SRI Testing, we only track the object_id of the infores CURIE
@@ -298,6 +298,24 @@ def extract_component_test_metadata_from_registry(
             logger.warning(f"Registry {component} entry with {infores} is tagged to be ignored. Skipping?")
             continue
 
+        raw_test_data_location: Optional[str] = tag_value(service, "info.x-trapi.test_data_location")
+
+        # ... and only interested in resources with a non-empty, valid, accessible test_data_location specified
+        test_data_location = validate_test_data_location(raw_test_data_location)
+        if not test_data_location:
+            logger.warning(
+                f"Empty, invalid or inaccessible test data resource '{test_data_location}' " +
+                f"for Service {index}: '{service_title}'... Service entry skipped?")
+            continue
+
+        # Once past the test_data_location gauntlet, we start
+        # to collect the remaining Registry metadata
+
+        # Grab additional service metadata, then store it all
+        service_version = tag_value(service, "info.version")
+        trapi_version = tag_value(service, "info.x-trapi.version")
+        biolink_version = tag_value(service, "info.x-translator.biolink-version")
+
         if infores not in _infores_catalog:
             _infores_catalog[infores] = list()
         else:
@@ -307,14 +325,16 @@ def extract_component_test_metadata_from_registry(
                 f"TRAPI version '{str(trapi_version)}' and Biolink Version '{str(biolink_version)}'."
             )
 
-        raw_test_data_location: Optional[str] = tag_value(service, "info.x-trapi.test_data_location")
+        url: Optional[str] = None
+        for server in servers:
+            # For the time being, we assume that the first 'url' encountered is a sensible testing target
+            # TODO: 'x-maturity' may later modify our approach for testing
+            if 'url' in server:
+                url = server['url']
+                break
 
-        # ... and only interested in resources with a non-empty, valid, accessible test_data_location specified
-        test_data_location = validate_test_data_location(raw_test_data_location)
-        if not test_data_location:
-            logger.warning(
-                f"Empty, invalid or inaccessible test data resource '{test_data_location}' " +
-                f"for Service {index}: '{service_title}'... Service entry skipped?")
+        if not url:
+            logger.warning(f"Service {index} lacks a 'testing' or 'staging' x-maturity endpoint... Skipped?")
             continue
 
         if test_data_location not in service_metadata:
@@ -332,6 +352,7 @@ def extract_component_test_metadata_from_registry(
 
         _infores_catalog[infores].append(entry_id)
 
+        capture_tag_value(service_metadata, test_data_location, "url", url)
         capture_tag_value(service_metadata, test_data_location, "service_title", service_title)
         capture_tag_value(service_metadata, test_data_location, "service_version", service_version)
         capture_tag_value(service_metadata, test_data_location, "component", component_type)
