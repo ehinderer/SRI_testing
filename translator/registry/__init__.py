@@ -6,6 +6,7 @@ from datetime import datetime
 
 import requests
 import yaml
+from reasoner_validator.versioning import SemVer
 
 from requests.exceptions import RequestException
 
@@ -18,6 +19,8 @@ logger = logging.getLogger(__name__)
 SMARTAPI_URL = "https://smart-api.info/api/"
 SMARTAPI_QUERY_PARAMETERS = "q=__all__&tags=%22trapi%22&" + \
                             "fields=servers,info,_meta,_status,paths,tags,openapi,swagger&size=1000&from=0"
+
+MINIMUM_BIOLINK_VERSION = "2.2.11"  # use RTX-KG2 as the minimum version
 
 
 def set_timestamp():
@@ -315,6 +318,11 @@ def extract_component_test_metadata_from_registry(
         service_version = tag_value(service, "info.version")
         trapi_version = tag_value(service, "info.x-trapi.version")
         biolink_version = tag_value(service, "info.x-translator.biolink-version")
+
+        # TODO: temporary hack to deal with resources which are somewhat sloppy or erroneous in their declaration
+        #       of the applicable Biolink Model version for validation: enforce a minimium Biolink Model version.
+        if not biolink_version or SemVer.from_string(MINIMUM_BIOLINK_VERSION) >= SemVer.from_string(biolink_version):
+            biolink_version = MINIMUM_BIOLINK_VERSION
 
         if infores not in _infores_catalog:
             _infores_catalog[infores] = list()
