@@ -4,7 +4,6 @@ import Vue from 'vue'
 
 // autoload plugins
 import vuetify from './plugins/vuetify'
-import pursue from './plugins/vue-pursue'
 
 import App from './App'
 import router from './router'

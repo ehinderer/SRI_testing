@@ -34,6 +34,7 @@
     "vue": "^2.6.14",
     "vue-google-charts": "^1.1.0",
     "vue-router": "^3.0.1",
+    "vue-size-provider": "^0.2.1",
     "vue-vega": "^1.0.0-alpha.13",
     "vuetify": "^2.6.11"
   },
@@ -94,7 +95,6 @@
     "vue-frag-plugin": "^1.0.0",
     "vue-jest": "^1.0.2",
     "vue-loader": "^13.3.0",
-    "vue-pursue": "^0.1.3",
     "vue-style-loader": "^3.0.1",
     "vue-template-compiler": "^2.6.14",
     "webpack": "^3.6.0",
