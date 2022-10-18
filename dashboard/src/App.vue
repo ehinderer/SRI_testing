@@ -57,12 +57,12 @@
 
             <v-row no-gutter>    
               <TranslatorFilter :index="index"
-                @kp_filter="$event => { kp_filter = $event }"
-                @ara_filter="$event => { ara_filter = $event }"
-                @predicate_filter="$event => { predicate_filter = $event }"
-                @subject_category_filter="$event => { subject_category_filter = $event }"
-                @object_category_filter="$event => { object_category_filter = $event }"
-              ></TranslatorFilter>
+                                @kp_filter="$event => { kp_filter = $event }"
+                                @ara_filter="$event => { ara_filter = $event }"
+                                @predicate_filter="$event => { predicate_filter = $event }"
+                                @subject_category_filter="$event => { subject_category_filter = $event }"
+                                @object_category_filter="$event => { object_category_filter = $event }"
+                                ></TranslatorFilter>
             </v-row>
 
             <v-container v-bind:key="`${id}_overview`" id="page-overview" v-if="loading !== null">
@@ -105,7 +105,7 @@
                   :subject_categories="subject_categories"
                   :object_categories="object_categories"
                   :predicates="predicates"
-                ></TranslatorCategoriesList>
+                  ></TranslatorCategoriesList>
 
                 <span v-if="Object.keys(stats_summary['ARA']).length > 0 && !(kp_filter.length > 0 && ara_filter.length === 0)">
 
@@ -140,7 +140,7 @@
                           </la-cartesian>
                         </v-col>
                       </v-row>
-  
+
                       <!-- Not all ARAs have the same KPs. So need to check for the joint key explicitly. -->
                       <TranslatorCategoriesList
                         v-if="categories_index !== null && categories_index !== {} && !!categories_index[ara+'_'+kp]"
@@ -148,8 +148,8 @@
                         :subject_categories="categories_index[ara+'_'+kp].subject_category"
                         :object_categories="categories_index[ara+'_'+kp].object_category"
                         :predicates="categories_index[ara+'_'+kp].predicate"
-                      ></TranslatorCategoriesList>
-  
+                        ></TranslatorCategoriesList>
+
                     </div>
                   </div>
                 </span>
@@ -175,7 +175,7 @@
                         <la-cartesian narrow stacked
                                       :bound="[0]"
                                       :data="Object.entries(stats_summary['KP'][kp].results).map(el => ({ 'name': el[0], ...el[1]}))"
-                                      :width="820"
+                                      :width="720"
                                       :colors="[status_color('passed'), status_color('failed'), status_color('skipped')]">
                           <la-bar label="passed" prop="passed" :color="status_color('passed')"></la-bar>
                           <la-bar label="failed" prop="failed" :color="status_color('failed')"></la-bar>
@@ -193,7 +193,7 @@
                       :subject_categories="categories_index[kp].subject_category"
                       :object_categories="categories_index[kp].object_category"
                       :predicates="categories_index[kp].predicate"
-                    ></TranslatorCategoriesList>
+                      ></TranslatorCategoriesList>
 
                   </div>
                 </span>
@@ -217,125 +217,157 @@
 
                   <v-row no-gutter>
 
-                      <TranslatorFilter :index="index"
-                        @kp_filter="$event => { kp_filter = $event }"
-                        @ara_filter="$event => { ara_filter = $event }"
-                        @predicate_filter="$event => { predicate_filter = $event }"
-                        @subject_category_filter="$event => { subject_category_filter = $event }"
-                        @object_category_filter="$event => { object_category_filter = $event }"
-                      ></TranslatorFilter>
+                    <TranslatorFilter :index="index"
+                                      @kp_filter="$event => { kp_filter = $event }"
+                                      @ara_filter="$event => { ara_filter = $event }"
+                                      @predicate_filter="$event => { predicate_filter = $event }"
+                                      @subject_category_filter="$event => { subject_category_filter = $event }"
+                                      @object_category_filter="$event => { object_category_filter = $event }"
+                                      ></TranslatorFilter>
 
-                      <v-col lg>
-                        <v-radio-group
-                          v-model="outcome_filter"
-                          row>
-                          <v-radio
-                            label="All"
-                            value="all"
-                            ></v-radio>
-                          <v-radio
-                            label="Pass"
-                            value="passed"
-                            ></v-radio>
-                          <v-radio
-                            label="Fail"
-                            value="failed"
-                            ></v-radio>
-                          <v-radio
-                            label="Skip"
-                            value="skipped"
-                            ></v-radio>
-                        </v-radio-group>
-                      </v-col>
+                    <v-col lg>
+                      <v-radio-group
+                        v-model="outcome_filter"
+                        row>
+                        <v-radio
+                          label="All"
+                          value="all"
+                          ></v-radio>
+                        <v-radio
+                          label="Pass"
+                          value="passed"
+                          ></v-radio>
+                        <v-radio
+                          label="Fail"
+                          value="failed"
+                          ></v-radio>
+                        <v-radio
+                          label="Skip"
+                          value="skipped"
+                          ></v-radio>
+                      </v-radio-group>
+                    </v-col>
                   </v-row>
 
-              <!-- force rich logic below into computed method -->
-              <!-- should it be a part of the custom filter instead?-->
-              <!-- <v-row> -->
-                <v-row no-gutter>
-                  <v-col :cols="9">
-                    <v-data-table
-                        :headers="_headers"
-                        :items="kp_selections.length > 0 || ara_selections.length > 0 ?
-                                denormalized_cells
-                                .filter(cell => kp_selections.some(el =>
-                                (el.includes(cell._id)
-                                || kps_only ? el.includes(cell._id.split('|')[0]) || el.includes(cell._id.split('|')[1]) : false)
-                                || ara_selections.some(el => el.includes(cell._id.split('|')[0]) || el.includes(cell._id.split('|')[1]))))
-                                : denormalized_cells"
-                        :items-per-page="-1"
-                        group-by="_id"
-                        class="elevation-1"
-                        :search="search"
-                        :custom-filter="searchMatches"
-                        dense>
+                  <!-- force rich logic below into computed method -->
+                  <!-- should it be a part of the custom filter instead?-->
+                  <!-- <v-row> -->
+                    <v-row no-gutter>
+                      <v-col :cols="8">
+                        <v-data-table
+                          :headers="_headers"
+                          :items="denormalized_cells"
+                          :items-per-page="-1"
+                          group-by="_id"
+                          class="elevation-1"
+                          :search="search"
+                          :custom-filter="searchMatches"
+                          dense>
 
-                        <!-- TODO: group title formatting and tooltip. potentially just put in the summary? -->
-                        <template v-slot:group.summary="{ group }">
-                        </template>
+                          <!-- TODO: group title formatting and tooltip. potentially just put in the summary? -->
+                          <template v-slot:group.summary="{ group }">
+                          </template>
 
-                        <template v-slot:item="{ item }">
-                          <tr @hover="() => { data_table_selected_item = data_table_hold_selection ? data_table_selected_item : item; }" @click="() => {
-                            data_table_selected_item = data_table_hold_selection ? data_table_selected_item : item; 
-                            data_table_hold_selection = !data_table_hold_selection 
-                          }">
-                            <td v-for="[test, result] in Object.entries(omit('_id')(item))"
-                                v-bind:key="`${test}_${result}`"
-                                :style="cellStyle(result.status)">
+                          <template v-slot:item="{ item }">
+                            <tr @mouseover="() => { data_table_current_item = data_table_hold_selection ? data_table_selected_item : item; }"
+                                @mouseleave="() => { data_table_current_item = data_table_selected_item; }"
+                                @click="() => {
+                                        data_table_selected_item = data_table_hold_selection ? data_table_selected_item : item;
+                                        data_table_current_item = data_table_selected_item
+                                        data_table_hold_selection = !data_table_hold_selection;
+                                        }">
 
-                              <v-tooltip
-                                v-if="!!result.status"
-                                :max-width="480"
-                                bottom>
-                                <template v-slot:activator="{ on, attrs }">
-                                  <div v-bind="attrs" v-on="on">
-                                    <a>
-                                      {{ stateIcon(result.status) }} {{ !!result && !!result.messages & !!result.messages.length ? `(${result.messages.length})` : '' }}
-                                    </a>
-                                  </div>
-                                </template>
-                                <span>
-                                  {{test}}
-                                  <ul v-if="!!result.messages">
-                                    <li v-for="message in result.messages" v-bind:key="message">
-                                      {{ message }}
+                              <td v-for="[test, result] in Object.entries(omit('_id')(item))"
+                                  v-bind:key="`${test}_${result}`"
+                                  :style="cellStyle(result.status)">
+
+                                <a v-if="!!result.status">
+                                  {{ stateIcon(result.status) }}
+                                </a>
+                                <!-- <v-tooltip -->
+                                <!--   :max-width="480" -->
+                                <!--   bottom> -->
+                                <!--   <template v-slot:activator="{ on, attrs }"> -->
+                                <!--     <div v-bind="attrs" v-on="on"> -->
+
+                                <!--     </div> -->
+                                <!--   </template> -->
+                                <!--   <span> -->
+                                <!--     {{test}} -->
+                                <!--     <ul v-if="!!result.messages"> -->
+                                <!--       <li v-for="message in result.messages" v-bind:key="message"> -->
+                                <!--         {{ message }} -->
+                                <!--       </li> -->
+                                <!--     </ul> -->
+                                <!--   </span> -->
+                                <!-- </v-tooltip> -->
+
+                                <span v-else-if="test === 'spec'">
+                                  <v-tooltip
+                                    bottom>
+                                    <template v-slot:activator="{ on, attrs }">
+                                      <div v-bind="attrs" v-on="on">
+                                        <v-chip small outlined>{{formatCurie(result.subject_category)}}</v-chip><v-chip small outlined>{{formatCurie(result.predicate)}}</v-chip><v-chip small outlined>{{formatCurie(result.object_category)}}</v-chip>
+                                      </div>
+                                    </template>
+                                    <b>Test Edge:</b>
+                                    <span>
+                                      ({{result.subject}})--[{{result.predicate}}]->({{result.object}})<br>
+                                    </span>
+                                  </v-tooltip>
+                                </span>
+
+                                <span v-else>
+                                  {{ stateIcon(result.status) }}
+                                </span>
+                              </td>
+                            </tr>
+                          </template>
+                        </v-data-table>
+                      </v-col>
+                      <v-col :cols="4">
+                        <v-card class="mx-auto" max-width="374">
+                          <v-card-text v-if="data_table_current_item === null">
+                            Hover over a row to show its test results.
+                            Click a row to keep its test results displayed.
+                          </v-card-text>
+                          <v-card-text v-else>
+                            <h3>{{ formatEdge(data_table_current_item["spec"]) }}</h3><br>
+                            <v-chip-group>
+                              <v-chip>Errors: {{ selected_result_message_summary.errors }}</v-chip>
+                              <v-chip>Warnings: {{ selected_result_message_summary.warnings }}</v-chip>
+                              <v-chip>Information: {{ selected_result_message_summary.information }}</v-chip>
+                            </v-chip-group>
+                            <ul>
+                              <li v-for="entry in Object.entries(data_table_current_item).filter(([key, _]) => key !== 'spec' && key !== '_id')"
+                                  v-bind:key="hash(entry[0])+Math.random()">
+                                <span v-if="!!entry[1].status">
+                                  <b>{{entry[0]}}: </b>{{stateIcon(entry[1].status)}}
+                                </span>
+                                <span v-if="!!entry[1].validation">
+                                  <ul>
+                                    <span v-if="!!entry[1].validation.errors.length > 0">Errors</span>
+                                    <li v-if="!!entry[1].validation.errors.length > 0" v-for="error in entry[1].validation.errors" :key="hash(error)+Math.random()">
+                                      <span v-for="data in Object.entries(error)" :key="`${entry[0]}${data[0]}${data[1]}`">
+                                        <b>{{ data[0] }}: </b> {{data[1]}}<br>
+                                      </span>
+                                    </li>
+                                    <span v-if="!!entry[1].validation.warnings.length > 0">Warnings</span>
+                                    <li v-if="!!entry[1].validation.warnings.length > 0" v-for="warning in entry[1].validation.warnings" :key="hash(warning)+Math.random()">
+                                      <span v-for="data in Object.entries(warning)" :key="`${entry[0]}${data[0]}${data[1]}`">
+                                        <b>{{ data[0] }}: </b> {{data[1]}}<br>
+                                      </span>
+                                    </li>
+                                    <span v-if="!!entry[1].validation.information.length > 0">Information</span>
+                                    <li v-if="!!entry[1].validation.information.length > 0" v-for="information in entry[1].validation.information" :key="hash(information)+Math.random()">
+                                      <span v-for="data in Object.entries(information)" :key="`${entry[0]}${data[0]}${data[1]}`">
+                                        <b>{{ data[0] }}: </b> {{data[1]}}<br>
+                                      </span>
                                     </li>
                                   </ul>
+
                                 </span>
-                              </v-tooltip>
-
-                              <span v-else-if="test === 'spec'">
-                                <v-tooltip
-                                  bottom>
-                                  <template v-slot:activator="{ on, attrs }">
-                                    <div v-bind="attrs" v-on="on">
-                                      <v-chip small outlined>{{formatCurie(result.subject_category)}}</v-chip>--<v-chip small outlined>{{formatCurie(result.predicate)}}</v-chip>-><v-chip small outlined>{{formatCurie(result.object_category)}}</v-chip>
-                                    </div>
-                                  </template>
-                                  <b>Test Edge:</b>
-                                  <span>
-                                    ({{result.subject}})--[{{result.predicate}}]->({{result.object}})<br>
-                                  </span>
-                                </v-tooltip>
-                              </span>
-
-                              <span v-else>
-                                {{ stateIcon(result.status) }}
-                              </span>
-                            </td>
-                          </tr>
-                        </template>
-                      </v-data-table>
-          </v-col>
-      <v-col :cols="3">
-        <v-card class="mx-auto" max-width="374">
-          <v-card-text v-if="data_table_selected_item === null">
-            Hover over a row to show its test results.
-            Click a row to keep its test results displayed.
-          </v-card-text>
-          <v-card-text v-else>
-            <ul v-for="entry in Object.entries(data_table_selected_item)" v-bind:key="hash(entry[0])">
-              <h3>{{ entry[0] === "spec" ? formatEdge(entry[1]) : "" }}</h3><br>
+              </li>
             </ul>
           </v-card-text>
         </v-card>
@@ -389,119 +421,126 @@ const FEATURE_RUN_TEST_BUTTON = process.env._FEATURE_RUN_TEST_BUTTON;
 const FEATURE_RUN_TEST_SELECT = process.env._FEATURE_RUN_TEST_SELECT;
 
 export default {
-    name: 'App',
-    components: {
-        TranslatorFilter,
-        TranslatorCategoriesList,
-        VcPiechart,
-        LaCartesian: Cartesian,
-        LaBar: Bar,
+  name: 'App',
+  components: {
+    TranslatorFilter,
+    TranslatorCategoriesList,
+    VcPiechart,
+    LaCartesian: Cartesian,
+    LaBar: Bar,
+  },
+  data() {
+    return {
+      MOCK,
+      FEATURE_RUN_TEST_BUTTON,
+      FEATURE_RUN_TEST_SELECT,
+      hover: false,
+      id: null,
+      loading: null,
+      headers: [],
+      cells: [],
+      token: null,
+      search: '',
+      tab: '',
+      registryResults: [],
+      kp_selections: [],
+      ara_selections: [],
+      test_runs_selections: [],
+      kps_only: true,
+      status_interval: -1,
+      status: -1,
+      outcome_filter: "all",
+      ara_filter: [],
+      kp_filter: [],
+      predicate_filter: [],
+      subject_category_filter: [],
+      object_category_filter: [],
+      index: null,
+      stats_summary: null,
+      subject_categories: [],
+      object_categories: [],
+      predicates: [],
+      categories_index: null,
+
+      data_table_selected_item: null,
+      data_table_current_item: null,
+      data_table_hold_selection: false,
+    }
+  },
+  created () {
+    // initialize application
+    if (!(this._FEATURE_RUN_TEST_BUTTON || this._FEATURE_RUN_TEST_SELECT)) {
+      axios.get(`/test_runs`).then(async response => {
+        const test_runs = response.data.test_runs;
+        this.test_runs_selections = response.data.test_runs;
+        // TODO: Feature flag
+        // if (!!test_runs && test_runs.length > 0) {
+        // } else {
+        //   await axios.post(`/run_tests`, {}).then(response => {
+        //     this.id = response.data.test_run_id;
+        //     axios.get(`/test_runs`).then(response => {
+        //       this.test_runs_selections = response.data.test_runs;
+        //     })
+        //   })
+        // }
+      })
+    }
+  },
+  mounted() {
+    this.$forceUpdate()
+  },
+  watch: {
+    id(id, oldId) {
+      this.loading = true;
+      this.status_interval = setInterval(() => axios.get(`/status?test_run_id=${id}`).then(response => {
+        this.status = response.data.percent_complete;
+        if (this.status >= 100) {
+          window.clearInterval(this.status_interval)
+        }
+      }), 3000);
     },
-    data() {
+    status(newStatus, oldStatus) {
+      if (!!this.id && newStatus >= 100 && (this.headers.length === 0 && this.cells.length === 0)) {
+        axios.get(`/index?test_run_id=${this.id}`).then(response => {
+          this.index = {
+            "KP": {},
+            "ARA": {},
+            ...response.data.summary
+          }
+        })
+        axios.get(`/summary?test_run_id=${this.id}`).then(response => {
+          // override a summary that is by default empty, but accessible
+          // necessary because the summary API could return only KPs or only ARAs, and return only those
+          // to avoid conditionals we make the object total
+          this.stats_summary = {
+            "KP": {},
+            "ARA": {},
+            ...response.data.summary
+          }
+          // forcing the table data to be synchronous with receiving summary data, since making it reactive lead to problems
+          this.makeTableData(this.id, this.stats_summary)
+        })
+        this.loading = false;
+        this.status = -1;
+      }
+    },
+    index(newIndex, oldIndex) {
+      if (newIndex !== null) {
+        this.getAllCategories(this.id, newIndex);
+      };
+    }
+  },
+  computed: {
+    selected_result_message_summary() {
+      if (!!!this.data_table_selected_item) {
         return {
-            MOCK,
-            FEATURE_RUN_TEST_BUTTON,
-            FEATURE_RUN_TEST_SELECT,
-            hover: false,
-            id: null,
-            loading: null,
-            headers: [],
-            cells: [],
-            edges: [],
-            tests: [],
-            token: null,
-            search: '',
-            tab: '',
-            registryResults: [],
-            kp_selections: [],
-            ara_selections: [],
-            test_runs_selections: [],
-            kps_only: true,
-            status_interval: -1,
-            status: -1,
-            outcome_filter: "all",
-            ara_filter: [],
-            kp_filter: [],
-            predicate_filter: [],
-            subject_category_filter: [],
-            object_category_filter: [],
-            index: null,
-            stats_summary: null,
-            subject_categories: [],
-            object_categories: [],
-            predicates: [],
-            categories_index: null,
+          "information": 0,
+          "errors": 0,
+          "warnings": 0,
+        }
+      }
+      return this.countResultMessages(this.data_table_selected_item)
 
-            data_table_selected_item: null,
-            // data_table_held_selection: null,
-            data_table_hold_selection: false,
-
-        }
-    },
-    created () {
-        // initialize application
-        if (!(this._FEATURE_RUN_TEST_BUTTON || this._FEATURE_RUN_TEST_SELECT)) {
-            axios.get(`/test_runs`).then(async response => {
-                const test_runs = response.data.test_runs;
-                this.test_runs_selections = response.data.test_runs;
-                // TODO: Feature flag
-                // if (!!test_runs && test_runs.length > 0) {
-                // } else {
-                //   await axios.post(`/run_tests`, {}).then(response => {
-                //     this.id = response.data.test_run_id;
-                //     axios.get(`/test_runs`).then(response => {
-                //       this.test_runs_selections = response.data.test_runs;
-                //     })
-                //   })
-                // }
-            })
-        }
-    },
-    mounted() {
-        this.$forceUpdate()
-    },
-    watch: {
-        id(id, oldId) {
-            this.loading = true;
-            this.status_interval = setInterval(() => axios.get(`/status?test_run_id=${id}`).then(response => {
-                this.status = response.data.percent_complete;
-                if (this.status >= 100) {
-                    window.clearInterval(this.status_interval)
-                }
-            }), 3000);
-        },
-        status(newStatus, oldStatus) {
-            if (!!this.id && newStatus >= 100 && (this.headers.length === 0 && this.cells.length === 0)) {
-                axios.get(`/index?test_run_id=${this.id}`).then(response => {
-                    this.index = {
-                        "KP": {},
-                        "ARA": {},
-                        ...response.data.summary
-                    }
-                })
-                axios.get(`/summary?test_run_id=${this.id}`).then(response => {
-                    // override a summary that is by default empty, but accessible
-                    // necessary because the summary API could return only KPs or only ARAs, and return only those
-                    // to avoid conditionals we make the object total
-                    this.stats_summary = {
-                        "KP": {},
-                        "ARA": {},
-                        ...response.data.summary
-                    }
-                })
-                this.loading = false;
-                this.status = -1;
-            }
-        },
-        index(newIndex, oldIndex) {
-            if (newIndex !== null) {
-                this.getAllCategories(this.id, newIndex);
-            };
-        }
-    },
-    computed: {
-        tableData() {
-            return this.makeTableData(this.id, this.stats_summary)
         },
         // TODO: merge these range computations into one scope
         trapi_range() {
@@ -536,7 +575,7 @@ export default {
                 const combined_results = {
                     ...this.stats_summary.KP,
                     // TODO reduce across keys in 'kp'; split the denormalization below between KP and ARA then concat
-                    //...this.stats_summary.ARA,
+                    ...this.stats_summary.ARA,
                 };
                 return Object.keys(combined_results)
                     .flatMap(provider_key => this.denormalize_provider_summary(combined_results[provider_key], provider_key));
@@ -585,7 +624,6 @@ export default {
                       : result;
                 return denormalized_result;
             }
-            console.log("cells", this.cells)
             const _cells = this.cells.map(el => {
                 const cell = Object.entries(JSON.parse(JSON.stringify(el)))
                 const _el = Object.fromEntries(
@@ -598,7 +636,6 @@ export default {
                 )
                 return _el;
             })
-            console.log("_cells", _cells)
             const __cells = _cells.map(el => ({
                 ...Object.fromEntries(this.headers.map(header => [header, {
                     status: null,
@@ -606,8 +643,8 @@ export default {
                 }])),
                 ...el,
             }))
-            console.log("__cells", __cells)
-            return __cells
+
+            const denormalized_cells = __cells
             // TODO: combine into one loop
                 .filter(el => !isString(el))
                 .filter(cell => Object.entries(cell).some(entry => this.outcome_filter !== "all" ? entry[1].status === this.outcome_filter : true))
@@ -619,7 +656,16 @@ export default {
                 .filter(el => this.ara_filter.length > 0 || this.kp_filter.length > 0 ?
                         _.every(this.ara_filter.concat(this.kp_filter), provider_name => _.includes(el._id, provider_name)) || _.some(this.kp_filter, kp => _.includes(el._id, kp))
                         : true);
-        }
+            return this.kp_selections.length > 0 || this.ara_selections.length > 0 ?
+                denormalized_cells
+                .filter(cell => this.kp_selections.some(el =>
+                    (el.includes(cell._id)
+                     || this.kps_only ? el.includes(cell._id.split('|')[0]) || el.includes(cell._id.split('|')[1]) : false)
+                        || this.ara_selections.some(el => el.includes(cell._id.split('|')[0]) || el.includes(cell._id.split('|')[1]))))
+                : denormalized_cells
+
+        },
+
     },
     methods: {
         async triggerReloadTestRunSelections() {
@@ -739,56 +785,54 @@ export default {
         flatten_ara_keys(ARAIndex, delimiter='_') {
             return Object.entries(ARAIndex).flatMap(([ara, entry]) => Object.values(entry).map(kp => ara+delimiter+kp))
         },
-        async makeTableData(id) {
-            console.log("calle makeTableData", id)
-            // TODO: refactor to use index
-            const report = Promise.resolve(this.stats_summary).then(response => {
-                console.log("report", response)
+        makeTableData(id, stats_summary) {
+            console.log("call makeTableData", id)
+            const report = Promise.resolve(stats_summary).then(response => {
                 if (response !== null) {
-                      const { KP={}, ARA={} } = response;
-                      const kp_details = Object.entries(KP).map(([resource_id, value]) => {
-                          return axios.get(`/resource?test_run_id=${id}&kp_id=${resource_id}`).then(el => {
-                              return {
-                                  resource_id,  // inject the resource_id into the response
-                                  ...el,
-                              }
-                          })
-                      });
-                      const ara_details = Object.entries(ARA).map(([resource_id, value]) => {
-                          return Object.keys(value.kps)
-                              .map(key => axios.get(`/resource?test_run_id=${id}&ara_id=${resource_id}&kp_id=${key}`)
-                                   .then(el => {
-                                       return {
-                                           resource_id: `${resource_id}>${key}`,
-                                           ...el,
-                                       }
-                                   }))
-                      });
-                      return Promise.all(
-                          [...kp_details, ...ara_details.flatMap(i=>i)]
-                              .map(p => p
-                                   .then(value => ({
-                                       status: "fulfilled",
-                                       value
-                                   }))
-                                   .then(response => {
-                                       console.log("response")
-                                       if (response.status === "fulfilled") {
-                                           const  { headers, cells, edges, tests } = _makeTableData(response.value.resource_id, response.value.data.summary);
-                                           console.log("making table data", { headers, cells, edges, tests })
-                                           this.headers = Array.from(new Set(this.headers.concat(headers)));
-                                           this.cells = this.cells.concat(cells);
-                                       }
-                                   })
-                                   .catch(reason => ({
-                                       status: "rejected",
-                                       reason
-                                   })))
-                      )
-                    } else {
-                        return null;
-                    }
-                  })
+                    const { KP={}, ARA={} } = response;
+                    const kp_details = Object.entries(KP).map(([resource_id, value]) => {
+                        return axios.get(`/resource?test_run_id=${id}&kp_id=${resource_id}`).then(el => {
+                            return {
+                                resource_id,  // inject the resource_id into the response
+                                ...el,
+                            }
+                        })
+                    });
+                    const ara_details = Object.entries(ARA).map(([resource_id, value]) => {
+                        return Object.keys(value.kps)
+                            .map(key => axios.get(`/resource?test_run_id=${id}&ara_id=${resource_id}&kp_id=${key}`)
+                                 .then(el => {
+                                     return {
+                                         resource_id: `${resource_id}>${key}`,
+                                         ...el,
+                                     }
+                                 }))
+                    });
+                    return Promise.all(
+                        [...kp_details, ...ara_details.flatMap(i=>i)]
+                            .map(p => p
+                                 .then(value => ({
+                                     status: "fulfilled",
+                                     value
+                                 }))
+                                 .then(response => {
+                                     console.log("response")
+                                     if (response.status === "fulfilled") {
+                                         const  { headers, cells, edges, tests } = _makeTableData(response.value.resource_id, response.value.data.summary);
+                                         console.log("making table data", { headers, cells, edges, tests })
+                                         this.headers = Array.from(new Set(this.headers.concat(headers)));
+                                         this.cells = _.cloneDeep(this.cells).concat(cells);
+                                     }
+                                 })
+                                 .catch(reason => ({
+                                     status: "rejected",
+                                     reason
+                                 })))
+                    )
+                } else {
+                    return null;
+                }
+            })
                   .then(responses => {
                       this.loading = false;
                       this.status = -1;
@@ -801,12 +845,9 @@ export default {
         isObject,
         countBy: _.countBy,
 
-        // custom methods for application
-        tap: a => { console.log("hello", a); return a },
+        // custom methods for application testing
+        tap: el => { console.log("hello", el, VuePursue(el)); return el },
 
-        // test: get a new test token and subscribe to the results
-        // must also change the "loading" state for the table
-        test: () => {},
         omit: (...keys) => object => omit(object, keys),
         pick: (...keys) => object => pick(object, keys),
         notEmpty: (list) => list.filter(el => el !== ""),
@@ -850,10 +891,34 @@ export default {
             return `(${this.formatCurie(result.subject_category)})--[${this.formatCurie(result.predicate)}]->(${this.formatCurie(result.object_category)})`
         },
         formatCurie (curie) {
-            console.log("formatCurie", curie)
             return curie.split(':')[1];
+        },
+        countResultMessages(edge_result) {
+            return Object.entries(edge_result).reduce((acc, item) => {
+                if (!!item[1] && !!item[1].validation) {
+                    const { validation } = item[1];
+                    const { information, errors, warnings } = validation;
+                    acc.information += information.length;
+                    acc.errors += errors.length;
+                    acc.warnings += warnings.length;
+                }
+                return acc
+            }, {
+                information: 0,
+                errors: 0,
+                warnings: 0,
+            })
+        },
+        countResultMessagesByCode(resource) {
+            return Object.values(resource.summary.test_edges)
+                .map(e => Object.values(e.results))
+                .flatMap(i=>i)
+                .flatMap(i=>Object.values(i.validation))
+                .flatMap(i=>i)
+                .reduce((a,i)=>{
+                    if (!!a[i.code]) { a[i.code] += 1 } else { a[i.code] = 1 }
+                }, {})
         }
-
     }
 }
 
@@ -878,7 +943,6 @@ function _searchMatches(value, search, item) {
         }
     })
 }
-
 
 function _makeTableData(resource_id, report) {
     console.log("_makeTableData", resource_id, report)
