@@ -1,148 +1,148 @@
 <template>
-  <div>
-    <v-app-bar class="app-bar" dense>
-      <v-app-bar-title>
-        TRAPI Resource Validator
-      </v-app-bar-title>
-    </v-app-bar>
+<div>
+  <v-app-bar class="app-bar" dense>
+    <v-app-bar-title>
+      TRAPI Resource Validator
+    </v-app-bar-title>
+  </v-app-bar>
 
-    <v-app>
+  <v-app>
 
-      <v-container id="page-header">
-        <v-row no-gutter>
-          <span v-if="FEATURE_RUN_TEST_BUTTON">
-            <v-btn :class="['ml-36']"
-                   @click="triggerTestRun">Trigger new test run</v-btn>
-            &nbsp;&nbsp;</span>
-          <span v-if="FEATURE_RUN_TEST_BUTTON && FEATURE_RUN_TEST_SELECT" style="{ padding-top: 1px; }">OR
-            <span>&nbsp;&nbsp;</span></span>
-          <v-select v-model="id"
-                    :label="loading === null ? 'Choose a previous test run' : ''"
-                    :items="test_runs_selections"
-                    @click="triggerReloadTestRunSelections"
-                    dense>
-          </v-select>
+    <v-container id="page-header">
+      <v-row no-gutter>
+        <span v-if="FEATURE_RUN_TEST_BUTTON">
+          <v-btn :class="['ml-36']"
+                 @click="triggerTestRun">Trigger new test run</v-btn>
+          &nbsp;&nbsp;</span>
+        <span v-if="FEATURE_RUN_TEST_BUTTON && FEATURE_RUN_TEST_SELECT" style="{ padding-top: 1px; }">OR
+          <span>&nbsp;&nbsp;</span></span>
+        <v-select v-model="id"
+                  :label="loading === null ? 'Choose a previous test run' : ''"
+                  :items="test_runs_selections"
+                  @click="triggerReloadTestRunSelections"
+                  dense>
+        </v-select>
 
-        </v-row>
-      </v-container>
+      </v-row>
+    </v-container>
 
-      <v-container id="page-content">
+    <v-container id="page-content">
 
-        <h1>{{ id }}</h1>
-        <div class="subheading" v-if="loading === true">This may take a minute.</div>
-        <v-progress-linear
-          v-if="loading"
-          v-model="status"
-          :buffer-value="100"
-          :indeterminate="status < 1">
-        </v-progress-linear>
+      <h1>{{ id }}</h1>
+      <div class="subheading" v-if="loading === true">This may take a minute.</div>
+      <v-progress-linear
+        v-if="loading"
+        v-model="status"
+        :buffer-value="100"
+        :indeterminate="status < 1">
+      </v-progress-linear>
 
-        <span v-if="id !== null && loading === false" :key="`${id}_versions`">
-          <span class="subheading"><strong>BioLink:&nbsp;</strong></span><span>{{biolink_range}}</span>&nbsp;
-          <span class="subheading"><strong>TRAPI:&nbsp;</strong></span><span>{{trapi_range}}</span>&nbsp;
-        </span>
+      <span v-if="id !== null && loading === false" :key="`${id}_versions`">
+        <span class="subheading"><strong>BioLink:&nbsp;</strong></span><span>{{biolink_range}}</span>&nbsp;
+        <span class="subheading"><strong>TRAPI:&nbsp;</strong></span><span>{{trapi_range}}</span>&nbsp;
+      </span>
 
-        <v-tabs v-if="!(loading === null)" v-model="tab">
-          <v-tab v-for="item in ['Overview', 'Details']" v-bind:key="`${item}_tab`">
-            {{ item }}
-          </v-tab>
-        </v-tabs>
+      <v-tabs v-if="!(loading === null)" v-model="tab">
+        <v-tab v-for="item in ['Overview', 'Details']" v-bind:key="`${item}_tab`">
+          {{ item }}
+        </v-tab>
+      </v-tabs>
 
-        <v-tabs-items v-model="tab" >
-          <v-tab-item
-            v-for="item in ['Overview','Details']"
-            v-bind:key="`${item}_tab_item`"
-            >
-            <div v-if="tab === 0" >
-              <v-row no-gutter>
-                <TranslatorFilter :index="index"
-                                  @kp_filter="$event => { kp_filter = $event }"
-                                  @ara_filter="$event => { ara_filter = $event }"
-                                  @predicate_filter="$event => { predicate_filter = $event }"
-                                  @subject_category_filter="$event => { subject_category_filter = $event }"
-                                  @object_category_filter="$event => { object_category_filter = $event }"
-                                  ></TranslatorFilter>
-              </v-row>
+      <v-tabs-items v-model="tab" >
+        <v-tab-item
+          v-for="item in ['Overview','Details']"
+          v-bind:key="`${item}_tab_item`"
+          >
+          <div v-if="tab === 0" >
+            <v-row no-gutter>
+              <TranslatorFilter :index="index"
+                                @kp_filter="$event => { kp_filter = $event }"
+                                @ara_filter="$event => { ara_filter = $event }"
+                                @predicate_filter="$event => { predicate_filter = $event }"
+                                @subject_category_filter="$event => { subject_category_filter = $event }"
+                                @object_category_filter="$event => { object_category_filter = $event }"
+                                ></TranslatorFilter>
+            </v-row>
 
-              <v-container v-bind:key="`${id}_overview`" id="page-overview" v-if="loading !== null">
+            <v-container v-bind:key="`${id}_overview`" id="page-overview" v-if="loading !== null">
 
-                <v-skeleton-loader
-                  v-if="loading === true"
-                  v-bind="attrs"
-                  type="actions,article,card,chip"
-                  ></v-skeleton-loader>
+              <v-skeleton-loader
+                v-if="loading === true"
+                v-bind="attrs"
+                type="actions,article,card,chip"
+                ></v-skeleton-loader>
 
-                <div v-else-if="stats_summary !== null && loading === false">
-                  <h2>Test Results</h2>
-                  <h3>All providers</h3><br>
+              <div v-else-if="stats_summary !== null && loading === false">
+                <h2>Test Results</h2>
+                <h3>All providers</h3><br>
 
-                  <v-row no-gutter>
-                    <v-col>
-                      <vc-piechart
-                        :data="reduced_stats_summary"/>
-                    </v-col>
-                    <v-col :cols="9">
-                      <SizeProvider>
-                        <div class="wrapper" slot-scope="{ width, height }" :style="{ height: height + 'px' }">
-                          <SizeObserver>
-                            <strong style="{ marginBottom: 5px }"># edges vs tests</strong>
-                            <la-cartesian narrow stacked
-                                          :bound="[0]"
-                                          :data="reduce_provider_by_group(combine_provider_summaries(stats_summary))"
-                                          :colors="[status_color('passed'), status_color('failed'), status_color('skipped')]"
-                                          :width="width">
-                              <la-bar label="passed" prop="passed" :color="status_color('passed')"></la-bar>
-                              <la-bar label="failed" prop="failed" :color="status_color('failed')"></la-bar>
-                              <la-bar label="skipped" prop="skipped" :color="status_color('skipped')"></la-bar>
-                              <la-x-axis class="x-axis" :font-size="10" prop="name"></la-x-axis>
-                              <la-y-axis></la-y-axis>
-                              <la-tooltip></la-tooltip>
-                            </la-cartesian>
-                          </SizeObserver>
-                        </div>
-                      </SizeProvider>
-                    </v-col>
+                <v-row no-gutter>
+                  <v-col>
+                    <vc-piechart
+                      :data="reduced_stats_summary"/>
+                  </v-col>
+                  <v-col :cols="9">
+                    <SizeProvider>
+                      <div class="wrapper" slot-scope="{ width, height }" :style="{ height: height + 'px' }">
+                        <SizeObserver>
+                          <strong style="{ marginBottom: 5px }"># edges vs tests</strong>
+                          <la-cartesian narrow stacked
+                                        :bound="[0]"
+                                        :data="reduce_provider_by_group(combine_provider_summaries(stats_summary))"
+                                        :colors="[status_color('passed'), status_color('failed'), status_color('skipped')]"
+                                        :width="width">
+                            <la-bar label="passed" prop="passed" :color="status_color('passed')"></la-bar>
+                            <la-bar label="failed" prop="failed" :color="status_color('failed')"></la-bar>
+                            <la-bar label="skipped" prop="skipped" :color="status_color('skipped')"></la-bar>
+                            <la-x-axis class="x-axis" :font-size="10" prop="name"></la-x-axis>
+                            <la-y-axis></la-y-axis>
+                            <la-tooltip></la-tooltip>
+                          </la-cartesian>
+                        </SizeObserver>
+                      </div>
+                    </SizeProvider>
+                  </v-col>
 
-                  </v-row>
+                </v-row>
 
-                  <TranslatorCategoriesList
-                    v-if="categories_index !== null && categories_index !== {}"
-                    :resource="'all'"
-                    :subject_categories="subject_categories"
-                    :object_categories="object_categories"
-                    :predicates="predicates"
-                    ></TranslatorCategoriesList>
+                <TranslatorCategoriesList
+                  v-if="categories_index !== null && categories_index !== {}"
+                  :resource="'all'"
+                  :subject_categories="subject_categories"
+                  :object_categories="object_categories"
+                  :predicates="predicates"
+                  ></TranslatorCategoriesList>
 
-                  <span v-if="Object.keys(stats_summary['ARA']).length > 0 && !(kp_filter.length > 0 && ara_filter.length === 0)">
+                <span v-if="Object.keys(stats_summary['ARA']).length > 0 && !(kp_filter.length > 0 && ara_filter.length === 0)">
 
-                    <br><h2>ARAs</h2>
-                    <div v-for="ara in Object.keys(stats_summary['ARA']).filter(ara => ara_filter.length > 0 ? ara_filter.includes(ara) : true)" v-bind:key="ara">
-                      <div v-for="kp in Object.keys(stats_summary['ARA'][ara].kps).filter(kp => kp_filter.length > 0 ? kp_filter.includes(kp) : true)" v-bind:key="`${ara}_${kp}`">
+                  <br><h2>ARAs</h2>
+                  <div v-for="ara in Object.keys(stats_summary['ARA']).filter(ara => ara_filter.length > 0 ? ara_filter.includes(ara) : true)" v-bind:key="ara">
+                    <div v-for="kp in Object.keys(stats_summary['ARA'][ara].kps).filter(kp => kp_filter.length > 0 ? kp_filter.includes(kp) : true)" v-bind:key="`${ara}_${kp}`">
 
-                        <v-chip-group>
-                          <h3>{{ ara }}: {{ kp }}</h3>&nbsp;
-                          <v-chip small><strong>BioLink:&nbsp;</strong> {{ stats_summary.ARA[ara].kps[kp].biolink_version }}</v-chip>
-                          <v-chip small><strong>TRAPI:&nbsp;</strong> {{ stats_summary.ARA[ara].kps[kp].trapi_version }}</v-chip>
-                        </v-chip-group><br>
+                      <v-chip-group>
+                        <h3>{{ ara }}: {{ kp }}</h3>&nbsp;
+                        <v-chip small><strong>BioLink:&nbsp;</strong> {{ stats_summary.ARA[ara].kps[kp].biolink_version }}</v-chip>
+                        <v-chip small><strong>TRAPI:&nbsp;</strong> {{ stats_summary.ARA[ara].kps[kp].trapi_version }}</v-chip>
+                      </v-chip-group><br>
 
-                        <v-row no-gutter>
-                          <v-col>
-                            <vc-piechart
-                              :data="reduce_provider_summary(denormalize_provider_summary(stats_summary['ARA'][ara].kps[kp]))"/>
-                          </v-col>
-                          <v-col :cols="9">
-                            <SizeProvider>
-                              <div class="wrapper" slot-scope="{ width, height }" :style="{ height: height + 'px' }">
-                                <SizeObserver>
-                                  <strong style="{ marginBottom: 5px }"># edges vs tests</strong>
-                                  <la-cartesian narrow stacked
-                                                :bound="[0]"
-                                                :data="Object.entries(stats_summary['ARA'][ara].kps[kp].results).map(el => ({ 'name': el[0], ...el[1]}))"
-                                                :colors="[status_color('passed'), status_color('failed'), status_color('skipped')]"
-                                                :width="820">
-                                    <la-bar label="passed" prop="passed" :color="status_color('passed')"></la-bar>
-                                    <la-bar label="failed" prop="failed" :color="status_color('failed')"></la-bar>
-                                    <la-bar label="skipped" prop="skipped" :color="status_color('skipped')"></la-bar>
+                      <v-row no-gutter>
+                        <v-col>
+                          <vc-piechart
+                            :data="reduce_provider_summary(denormalize_provider_summary(stats_summary['ARA'][ara].kps[kp]))"/>
+                        </v-col>
+                        <v-col :cols="9">
+                          <SizeProvider>
+                            <div class="wrapper" slot-scope="{ width, height }" :style="{ height: height + 'px' }">
+                              <SizeObserver>
+                                <strong style="{ marginBottom: 5px }"># edges vs tests</strong>
+                                <la-cartesian narrow stacked
+                                              :bound="[0]"
+                                              :data="Object.entries(stats_summary['ARA'][ara].kps[kp].results).map(el => ({ 'name': el[0], ...el[1]}))"
+                                              :colors="[status_color('passed'), status_color('failed'), status_color('skipped')]"
+                                              :width="820">
+                                  <la-bar label="passed" prop="passed" :color="status_color('passed')"></la-bar>
+                                  <la-bar label="failed" prop="failed" :color="status_color('failed')"></la-bar>
+                                  <la-bar label="skipped" prop="skipped" :color="status_color('skipped')"></la-bar>
                                   <la-x-axis class="x-axis" :font-size="10" prop="name"></la-x-axis>
                                   <la-y-axis></la-y-axis>
                                   <la-tooltip></la-tooltip>
@@ -186,13 +186,13 @@
                                   <la-bar label="warning" prop="warning" :color="status_color('skipped')"></la-bar>
                                   <la-bar label="info" prop="info" :color="status_color('passed')"></la-bar>
                                   <la-bar label="error" prop="error" :color="status_color('failed')"></la-bar>
-                            <la-x-axis class="x-axis" :font-size="10" prop="name"></la-x-axis>
-                            <la-y-axis></la-y-axis>
-                            <la-tooltip></la-tooltip>
-                          </la-cartesian>
-                          </SizeObserver>
-                          </div>
-                        </SizeProvider>
+                                  <la-x-axis class="x-axis" :font-size="10" prop="name"></la-x-axis>
+                                  <la-y-axis></la-y-axis>
+                                  <la-tooltip></la-tooltip>
+                                </la-cartesian>
+                              </SizeObserver>
+                            </div>
+                          </SizeProvider>
                         </v-col>
                       </v-row>
 
@@ -226,10 +226,10 @@
                           :data="reduce_provider_summary(denormalize_provider_summary(stats_summary['KP'][kp]))"/>
                       </v-col>
                       <v-col :cols="9">
-                         <SizeProvider>
+                        <SizeProvider>
                           <div class="wrapper" slot-scope="{ width, height }" :style="{ height: height + 'px' }">
                             <SizeObserver>
-                             <strong style="{ marginBottom: 5px }"># edges vs tests</strong>
+                              <strong style="{ marginBottom: 5px }"># edges vs tests</strong>
                               <la-cartesian narrow stacked
                                             :bound="[0]"
                                             :data="Object.entries(stats_summary['KP'][kp].results).map(el => ({ 'name': el[0], ...el[1]}))"
@@ -281,80 +281,80 @@
                                 <la-bar label="warning" prop="warning" :color="status_color('skipped')"></la-bar>
                                 <la-bar label="info" prop="info" :color="status_color('passed')"></la-bar>
                                 <la-bar label="error" prop="error" :color="status_color('failed')"></la-bar>
-                          <la-x-axis class="x-axis" :font-size="10" prop="name"></la-x-axis>
-                            <la-y-axis></la-y-axis>
-                            <la-tooltip></la-tooltip>
-                          </la-cartesian>
-                        </SizeObserver>
+                                <la-x-axis class="x-axis" :font-size="10" prop="name"></la-x-axis>
+                                <la-y-axis></la-y-axis>
+                                <la-tooltip></la-tooltip>
+                              </la-cartesian>
+                            </SizeObserver>
                           </div>
                         </SizeProvider>
-                     </v-col>
-                  </v-row>
+                      </v-col>
+                    </v-row>
 
-                  <TranslatorCategoriesList
-                    v-if="categories_index !== null && categories_index !== {} && !!categories_index[kp]"
-                    :resource="kp"
-                    :subject_categories="categories_index[kp].subject_category"
-                    :object_categories="categories_index[kp].object_category"
-                    :predicates="categories_index[kp].predicate"
-                    ></TranslatorCategoriesList>
+                    <TranslatorCategoriesList
+                      v-if="categories_index !== null && categories_index !== {} && !!categories_index[kp]"
+                      :resource="kp"
+                      :subject_categories="categories_index[kp].subject_category"
+                      :object_categories="categories_index[kp].object_category"
+                      :predicates="categories_index[kp].predicate"
+                      ></TranslatorCategoriesList>
 
-                </div>
-              </span>
-            </div>
-          </v-container>
-        </div>
+                  </div>
+                </span>
+              </div>
+            </v-container>
+          </div>
 
-        <div v-if="tab === 1">
-          <v-container v-bind:key="`${id}_details`" id="page-details" v-if="loading !== null">
+          <div v-if="tab === 1">
+            <v-container v-bind:key="`${id}_details`" id="page-details" v-if="loading !== null">
 
-            <v-row v-if="loading !== null" no-gutter>
+              <v-row v-if="loading !== null" no-gutter>
 
-              <v-col v-if="loading === true">
-                <v-skeleton-loader
-                  v-bind="attrs"
-                  type="table"
-                  ></v-skeleton-loader>
-              </v-col>
+                <v-col v-if="loading === true">
+                  <v-skeleton-loader
+                    v-bind="attrs"
+                    type="table"
+                    ></v-skeleton-loader>
+                </v-col>
 
-              <v-col v-else-if="loading === false">
-
-                <v-row no-gutter>
-
-                  <TranslatorFilter :index="index"
-                                    @kp_filter="$event => { kp_filter = $event }"
-                                    @ara_filter="$event => { ara_filter = $event }"
-                                    @predicate_filter="$event => { predicate_filter = $event }"
-                                    @subject_category_filter="$event => { subject_category_filter = $event }"
-                                    @object_category_filter="$event => { object_category_filter = $event }"
-                                    ></TranslatorFilter>
-
-                  <v-col lg>
-                    <v-radio-group
-                      v-model="outcome_filter"
-                      row>
-                      <v-radio
-                        label="All"
-                        value="all"
-                        ></v-radio>
-                      <v-radio
-                        label="Pass"
-                        value="passed"
-                        ></v-radio>
-                      <v-radio
-                        label="Fail"
-                        value="failed"
-                        ></v-radio>
-                      <v-radio
-                        label="Skip"
-                        value="skipped"
-                        ></v-radio>
-                    </v-radio-group>
-                  </v-col>
-                </v-row>
+                <v-col v-else-if="loading === false">
 
                   <v-row no-gutter>
-                    <v-col :cols="8">
+
+                    <TranslatorFilter :index="index"
+                                      @kp_filter="$event => { kp_filter = $event }"
+                                      @ara_filter="$event => { ara_filter = $event }"
+                                      @predicate_filter="$event => { predicate_filter = $event }"
+                                      @subject_category_filter="$event => { subject_category_filter = $event }"
+                                      @object_category_filter="$event => { object_category_filter = $event }"
+                                      ></TranslatorFilter>
+
+                    <v-col lg>
+                      <v-radio-group
+                        v-model="outcome_filter"
+                        row>
+                        <v-radio
+                          label="All"
+                          value="all"
+                          ></v-radio>
+                        <v-radio
+                          label="Pass"
+                          value="passed"
+                          ></v-radio>
+                        <v-radio
+                          label="Fail"
+                          value="failed"
+                          ></v-radio>
+                        <v-radio
+                          label="Skip"
+                          value="skipped"
+                          ></v-radio>
+                      </v-radio-group>
+                    </v-col>
+                  </v-row>
+
+                  <v-row no-gutter>
+                    <v-col>
                       <v-data-table
                         :headers="_headers"
                         :items="denormalized_cells"
@@ -377,35 +377,26 @@
                                            data_table_current_item = data_table_selected_item;
                                            }"
                               @click="() => {
-                                      data_table_hold_selection = true;
                                       data_table_selected_item = data_table_hold_selection ? data_table_selected_item : item;
                                       data_table_current_item = data_table_selected_item;
                                       }">
-
-                            <td v-for="[test, result] in Object.entries(omit('_id')(item))"
+                            <td v-for="[test, result] in Object.entries(omit('_id')({
+                                       ...item,
+                                       ...countResultMessages(item)
+                                       }))"
                                 v-bind:key="`${test}_${result}`"
                                 :style="cellStyle(result.status)">
 
                               <a v-if="!!result.status">
                                 {{ stateIcon(result.status) }}
+                                <!-- {{ -->
+                                <!-- Object.entries(result.validation) -->
+                                <!-- .reduce((a, i) => { -->
+                                <!-- if (!!a[i[0]]) { a[i[0]] += i[1].length } else { a[i[0]] = i[1].length } -->
+                                <!--   return a -->
+                                <!-- }, {}) -->
+                                <!-- }} -->
                               </a>
-                              <!-- <v-tooltip -->
-                              <!--   :max-width="480" -->
-                              <!--   bottom> -->
-                                <!--   <template v-slot:activator="{ on, attrs }"> -->
-                                  <!--     <div v-bind="attrs" v-on="on"> -->
-
-                                    <!--     </div> -->
-                                  <!--   </template> -->
-                                <!--   <span> -->
-                                  <!--     {{test}} -->
-                                  <!--     <ul v-if="!!result.messages"> -->
-                                    <!--       <li v-for="message in result.messages" v-bind:key="message"> -->
-                                      <!--         {{ message }} -->
-                                      <!--       </li> -->
-                                    <!--     </ul> -->
-                                  <!--   </span> -->
-                                <!-- </v-tooltip> -->
 
                               <span v-else-if="test === 'spec'">
                                 <v-tooltip
@@ -423,14 +414,14 @@
                               </span>
 
                               <span v-else>
-                                {{ stateIcon(result.status) }}
+                               {{ result }}
                               </span>
                             </td>
                           </tr>
                         </template>
                       </v-data-table>
                     </v-col>
-                    <v-col :cols="4" hidden="da">
+                    <v-col :hidden="data_table_current_item === null">
                       <v-card class="mx-auto" max-width="374">
                         <v-card-text v-if="data_table_current_item === null">
                           Hover over a row to show its test results.
@@ -444,7 +435,7 @@
                             <v-chip>Information: {{ selected_result_message_summary.information }}</v-chip>
                           </v-chip-group>
                           <div v-for="entry in Object.entries(data_table_current_item).filter(([key, _]) => key !== 'spec' && key !== '_id')"
-                                v-bind:key="hash(entry[0])+Math.random()">
+                               v-bind:key="hash(entry[0])+Math.random()">
                             <span v-if="!!entry[1].status">
                               <b>{{entry[0]}}: </b>{{stateIcon(entry[1].status)}}
                             </span>
@@ -453,19 +444,34 @@
                                 <span v-if="!!entry[1].validation.errors.length > 0">Errors</span>
                                 <li v-if="!!entry[1].validation.errors.length > 0" v-for="error in entry[1].validation.errors" :key="hash(error)+Math.random()">
                                   <span v-for="data in Object.entries(error)" :key="`${entry[0]}${data[0]}${data[1]}`">
-                                    <b>{{ data[0] }}: </b> {{data[1]}}<br>
+                                    <span v-if="data[0] === 'code'">
+                                      <b>{{ data[0] }}: </b> {{parseResultCode(data[1]).subcode}}<br>
+                                    </span>
+                                    <span v-else>
+                                      <b>{{ data[0] }}: </b> {{data[1]}}<br>
+                                    </span>
                                   </span>
                                 </li>
                                 <span v-if="!!entry[1].validation.warnings.length > 0">Warnings</span>
                                 <li v-if="!!entry[1].validation.warnings.length > 0" v-for="warning in entry[1].validation.warnings" :key="hash(warning)+Math.random()">
                                   <span v-for="data in Object.entries(warning)" :key="`${entry[0]}${data[0]}${data[1]}`">
-                                    <b>{{ data[0] }}: </b> {{data[1]}}<br>
+                                    <span v-if="data[0] === 'code'">
+                                      <b>{{ data[0] }}: </b> {{parseResultCode(data[1]).subcode}}<br>
+                                    </span>
+                                    <span v-else>
+                                      <b>{{ data[0] }}: </b> {{data[1]}}<br>
+                                    </span>
                                   </span>
                                 </li>
                                 <span v-if="!!entry[1].validation.information.length > 0">Information</span>
                                 <li v-if="!!entry[1].validation.information.length > 0" v-for="information in entry[1].validation.information" :key="hash(information)+Math.random()">
                                   <span v-for="data in Object.entries(information)" :key="`${entry[0]}${data[0]}${data[1]}`">
-                                    <b>{{ data[0] }}: </b> {{data[1]}}<br>
+                                    <span v-if="data[0] === 'code'">
+                                      <b>{{ data[0] }}: </b> {{parseResultCode(data[1]).subcode}}<br>
+                                    </span>
+                                    <span v-else>
+                                      <b>{{ data[0] }}: </b> {{data[1]}}<br>
+                                    </span>
                                   </span>
                                 </li>
                               </ul>
@@ -710,7 +716,7 @@ export default {
       })
     },
     _headers() {
-      return this.headers.map(el => ({
+      return this.headers.concat(["information", "errors", "warnings"]).map(el => ({
         text: el,
         value: el,
         filterable: true,
@@ -757,8 +763,11 @@ export default {
         }])),
         ...el,
       }))
-
-      const denormalized_cells = __cells
+      const ___cells = __cells.map(cell => ({
+        ...cell,
+        ...this.countResultMessages(cell)
+      }))
+      const denormalized_cells = ___cells
       // TODO: combine into one loop
             .filter(el => !isString(el))
             .filter(cell => Object.entries(cell).some(entry => this.outcome_filter !== "all" ? entry[1].status === this.outcome_filter : true))
@@ -1094,9 +1103,7 @@ function _searchMatches(value, search, item) {
 }
 
 function _makeTableData(resource_id, report) {
-  console.log("_makeTableData", resource_id, report)
   const test_results = jp.nodes(report.test_edges, "$.*").filter(el => !el.path.includes("document_key"))
-  console.log(test_results)
   const headers = Array.from(test_results.reduce((acc, item) => {
     const { test_data, results } = item.value;
     if (!!results) Object.keys(results).forEach(key => acc.add(key));    // fields
